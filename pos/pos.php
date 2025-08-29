@@ -1,3 +1,6 @@
+<?php
+    $currentPage = 'pos';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,214 +8,389 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pharmacy POS System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6; color: #1f2937; }
-        .header { background-color: #01A74F; color: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); position: sticky; top: 0; z-index: 30; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
-        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
-        @media (min-width: 640px) { .product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem; } }
-        .product-card { background-color: white; border-radius: 0.75rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; display: flex; flex-direction: column; }
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); }
-        .product-image { height: 130px; background-color: #f9fafb; display: flex; align-items: center; justify-content: center; position: relative; }
-        .product-image img { height: 100%; width: 100%; object-fit: cover; }
-        @media (min-width: 640px) { .product-image { height: 150px; } }
-        .product-image svg { width: 60px; height: 60px; }
-        @media (min-width: 640px) { .product-image svg { width: 70px; height: 70px; } }
-        .stock-badge { position: absolute; top: 10px; right: 10px; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.05); }
-        .in-stock { background-color: #dcfce7; color: #166534; } .low-stock { background-color: #fef3c7; color: #b45309; } .out-of-stock { background-color: #fee2e2; color: #b91c1c; }
-        .product-info { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; } .product-name { font-weight: 600; margin-bottom: 0.25rem; font-size: 1rem; }
-        .product-price { font-weight: 700; color: #01A74F; font-size: 1.1rem; margin-top: auto; }
-        .order-summary { background-color: white; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); padding: 1.5rem; }
-        @media (min-width: 768px) { .order-summary { position: sticky; top: 6rem; } }
-        .summary-header { font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb; } .summary-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid #f3f4f6; }
-        .summary-item:last-child { border-bottom: none; }
-        .summary-totals-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 0.5rem; }
-        .summary-total { font-weight: 700; margin-top: 0.5rem; padding-top: 0.75rem; border-top: 2px solid #e5e7eb; }
-        .btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background-color: #01A74F; color: white; box-shadow: 0 2px 4px rgba(1, 167, 79, 0.2); } .btn-primary:hover { background-color: #018d43; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(1, 167, 79, 0.3); }
-        .btn-primary:disabled { background-color: #a3e6be; cursor: not-allowed; transform: none; box-shadow: none; }
-        .quantity-selector { display: flex; align-items: center; background-color: #f3f4f6; border-radius: 9999px; border: 1px solid #e5e7eb; }
-        .quantity-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; font-size: 1.2rem; line-height: 1; color: #4b5563; transition: background-color 0.15s; }
-        .quantity-btn:hover { background-color: #e5e7eb; }
-        .quantity-input { width: 35px; text-align: center; border: none; font-size: 0.9rem; font-weight: 500; background: transparent; color: #1f2937; padding: 0; }
-        .remove-item-btn { color: #9ca3af; transition: color 0.15s; } .remove-item-btn:hover { color: #ef4444; }
-        .category-filter { display: flex; overflow-x: auto; gap: 0.5rem; padding-bottom: 0.75rem; margin-bottom: 1rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .category-filter::-webkit-scrollbar { display: none; }
-        .category-btn { white-space: nowrap; padding: 0.5rem 1rem; border-radius: 9999px; background-color: #e5e7eb; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-        .category-btn:hover { background-color: #d1d5db; } .category-btn.active { background-color: #01A74F; color: white; border-color: #01A74F; }
+        :root { 
+            --primary-green: #01A74F; 
+            --light-gray: #f7fafc; 
+            --border-gray: #e2e8f0;
+        }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background-color: var(--light-gray); 
+            color: #2d3748; 
+        }
+
+        /* Redesigned Components */
+        .product-card { 
+            background-color: white; 
+            border-radius: 0.75rem; 
+            border: 1px solid var(--border-gray); 
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            overflow: hidden; 
+            transition: transform 0.2s, box-shadow 0.2s; 
+            cursor: pointer; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .product-card:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .product-image-container { 
+            height: 140px; 
+            background-color: #f8f9fa; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+        }
+        .product-image-container img { 
+            height: 100%; 
+            width: 100%; 
+            object-fit: cover; 
+        }
+        .stock-badge { 
+            position: absolute; 
+            top: 12px; 
+            right: 12px; 
+            font-size: 0.75rem; 
+            font-weight: 500; 
+            padding: 0.2rem 0.6rem; 
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stock-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .in-stock { background-color: #e6fffa; color: #2c7a7b; } .in-stock .stock-dot { background-color: #38b2ac; }
+        .low-stock { background-color: #fffaf0; color: #c05621; } .low-stock .stock-dot { background-color: #ed8936; }
+        .out-of-stock { background-color: #fef2f2; color: #c53030; } .out-of-stock .stock-dot { background-color: #f56565; }
+
+        .order-summary { 
+            background-color: white; 
+            border-radius: 0.75rem; 
+            border: 1px solid var(--border-gray);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        @media (min-width: 1024px) { .order-summary-wrapper { position: sticky; top: 90px; } }
+        
+        .btn {
+            padding: 0.65rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { 
+            background-color: var(--primary-green); 
+            color: white; 
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .btn-primary:hover { 
+            background-color: #018d43; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-primary:disabled { 
+            background-color: #a3e6be; 
+            cursor: not-allowed; 
+            box-shadow: none; 
+        }
+        .btn-secondary {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+        .btn-secondary:hover {
+             background-color: #e2e8f0;
+        }
+        .category-btn { 
+            white-space: nowrap; 
+            padding: 0.5rem 1rem; 
+            border-radius: 0.5rem; 
+            background-color: #fff; 
+            font-size: 0.875rem; 
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            border: 1px solid var(--border-gray);
+            color: #4a5568;
+        }
+        .category-btn:hover { background-color: #f7fafc; } 
+        .category-btn.active { 
+            background-color: var(--primary-green); 
+            color: white; 
+            border-color: var(--primary-green); 
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .quantity-selector button:hover { background-color: #edf2f7; }
+        .remove-item-btn:hover { color: #e53e3e; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            pointer-events: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 28rem;
+            transform: scale(0.95);
+            transition: transform 0.2s ease-in-out;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
     </style>
+    <script>
+        // Add brand color to Tailwind config
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-green': '#01A74F',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="antialiased">
-    <header class="header">
-        <div class="container flex justify-between items-center">
-             <a href="inventory/products.php" class="flex items-center gap-3">
-                <img src="https://i.imgur.com/uDbzYp0.png" alt="MJ Pharmacy Logo" class="w-10 h-10 rounded-full bg-white object-cover shadow-md">
-                <h1 class="text-xl md:text-2xl font-bold tracking-tight">MJ Pharmacy POS</h1>
-            </a>
-            <div class="hidden md:flex items-center gap-2 text-sm bg-black bg-opacity-10 px-3 py-1.5 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <span id="current-date"></span>
-            </div>
-        </div>
-    </header>
-    
-    <main class="container py-4 md:py-6">
-        <div class="md:grid md:grid-cols-3 lg:grid-cols-5 md:gap-6">
-            <div class="md:col-span-2 lg:col-span-3">
-                <div class="mb-4 md:mb-6">
-                    <h2 class="text-2xl md:text-3xl font-bold mb-4">Products</h2>
-                    <div class="category-filter mt-4">
-                        </div>
+<body class="bg-gray-100">
+
+    <?php include 'pos_header.php'; ?>
+
+    <main class="p-4 sm:p-6 max-w-screen-2xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div class="lg:col-span-2 xl:col-span-3">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">Point of Sale</h1>
+                    <p class="text-gray-500 mt-1">Select products to add them to the order.</p>
                 </div>
                 
-                <div class="product-grid" id="product-grid">
-                    </div>
+                <!-- Search Bar -->
+                <div class="relative mb-6">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"></i>
+                    <input type="text" id="product-search" placeholder="Search by product name..." class="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green transition-shadow">
+                </div>
+
+                <div class="category-filter flex items-center gap-2 mb-6 overflow-x-auto pb-2"></div>
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="product-grid"></div>
             </div>
             
-            <div class="md:col-span-1 lg:col-span-2 mt-8 md:mt-0">
-                <div class="order-summary">
-                    <div class="summary-header">Order Summary</div>
-                    <div id="order-items" class="mb-4 divide-y divide-gray-100">
-                        <div class="text-center text-gray-500 py-8">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            <p class="mt-2 text-sm">Your cart is empty</p>
+            <div class="lg:col-span-1 xl:col-span-2 mt-8 lg:mt-0">
+                <div class="order-summary-wrapper">
+                    <div class="order-summary">
+                        <div class="p-5 border-b border-gray-200">
+                           <h2 class="text-lg font-semibold">Order Summary</h2>
+                        </div>
+                        <div id="order-items" class="p-2 max-h-[45vh] overflow-y-auto">
+                            <div class="text-center text-gray-400 py-16 px-4">
+                                <i data-lucide="shopping-cart" class="mx-auto h-12 w-12"></i>
+                                <p class="mt-4 text-sm">Your cart is empty</p>
+                            </div>
+                        </div>
+                        
+                        <div class="p-5 bg-gray-50 rounded-b-lg">
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center text-gray-600">
+                                    <span>Subtotal</span>
+                                    <span id="subtotal" class="font-medium">₱0.00</span>
+                                </div>
+                                 <div class="flex justify-between items-center text-gray-600">
+                                    <span>Discount</span>
+                                    <span class="font-medium text-red-500">-₱0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xl font-bold text-gray-800 pt-3 border-t border-gray-200">
+                                    <span>Total</span>
+                                    <span id="total" class="text-brand-green">₱0.00</span>
+                                </div>
+                            </div>
+                            
+                            <button id="checkout-btn" class="btn btn-primary w-full mt-6" disabled>
+                                <i data-lucide="credit-card" class="w-5 h-5"></i>
+                                <span>Proceed to Payment</span>
+                            </button>
                         </div>
                     </div>
-                    
-                    <div class="summary-totals-section">
-                        <div class="flex justify-between items-center text-gray-600">
-                            <span>Subtotal:</span>
-                            <span id="subtotal" class="font-medium">₱0.00</span>
-                        </div>
-                        <div class="summary-total flex justify-between items-center">
-                            <span class="text-lg">Total:</span>
-                            <span id="total" class="text-2xl font-bold text-green-600">₱0.00</span>
-                        </div>
-                    </div>
-                    
-                    <button id="checkout-btn" class="btn btn-primary w-full mt-6" disabled>
-                        Proceed to Payment
-                    </button>
                 </div>
             </div>
         </div>
     </main>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="p-5 border-b">
+                <h3 class="text-lg font-semibold">Payment</h3>
+            </div>
+            <div class="p-5">
+                <div class="text-center mb-6">
+                    <p class="text-gray-500 text-sm">Total Amount Due</p>
+                    <p id="modal-total-amount" class="text-4xl font-bold text-brand-green">₱0.00</p>
+                </div>
+                <form id="payment-form">
+                    <div>
+                        <label for="amount-paid" class="text-sm font-medium text-gray-700">Amount Paid</label>
+                        <input type="number" id="amount-paid" name="amount-paid" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-green focus:border-brand-green text-lg" placeholder="0.00" required>
+                    </div>
+                    <div class="mt-6 flex gap-3">
+                        <button type="button" id="cancel-payment-btn" class="btn btn-secondary w-full">Cancel</button>
+                        <button type="submit" class="btn btn-primary w-full">Confirm Payment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal-overlay">
+        <div class="modal-content text-center p-8">
+            <div class="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full mx-auto flex items-center justify-center">
+                <i data-lucide="check" class="w-10 h-10"></i>
+            </div>
+            <h3 class="text-2xl font-bold mt-6">Payment Successful</h3>
+            <p class="text-gray-500 mt-2">Change:</p>
+            <p id="change-amount" class="text-4xl font-bold text-gray-800 mt-1">₱0.00</p>
+            <button id="new-transaction-btn" class="btn btn-primary w-full mt-8">New Transaction</button>
+        </div>
+    </div>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
             let allProducts = [];
             let orderItems = [];
 
+            // DOM Elements
+            const productSearchInput = document.getElementById('product-search');
             const productGrid = document.getElementById('product-grid');
             const categoryFilterContainer = document.querySelector('.category-filter');
             const orderItemsContainer = document.getElementById('order-items');
             const subtotalElement = document.getElementById('subtotal');
             const totalElement = document.getElementById('total');
             const checkoutBtn = document.getElementById('checkout-btn');
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userMenu = document.getElementById('user-menu');
+            const dateTimeEl = document.getElementById('date-time');
+            const modalTotalAmount = document.getElementById('modal-total-amount');
+            const amountPaidInput = document.getElementById('amount-paid');
+            const paymentForm = document.getElementById('payment-form');
+            const cancelPaymentBtn = document.getElementById('cancel-payment-btn');
+            const changeAmountEl = document.getElementById('change-amount');
+            const newTransactionBtn = document.getElementById('new-transaction-btn');
+            const paymentModal = document.getElementById('payment-modal');
+            const successModal = document.getElementById('success-modal');
 
-            // --- Date and Time ---
+            if(userMenuButton) {
+                userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
+            }
+            window.addEventListener('click', (e) => {
+                if (userMenuButton && !userMenuButton.contains(e.target) && userMenu && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            });
             function updateDateTime() {
                 const now = new Date();
-                const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-                document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', dateOptions);
+                const options = { weekday: 'short', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                if (dateTimeEl) {
+                   dateTimeEl.textContent = now.toLocaleDateString('en-US', options);
+                }
             }
             updateDateTime();
+            setInterval(updateDateTime, 60000);
             
-            // --- Placeholder SVG for products without an image ---
-            const placeholderSVG = `<svg class="w-16 h-16 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor"><path d="M24 8h16v8H24z" opacity="0.3"/><path d="M40 6H24c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H24V8h16v8zm8 4H16c-2.2 0-4 1.8-4 4v32c0 2.2 1.8 4 4 4h32c2.2 0 4-1.8 4-4V24c0-2.2-1.8-4-4-4zm0 36H16V24h32v32z"/><path d="M32 28c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12-5.4-12-12-12zm0 20c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"/></svg>`;
+            const placeholderSVG = `<svg class="w-12 h-12 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4Z"/></svg>`;
 
-
-            // --- Data Fetching and Rendering ---
             async function fetchAndRenderData() {
                 try {
-                    // Fetch both products and categories from your new API endpoints
                     const [productsRes, categoriesRes] = await Promise.all([
-                        fetch('api/get_products.php'),
-                        fetch('api/get_categories.php')
+                        fetch('../api/get_products.php'),
+                        fetch('../api/get_categories.php')
                     ]);
                     allProducts = await productsRes.json();
                     const allCategories = await categoriesRes.json();
-                    
-                    renderProducts(allProducts);
                     renderCategoryFilters(allCategories);
+                    updateProductView(); // Initial render
                 } catch (error) {
-                    console.error('Failed to fetch data:', error);
-                    productGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Could not load products. Please check the connection.</p>`;
+                    productGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Could not load products.</p>`;
                 }
+            }
+
+            function updateProductView() {
+                const searchTerm = productSearchInput.value.toLowerCase();
+                const activeCategoryBtn = categoryFilterContainer.querySelector('.active');
+                const activeCategoryName = activeCategoryBtn ? activeCategoryBtn.dataset.name : 'all';
+
+                let filteredProducts = allProducts;
+
+                if (activeCategoryName !== 'all') {
+                    filteredProducts = filteredProducts.filter(p => p.category_name === activeCategoryName);
+                }
+
+                if (searchTerm) {
+                    filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
+                }
+                
+                renderProducts(filteredProducts);
             }
 
             function renderProducts(productsToRender) {
-                productGrid.innerHTML = '';
-                 if (productsToRender.length === 0) {
-                    productGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">No products found.</p>`;
+                if (productsToRender.length === 0) {
+                    productGrid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">No products found for the current filter.</p>`;
                     return;
                 }
-                productsToRender.forEach(p => {
-                    let stockBadgeClass = 'in-stock', stockStatus = `In Stock: ${p.stock}`;
-                    if (p.stock <= 0) { stockBadgeClass = 'out-of-stock'; stockStatus = 'Out of Stock'; }
-                    else if (p.stock <= 20) { stockBadgeClass = 'low-stock'; stockStatus = `Low Stock: ${p.stock}`; }
-
-                    // Use database image if available, otherwise show placeholder
-                    const imageContent = p.image_path ? `<img src="${p.image_path}" alt="${p.name}">` : placeholderSVG;
-                    
-                    const card = document.createElement('div');
-                    card.className = `product-card ${p.stock <= 0 ? 'opacity-60 grayscale' : ''}`;
-                    card.dataset.id = p.id;
-                    card.innerHTML = `
-                        <div class="product-image">${imageContent}<div class="stock-badge ${stockBadgeClass}">${stockStatus}</div></div>
-                        <div class="product-info">
-                            <div class="product-name">${p.name}</div>
-                            <div class="product-price">₱${Number(p.price).toFixed(2)}</div>
+                productGrid.innerHTML = productsToRender.map(p => {
+                    let stockBadgeClass = 'in-stock', stockStatusText = `In Stock`;
+                    if (p.stock <= 0) { stockBadgeClass = 'out-of-stock'; stockStatusText = 'Out of Stock'; }
+                    else if (p.stock <= 20) { stockBadgeClass = 'low-stock'; stockStatusText = `Low Stock`; }
+                    const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}">` : placeholderSVG;
+                    return `
+                        <div class="product-card ${p.stock <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-id="${p.id}">
+                            <div class="product-image-container">
+                                ${imageContent}
+                                <div class="stock-badge ${stockBadgeClass}"><span class="stock-dot"></span>${stockStatusText}</div>
+                            </div>
+                            <div class="p-4 flex flex-col flex-grow">
+                                <h3 class="font-semibold text-gray-800 text-sm flex-grow">${p.name}</h3>
+                                <p class="font-bold text-gray-900 mt-2">₱${Number(p.price).toFixed(2)}</p>
+                            </div>
                         </div>
                     `;
-                    productGrid.appendChild(card);
-                });
-
-                productGrid.querySelectorAll('.product-card').forEach(card => {
-                    card.addEventListener('click', () => {
-                        const product = allProducts.find(p => p.id === parseInt(card.dataset.id));
-                        if (product && product.stock > 0) {
-                            addToOrder(product, 1);
-                        }
-                    });
-                });
+                }).join('');
             }
 
             function renderCategoryFilters(categories) {
-                categoryFilterContainer.innerHTML = '';
-                const allBtn = document.createElement('div');
-                allBtn.className = 'category-btn active';
-                allBtn.textContent = 'All Products';
-                allBtn.dataset.categoryName = 'all';
-                categoryFilterContainer.appendChild(allBtn);
-
-                categories.forEach(cat => {
-                    const btn = document.createElement('div');
-                    btn.className = 'category-btn';
-                    btn.textContent = cat.name;
-                    btn.dataset.categoryName = cat.name;
-                    categoryFilterContainer.appendChild(btn);
-                });
-
-                categoryFilterContainer.querySelectorAll('.category-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        categoryFilterContainer.querySelector('.active').classList.remove('active');
-                        btn.classList.add('active');
-                        const categoryName = btn.dataset.categoryName;
-                        const filtered = categoryName === 'all'
-                            ? allProducts
-                            : allProducts.filter(p => p.category_name === categoryName);
-                        renderProducts(filtered);
-                    });
-                });
+                categoryFilterContainer.innerHTML = '<button class="category-btn active" data-name="all">All</button>' +
+                categories.map(cat => `<button class="category-btn" data-name="${cat.name}">${cat.name}</button>`).join('');
             }
             
-            // --- Cart Logic (Remains the same as your original file) ---
-            function addToOrder(product, quantity) {
+            function addToOrder(product) {
                 const existingItem = orderItems.find(item => item.id === product.id);
                 if (existingItem) {
-                    const newQuantity = existingItem.quantity + quantity;
-                    if (newQuantity > product.stock) { alert(`Sorry, only ${product.stock} units available.`); return; }
+                    const newQuantity = existingItem.quantity + 1;
+                    if (newQuantity > product.stock) { 
+                        alert(`Sorry, only ${product.stock} units of ${product.name} available.`); 
+                        return;
+                    }
                     existingItem.quantity = newQuantity;
                 } else {
                     orderItems.push({ ...product, quantity: 1 });
@@ -222,34 +400,117 @@
             
             function updateOrderSummary() {
                 if (orderItems.length === 0) {
-                    orderItemsContainer.innerHTML = `<div class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg><p class="mt-2 text-sm">Your cart is empty</p></div>`;
+                    orderItemsContainer.innerHTML = `<div class="text-center text-gray-400 py-16 px-4"><i data-lucide="shopping-cart" class="mx-auto h-12 w-12"></i><p class="mt-4 text-sm">Your cart is empty</p></div>`;
                 } else {
                     orderItemsContainer.innerHTML = orderItems.map((item, index) =>
-                        `<div class="summary-item"><div class="flex-grow"><div class="font-semibold text-sm">${item.name}</div><div class="text-xs text-gray-500">₱${item.price.toFixed(2)}</div></div><div class="flex items-center gap-4"><div class="quantity-selector"><div class="quantity-btn minus" data-index="${index}">-</div><input type="text" class="quantity-input" value="${item.quantity}" readonly><div class="quantity-btn plus" data-index="${index}">+</div></div><span class="font-bold w-20 text-right text-sm">₱${(item.price * item.quantity).toFixed(2)}</span><button class="remove-item-btn" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>`
+                        `<div class="flex items-center gap-4 p-3"><img src="${item.image_path ? `../${item.image_path}` : ''}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover bg-gray-100"><div class="flex-grow"><p class="font-semibold text-sm">${item.name}</p><p class="text-xs text-gray-500">₱${Number(item.price).toFixed(2)}</p></div><div class="flex items-center gap-2 text-sm"><div class="quantity-selector flex items-center border border-gray-200 rounded-md"><button class="minus p-1.5 transition" data-index="${index}"><i data-lucide="minus" class="w-4 h-4 text-gray-500"></i></button><input type="text" class="w-8 text-center font-medium bg-transparent" value="${item.quantity}" readonly><button class="plus p-1.5 transition" data-index="${index}"><i data-lucide="plus" class="w-4 h-4 text-gray-500"></i></button></div></div><button class="remove-item-btn p-1.5 rounded-md text-gray-400 transition" data-index="${index}"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`
                     ).join('');
-                
-                    orderItemsContainer.querySelectorAll('.remove-item-btn, .minus, .plus').forEach(el => {
-                        el.addEventListener('click', () => {
-                            const index = parseInt(el.dataset.index);
-                            const item = orderItems[index];
-                            if (el.classList.contains('remove-item-btn')) {
-                                orderItems.splice(index, 1);
-                            } else if (el.classList.contains('minus')) {
-                                if (item.quantity > 1) item.quantity--;
-                                else orderItems.splice(index, 1); // Remove if quantity becomes 0
-                            } else if (el.classList.contains('plus') && item.quantity < item.stock) {
-                                item.quantity++;
-                            }
-                            updateOrderSummary();
-                        });
-                    });
                 }
                 
                 const subtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
                 subtotalElement.textContent = `₱${subtotal.toFixed(2)}`;
                 totalElement.textContent = `₱${subtotal.toFixed(2)}`;
                 checkoutBtn.disabled = orderItems.length === 0;
+                lucide.createIcons();
             }
+
+            productSearchInput.addEventListener('input', updateProductView);
+
+            productGrid.addEventListener('click', (e) => {
+                const card = e.target.closest('.product-card');
+                if (card) {
+                    const productId = parseInt(card.dataset.id);
+                    const product = allProducts.find(p => p.id === productId);
+                    if (product && product.stock > 0) {
+                        addToOrder(product);
+                    }
+                }
+            });
+
+            orderItemsContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                const index = parseInt(button.dataset.index);
+                const item = orderItems[index];
+
+                if (button.classList.contains('remove-item-btn')) {
+                    orderItems.splice(index, 1);
+                } else if (button.classList.contains('minus')) {
+                    if (item.quantity > 1) item.quantity--;
+                    else orderItems.splice(index, 1);
+                } else if (button.classList.contains('plus')) {
+                    const product = allProducts.find(p => p.id === item.id);
+                    if (item.quantity < product.stock) {
+                        item.quantity++;
+                    } else {
+                        alert(`Maximum stock for ${item.name} reached.`);
+                    }
+                }
+                updateOrderSummary();
+            });
+
+            categoryFilterContainer.addEventListener('click', (e) => {
+                if (e.target.matches('.category-btn')) {
+                    categoryFilterContainer.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    updateProductView();
+                }
+            });
+
+            checkoutBtn.addEventListener('click', () => {
+                const total = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                modalTotalAmount.textContent = `₱${total.toFixed(2)}`;
+                paymentModal.classList.add('active');
+                amountPaidInput.focus();
+            });
+
+            cancelPaymentBtn.addEventListener('click', () => {
+                paymentModal.classList.remove('active');
+                paymentForm.reset();
+            });
+            
+            paymentForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const total = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const amountPaid = parseFloat(amountPaidInput.value);
+
+                if (amountPaid < total) {
+                    alert('Amount paid is less than the total amount.');
+                    return;
+                }
+                try {
+                    const response = await fetch('../api.php?action=process_sale', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderItems)
+                    });
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        alert(`Error processing sale: ${result.message}`);
+                        return;
+                    }
+
+                    const change = amountPaid - total;
+                    changeAmountEl.textContent = `₱${change.toFixed(2)}`;
+                    
+                    paymentModal.classList.remove('active');
+                    paymentForm.reset();
+                    successModal.classList.add('active');
+                    lucide.createIcons();
+
+                } catch (error) {
+                    alert('An error occurred while connecting to the server.');
+                }
+            });
+
+            newTransactionBtn.addEventListener('click', () => {
+                successModal.classList.remove('active');
+                orderItems = [];
+                updateOrderSummary();
+                fetchAndRenderData(); // Refresh products to show updated stock
+            });
 
             // Initial load
             fetchAndRenderData();
@@ -257,3 +518,4 @@
     </script>
 </body>
 </html>
+
