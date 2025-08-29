@@ -248,6 +248,7 @@
                         <div class="product-info text-center">
                             <h4 class="product-name">${product.name}</h4>
                             <p class="text-sm text-gray-500 mb-2">${product.category_name}</p>
+                            // --- UPDATED LABEL HERE ---
                             <p class="text-xs text-gray-400 mb-2">Total Stock: ${product.stock} | Total Item: ${Number(product.item_total)}</p>
                             <p class="product-price">₱${Number(product.price).toFixed(2)}</p>
                         </div>

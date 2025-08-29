@@ -14,23 +14,35 @@
     while($row = $categories_result->fetch_assoc()) {
         $categories[] = $row;
     }
+    
+    // Fetch product history
+    $history_result = $conn->query("SELECT h.*, c.name as category_name FROM product_history h JOIN categories c ON h.category_id = c.id ORDER BY h.deleted_at DESC");
+    $product_history = [];
+    while($row = $history_result->fetch_assoc()) {
+        $product_history[] = $row;
+    }
+
 
     // --- Calculate Corrected Summary Counts ---
     $not_expired_condition = "(expiration_date > CURDATE() OR expiration_date IS NULL)";
     $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
-    $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 10 AND stock > 0 AND " . $not_expired_condition);
+    $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 5 AND stock > 0 AND " . $not_expired_condition);
     $low_stock_count = $low_stock_count_result->fetch_assoc()['count'];
     $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
     $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE expiration_date <= CURDATE()");
     $expired_count = $expired_count_result->fetch_assoc()['count'];
+    // Count for history
+    $history_count = count($product_history);
+
 
     $summary_counts = [
         'available' => $available_count,
         'lowStock' => $low_stock_count,
         'expAlert' => $exp_alert_count,
-        'expired' => $expired_count
+        'expired' => $expired_count,
+        'history' => $history_count
     ];
 
     $conn->close();
@@ -58,19 +70,19 @@
 <body class="bg-gray-100">
     <div class="flex h-screen overflow-hidden">
 
-        <?php 
+        <?php
             $currentPage = 'inventory';
-            include '../partials/sidebar.php'; 
+            include '../partials/sidebar.php';
         ?>
 
         <div class="flex-1 flex flex-col overflow-hidden">
-            
+
             <?php include '../partials/header.php'; ?>
 
             <main class="flex-1 overflow-y-auto p-6">
                 <h2 class="text-3xl font-bold mb-6">Inventory Tracking</h2>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                     <button class="summary-card active p-4 rounded-lg text-left" data-view="available">
                         <p class="text-sm">Available Products</p>
                         <p id="count-available" class="text-2xl font-bold">0</p>
@@ -87,8 +99,12 @@
                         <p class="text-sm">Expired Products</p>
                         <p id="count-expired" class="text-2xl font-bold">0</p>
                     </button>
+                     <button class="summary-card p-4 rounded-lg text-left" data-view="history">
+                        <p class="text-sm">Product History</p>
+                        <p id="count-history" class="text-2xl font-bold">0</p>
+                    </button>
                 </div>
-                
+
                 <div class="mb-6 relative">
                     <input type="text" id="search-input" placeholder="Search by product name or lot number..." class="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                     <svg class="w-5 h-5 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
@@ -107,11 +123,12 @@
             </main>
         </div>
     </div>
-    
+
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
     <script>
-        const allProducts = <?php echo json_encode($products); ?>;
+        let allProducts = <?php echo json_encode($products); ?>;
+        const allHistory = <?php echo json_encode($product_history); ?>;
         const allCategories = <?php echo json_encode($categories); ?>;
         const summaryCounts = <?php echo json_encode($summary_counts); ?>;
 
@@ -155,20 +172,22 @@
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
-            // Table Headers Configuration (Unchanged)
+            // Table Headers Configuration
             const tableHeaders = {
-                available: ["#", "Product Name", "Stock", "Cost", "Price", "Item Total", "Supplier", "Action"],
+                available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Price", "Date Added", "Expiration Date", "Action"],
                 'low-stock': ["#", "Product Name", "Stock Level", "Item Total", "Action"],
-                'expiration-alert': ["#", "Product Name", "Stock", "Item Total", "Lot Num", "Expires In", "Expiration Date"],
-                'expired': ["#", "Product Name", "Stock", "Item Total", "Lot Num", "Expired On", "Supplier"]
+                'expiration-alert': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expires In", "Expiration Date"],
+                'expired': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expired On", "Supplier"],
+                'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
             };
-            
+
             // --- MAIN LOGIC ---
             function updateSummaryCounts() {
                 document.getElementById('count-available').textContent = summaryCounts.available;
                 document.getElementById('count-low-stock').textContent = summaryCounts.lowStock;
                 document.getElementById('count-exp-alert').textContent = summaryCounts.expAlert;
                 document.getElementById('count-expired').textContent = summaryCounts.expired;
+                document.getElementById('count-history').textContent = summaryCounts.history;
             }
 
             function renderCategoryButtons() {
@@ -181,7 +200,7 @@
                 const activeView = document.querySelector('.summary-card.active').dataset.view;
                 const activeCategory = document.querySelector('.category-btn.active').dataset.id;
                 const searchTerm = searchInput.value.toLowerCase();
-                
+
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const thirtyDaysFromNow = new Date(today);
@@ -206,7 +225,7 @@
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
                             const isNotExpired = !expDate || expDate > today;
-                            return p.stock <= 10 && p.stock > 0 && isNotExpired;
+                            return p.stock <= 5 && p.stock > 0 && isNotExpired;
                         });
                         break;
                     case 'expiration-alert':
@@ -221,6 +240,9 @@
                             return expDate && expDate <= today;
                         });
                         break;
+                    case 'history':
+                        viewFilteredProducts = allHistory;
+                        break;
                     default:
                         viewFilteredProducts = allProducts;
                         break;
@@ -228,48 +250,51 @@
 
                 let categoryFilteredProducts = viewFilteredProducts;
                 if (activeCategory !== 'all') {
+                     // History table has category_id, so it can be filtered too
                     categoryFilteredProducts = viewFilteredProducts.filter(p => p.category_id == activeCategory);
                 }
 
                 let finalProducts = categoryFilteredProducts;
                 if (searchTerm) {
-                    finalProducts = categoryFilteredProducts.filter(p => 
+                    finalProducts = categoryFilteredProducts.filter(p =>
                         p.name.toLowerCase().includes(searchTerm) ||
                         (p.lot_number && p.lot_number.toLowerCase().includes(searchTerm))
                     );
                 }
-                
+
                 renderTable(finalProducts, activeView);
             }
 
             function renderTable(productsToRender, view) {
                 tableHead.innerHTML = `<tr>${tableHeaders[view].map(h => `<th scope="col" class="px-6 py-3">${h}</th>`).join('')}</tr>`;
-                
+
                 if (productsToRender.length === 0) {
                     tableBody.innerHTML = `<tr><td colspan="${tableHeaders[view].length}" class="text-center py-8 text-gray-500">No products found.</td></tr>`;
                     return;
                 }
-                
+
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
                 tableBody.innerHTML = productsToRender.map((p, index) => {
                     let rowContent = '';
-                    let actionButton = `<button class="text-red-500 hover:text-red-700" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>`;
-                    
+                    // The data-id attribute holds the product ID for the delete action
+                    let actionButton = `<button class="text-red-500 hover:text-red-700 delete-btn" title="Delete" data-id="${p.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>`;
+
                     switch(view) {
                         case 'available':
                             rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
+                                <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
+                                <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
-                                <td class="px-6 py-4">₱${Number(p.cost).toFixed(2)}</td>
                                 <td class="px-6 py-4">₱${Number(p.price).toFixed(2)}</td>
-                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
-                                <td class="px-6 py-4">${p.supplier || 'N/A'}</td>
+                                <td class="px-6 py-4">${new Date(p.date_added).toLocaleDateString()}</td>
+                                <td class="px-6 py-4">${p.expiration_date || 'N/A'}</td>
                                 <td class="px-6 py-4">${actionButton}</td>`;
                             break;
                         case 'low-stock':
-                            rowContent = `
+                             rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>
                                 <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
@@ -282,8 +307,8 @@
                             rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
+                                <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-semibold text-yellow-600">${daysUntilExp} days</td>
                                 <td class="px-6 py-4">${p.expiration_date}</td>`;
                             break;
@@ -291,25 +316,74 @@
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
+                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold text-red-700">${p.expiration_date}</td>
                                 <td class="px-6 py-4">${p.supplier || 'N/A'}</td>`;
+                            break;
+                        case 'history':
+                             rowContent = `
+                                <td class="px-6 py-4">${p.name}</td>
+                                <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
+                                <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
+                                <td class="px-6 py-4 font-bold">${p.stock}</td>
+                                <td class="px-6 py-4">${new Date(p.deleted_at).toLocaleString()}</td>`;
                             break;
                     }
                     return `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${index + 1}</td>${rowContent}</tr>`;
                 }).join('');
             }
 
+            async function deleteProduct(productId) {
+                if (!confirm('Are you sure you want to delete this product? This will move it to history.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('../api.php?action=delete_product', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: productId })
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Find and remove the product from the local 'allProducts' array
+                        const index = allProducts.findIndex(p => p.id == productId);
+                        if (index > -1) {
+                            allProducts.splice(index, 1);
+                        }
+                        
+                        // NOTE: This will not auto-update the history view in real-time without another DB query.
+                        // For now, we just update the counts and the current view. A page refresh would show the history.
+                        summaryCounts.available--; // Or decrement other counts if needed
+                        updateSummaryCounts();
+                        updateTableView(); // Re-render the table with the product removed
+
+                        alert('Product successfully moved to history.');
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Deletion error:', error);
+                    alert('An unexpected error occurred during deletion.');
+                }
+            }
+
+
             // --- Event Listeners ---
             searchInput.addEventListener('input', updateTableView);
+
             summaryCards.forEach(card => {
                 card.addEventListener('click', () => {
                     summaryCards.forEach(c => c.classList.remove('active'));
                     card.classList.add('active');
+                    // Hide category filters for history view as it might be less relevant
+                    categoryBtnContainer.style.display = card.dataset.view === 'history' ? 'none' : 'flex';
                     updateTableView();
                 });
             });
+
             categoryBtnContainer.addEventListener('click', (e) => {
                 if(e.target.classList.contains('category-btn')) {
                     document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
@@ -317,6 +391,15 @@
                     updateTableView();
                 }
             });
+
+            // Event listener for delete buttons (using event delegation)
+            tableBody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-btn')) {
+                    const productId = e.target.dataset.id;
+                    deleteProduct(productId);
+                }
+            });
+
 
             // --- Initial Page Load ---
             updateSummaryCounts();

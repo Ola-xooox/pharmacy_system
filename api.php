@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require 'db_connect.php'; 
+require 'db_connect.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
@@ -8,17 +8,85 @@ switch ($action) {
     case 'add_product':
         handleProductAddition($conn);
         break;
+    // New case to handle product deletion
+    case 'delete_product':
+        handleProductDeletion($conn);
+        break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid action']);
 }
 
+function handleProductDeletion($conn) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $productId = isset($data['id']) ? (int)$data['id'] : 0;
+
+    if ($productId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid Product ID']);
+        return;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        // 1. Fetch the product details before deleting
+        $fetchStmt = $conn->prepare("SELECT * FROM products WHERE id = ?");
+        $fetchStmt->bind_param("i", $productId);
+        $fetchStmt->execute();
+        $productData = $fetchStmt->get_result()->fetch_assoc();
+        $fetchStmt->close();
+
+        if (!$productData) {
+            throw new Exception("Product not found.");
+        }
+
+        // 2. Insert the product into the history table
+        $historySql = "INSERT INTO product_history (product_id, name, lot_number, category_id, price, cost, stock, item_total, date_added, expiration_date, supplier, batch_number, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $historyStmt = $conn->prepare($historySql);
+        $historyStmt->bind_param(
+            "issiddsdsssss",
+            $productData['id'],
+            $productData['name'],
+            $productData['lot_number'],
+            $productData['category_id'],
+            $productData['price'],
+            $productData['cost'],
+            $productData['stock'],
+            $productData['item_total'],
+            $productData['date_added'],
+            $productData['expiration_date'],
+            $productData['supplier'],
+            $productData['batch_number'],
+            $productData['image_path']
+        );
+        $historyStmt->execute();
+        $historyStmt->close();
+
+        // 3. Delete the product from the main products table
+        $deleteStmt = $conn->prepare("DELETE FROM products WHERE id = ?");
+        $deleteStmt->bind_param("i", $productId);
+        $deleteStmt->execute();
+        $deleteStmt->close();
+
+        // Commit the transaction
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Product moved to history.']);
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Failed to delete product: ' . $e->getMessage()]);
+    }
+
+    $conn->close();
+}
+
+
 function handleProductAddition($conn) {
     // Sanitize product name to ensure consistent matching
     $productName = trim($_POST['name']);
-    
-    // Check if product already exists
-    $stmt = $conn->prepare("SELECT * FROM products WHERE name = ?");
-    $stmt->bind_param("s", $productName);
+
+    // Check if product with the same name AND lot number already exists
+    $stmt = $conn->prepare("SELECT * FROM products WHERE name = ? AND lot_number = ?");
+    $stmt->bind_param("ss", $productName, $_POST['lot_number']);
     $stmt->execute();
     $result = $stmt->get_result();
     $existingProduct = $result->fetch_assoc();
@@ -29,15 +97,14 @@ function handleProductAddition($conn) {
         $newStock = $existingProduct['stock'] + (int)$_POST['stock'];
         $newItemTotal = $existingProduct['item_total'] + (float)$_POST['item_total'];
 
-        $sql = "UPDATE products SET stock = ?, item_total = ?, price = ?, cost = ?, lot_number = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
+        $sql = "UPDATE products SET stock = ?, item_total = ?, price = ?, cost = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
         $updateStmt = $conn->prepare($sql);
         $updateStmt->bind_param(
-            "iddsssssi",
+            "iddssssi",
             $newStock,
             $newItemTotal,
             $_POST['price'],
             $_POST['cost'],
-            $_POST['lot_number'],
             $_POST['batch_number'],
             $_POST['expiration_date'],
             $_POST['supplier'],
@@ -50,7 +117,7 @@ function handleProductAddition($conn) {
             $fetchStmt->bind_param("i", $existingProduct['id']);
             $fetchStmt->execute();
             $updatedProductData = $fetchStmt->get_result()->fetch_assoc();
-            
+
             echo json_encode(['success' => true, 'action' => 'updated', 'product' => $updatedProductData]);
         } else {
             echo json_encode(['success' => false, 'message' => $updateStmt->error]);
@@ -89,10 +156,10 @@ function handleProductAddition($conn) {
             $fileName = uniqid() . '_' . basename($_FILES["image"]["name"]);
             $targetFile = $targetDir . $fileName;
             if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFile)) {
-                $imagePath = 'uploads/' . $fileName; 
+                $imagePath = 'uploads/' . $fileName;
             }
         }
-        
+
         $sql = "INSERT INTO products (name, lot_number, category_id, price, cost, date_added, expiration_date, supplier, batch_number, image_path, stock, item_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $insertStmt = $conn->prepare($sql);
         $dateAdded = date('Y-m-d H:i:s');
