@@ -1,4 +1,6 @@
-<?php $currentPage = 'inventory_report'; ?>
+<?php 
+session_start();
+$currentPage = 'inventory_report'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

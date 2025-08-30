@@ -1,4 +1,6 @@
-<?php $currentPage = 'user_activity_log'; ?>
+<?php 
+session_start();
+$currentPage = 'user_activity_log'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,3 +1,8 @@
+<?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+?>
 <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
      <div class="flex items-center justify-between p-4 max-w-screen-2xl mx-auto">
         <div class="flex items-center gap-3">
@@ -20,10 +25,14 @@
                      <?php
                         $userName = $_SESSION['name'] ?? 'User';
                         $userInitial = strtoupper(substr($userName, 0, 1));
+                        $profileImage = $_SESSION['profile_image'] ?? null;
+
+                        if ($profileImage) {
+                            echo '<img class="w-9 h-9 rounded-full object-cover" src="../' . htmlspecialchars($profileImage) . '" alt="User profile">';
+                        } else {
+                            echo '<div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">' . htmlspecialchars($userInitial) . '</div>';
+                        }
                     ?>
-                    <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">
-                        <?php echo htmlspecialchars($userInitial); ?>
-                    </div>
                 </button>
                 <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden" role="menu">
                     <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>

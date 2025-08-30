@@ -1,4 +1,5 @@
 <?php
+    session_start();
     $currentPage = 'pos';
 ?>
 <!DOCTYPE html>

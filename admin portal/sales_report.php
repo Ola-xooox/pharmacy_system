@@ -1,4 +1,6 @@
-<?php $currentPage = 'sales_report'; ?>
+<?php 
+session_start();
+$currentPage = 'sales_report'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

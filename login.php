@@ -16,6 +16,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = $user['role'];
+        // --- Important Lines Below ---
+        $_SESSION['name'] = $user['name']; // Stores the user's full name
+        $_SESSION['profile_image'] = $user['profile_image']; // Stores the profile image path
 
         switch ($user['role']) {
             case 'pos':
@@ -28,15 +31,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: cms/costumer.html");
                 break;
             case 'admin':
-                header("Location: admin portal/admin.html");
+                header("Location: admin portal/dashboard.php");
                 break;
             default:
-                header("Location: login.html");
+                header("Location: login.php");
                 break;
         }
         exit();
     } else {
-        echo "<script>alert('Invalid username or password'); window.location.href = 'login.html';</script>";
+        echo "<script>alert('Invalid username or password'); window.location.href = 'login.php';</script>";
     }
 }
 ?>
@@ -64,7 +67,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-radius: 1rem;
             border: 1px solid #e5e7eb;
             width: 100%;
-            max-width: 25rem; /* Slightly wider */
+            max-width: 25rem;
             padding: 2.5rem;
         }
         
@@ -73,7 +76,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             height: 4rem;
             margin: 0 auto 1.5rem auto;
             border-radius: 50%;
-            background-color: #e0f2f1; /* Light green background */
+            background-color: #e0f2f1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -82,7 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .pharmacy-logo-svg {
             width: 2rem;
             height: 2rem;
-            color: #01A74F; /* Main green color */
+            color: #01A74F;
         }
         
         .form-group {
@@ -112,7 +115,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         .form-input {
             width: 100%;
-            padding: 0.65rem 1rem 0.65rem 2.5rem; /* Adjusted padding for icon */
+            padding: 0.65rem 1rem 0.65rem 2.5rem;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             transition: all 0.2s;
@@ -130,7 +133,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             width: 100%;
             background-color: #01A74F;
             color: white;
-            font-weight: 600; /* Bolder */
+            font-weight: 600;
             padding: 0.75rem 1rem;
             border-radius: 0.5rem;
             transition: all 0.2s ease-in-out;

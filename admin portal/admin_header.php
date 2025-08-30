@@ -1,3 +1,8 @@
+<?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+?>
 <header class="bg-white shadow-sm border-b border-gray-200">
     <div class="flex items-center p-4">
         <button id="sidebar-toggle-btn" class="p-2 rounded-full hover:bg-gray-100">
@@ -18,10 +23,14 @@
                     <?php
                         $userName = $_SESSION['name'] ?? 'Admin';
                         $userInitial = strtoupper(substr($userName, 0, 1));
+                        $profileImage = $_SESSION['profile_image'] ?? null;
+
+                        if ($profileImage) {
+                            echo '<img class="w-8 h-8 rounded-full object-cover" src="../' . htmlspecialchars($profileImage) . '" alt="User profile">';
+                        } else {
+                            echo '<div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">' . htmlspecialchars($userInitial) . '</div>';
+                        }
                     ?>
-                    <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-                        <?php echo htmlspecialchars($userInitial); ?>
-                    </div>
                 </button>
                 <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden" role="menu">
                     <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>

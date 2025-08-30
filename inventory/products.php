@@ -1,4 +1,5 @@
 <?php
+session_start();
     require '../db_connect.php';
 
     // This query correctly groups products by name and sums their totals.

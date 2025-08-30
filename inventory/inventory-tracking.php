@@ -1,4 +1,5 @@
 <?php
+session_start();
     require '../db_connect.php';
 
     // --- Fetch Grouped Data for JavaScript ---
