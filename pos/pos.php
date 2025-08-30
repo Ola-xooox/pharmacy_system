@@ -225,7 +225,6 @@
                     <p class="text-gray-500 mt-1">Select products to add them to the order.</p>
                 </div>
                 
-                <!-- Search Bar -->
                 <div class="relative mb-6">
                     <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"></i>
                     <input type="text" id="product-search" placeholder="Search by product name..." class="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green transition-shadow">
@@ -238,8 +237,7 @@
                     </div>
                     <div class="border-l border-gray-300 h-6 mx-2"></div>
                     <div id="category-filter-container" class="flex items-center gap-2 overflow-x-auto">
-                        <!-- Categories will be injected here by JS -->
-                    </div>
+                        </div>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6" id="product-grid"></div>
             </div>
@@ -293,7 +291,6 @@
         </div>
     </main>
 
-    <!-- Discount Payment Modal -->
     <div id="discount-payment-modal" class="modal-overlay">
         <div class="modal-content !max-w-lg">
              <div class="p-4 sm:p-6">
@@ -356,7 +353,6 @@
         </div>
     </div>
     
-    <!-- Regular Payment Modal -->
     <div id="regular-payment-modal" class="modal-overlay">
         <div class="modal-content !max-w-lg">
              <div class="p-4 sm:p-6">
@@ -406,16 +402,12 @@
     </div>
 
 
-    <!-- Receipt Modal -->
     <div id="receipt-modal" class="modal-overlay">
         <div class="modal-content !max-w-sm">
              <div class="p-6">
                 <div class="text-center">
-                    <div class="inline-block bg-brand-green p-2 rounded-full text-white">
-                        <i data-lucide="plus" class="w-6 h-6"></i>
-                    </div>
+                    <img src="../mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-16 h-16 mx-auto mb-2 rounded-full">
                     <h2 class="text-xl font-bold mt-2">MJ PHARMACY</h2>
-                    <p class="text-sm text-gray-500">Address #</p>
                 </div>
                 
                 <div class="my-6 border-t border-dashed"></div>
@@ -466,6 +458,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             let allProducts = [];
+            let allCategories = [];
             let orderItems = [];
 
             // DOM Elements
@@ -487,17 +480,12 @@
             const discountPaymentModal = document.getElementById('discount-payment-modal');
             const regularPaymentModal = document.getElementById('regular-payment-modal');
             const receiptModal = document.getElementById('receipt-modal');
-            
             const discountPaymentForm = document.getElementById('discount-payment-form');
             const regularPaymentForm = document.getElementById('regular-payment-form');
-            
             const cancelDiscountPaymentBtn = document.getElementById('cancel-discount-payment-btn');
             const cancelRegularPaymentBtn = document.getElementById('cancel-regular-payment-btn');
-
             const newTransactionBtn = document.getElementById('new-transaction-btn');
             const printReceiptBtn = document.getElementById('print-receipt-btn');
-
-            // Discount Modal fields
             const discountModalItemsCount = document.getElementById('discount-modal-items-count');
             const discountModalSubtotal = document.getElementById('discount-modal-subtotal');
             const discountModalDiscount = document.getElementById('discount-modal-discount');
@@ -505,16 +493,11 @@
             const discountPaymentMethodContainer = document.getElementById('discount-payment-method-container');
             const discountCustomerNameInput = document.getElementById('discount-customer-name');
             const discountIdNumberInput = document.getElementById('discount-id-number');
-            
-            // Regular Modal fields
             const regularModalItemsCount = document.getElementById('regular-modal-items-count');
             const regularModalSubtotal = document.getElementById('regular-modal-subtotal');
             const regularModalTotalAmount = document.getElementById('regular-modal-total-amount');
             const regularPaymentMethodContainer = document.getElementById('regular-payment-method-container');
             const regularCustomerNameInput = document.getElementById('regular-customer-name');
-
-
-            // Receipt Modal fields
             const receiptDate = document.getElementById('receipt-date');
             const receiptNo = document.getElementById('receipt-no');
             const receiptCustomer = document.getElementById('receipt-customer');
@@ -524,7 +507,6 @@
             const receiptSubtotal = document.getElementById('receipt-subtotal');
             const receiptDiscount = document.getElementById('receipt-discount');
             const receiptTotal = document.getElementById('receipt-total');
-
 
             if(userMenuButton) {
                 userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
@@ -546,44 +528,37 @@
             
             const placeholderSVG = `<svg class="w-16 h-16 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>`;
 
-            async function fetchAndRenderData() {
+            async function fetchProducts(status = 'available') {
                 try {
-                    const [productsRes, categoriesRes] = await Promise.all([
-                        fetch('../api/get_products.php'),
-                        fetch('../api/get_categories.php')
-                    ]);
-                    allProducts = await productsRes.json();
-                    const allCategories = await categoriesRes.json();
-                    renderCategoryFilters(allCategories);
-                    updateProductView(); // Initial render
+                    const response = await fetch(`../api/get_products.php?status=${status}`);
+                    allProducts = await response.json();
+                    updateProductView();
                 } catch (error) {
                     productGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Could not load products.</p>`;
                 }
             }
 
+            async function fetchCategories() {
+                 try {
+                    const response = await fetch('../api/get_categories.php');
+                    allCategories = await response.json();
+                    renderCategoryFilters(allCategories);
+                } catch (error) {
+                    console.error("Could not load categories", error);
+                }
+            }
+
             function updateProductView() {
                 const searchTerm = productSearchInput.value.toLowerCase();
-                const activeStockBtn = stockStatusFilter.querySelector('.active');
-                const activeStockStatus = activeStockBtn ? activeStockBtn.dataset.stockStatus : 'available';
-                
                 const activeCategoryBtn = categoryFilterContainer.querySelector('.active');
                 const activeCategoryName = activeCategoryBtn ? activeCategoryBtn.dataset.name : 'all';
 
                 let filteredProducts = allProducts;
                 
-                // 1. Filter by stock status
-                if (activeStockStatus === 'available') {
-                    filteredProducts = filteredProducts.filter(p => p.item_total > 0);
-                } else if (activeStockStatus === 'outOfStock') {
-                    filteredProducts = filteredProducts.filter(p => p.item_total <= 0);
-                }
-
-                // 2. Filter by category
                 if (activeCategoryName !== 'all') {
                     filteredProducts = filteredProducts.filter(p => p.category_name === activeCategoryName);
                 }
 
-                // 3. Filter by search term
                 if (searchTerm) {
                     filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
                 }
@@ -606,7 +581,7 @@
                     const stockStatus = getStockStatus(p.item_total);
                     const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}" class="product-image">` : placeholderSVG;
                     return `
-                        <div class="product-card ${p.item_total <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-id="${p.id}">
+                        <div class="product-card ${p.item_total <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-name="${p.product_identifier}">
                              <div class="product-image-container">
                                 ${imageContent}
                                 <div class="stock-badge ${stockStatus.class}">${stockStatus.text}</div>
@@ -629,7 +604,7 @@
             
             function addToOrder(product) {
                 if(product.item_total <= 0) return;
-                const existingItem = orderItems.find(item => item.id == product.id);
+                const existingItem = orderItems.find(item => item.name === product.name);
                 if (existingItem) {
                     const newQuantity = existingItem.quantity + 1;
                     if (newQuantity > product.item_total) { 
@@ -669,8 +644,8 @@
             productGrid.addEventListener('click', (e) => {
                 const card = e.target.closest('.product-card');
                 if (card) {
-                    const productId = parseInt(card.dataset.id);
-                    const product = allProducts.find(p => p.id == productId);
+                    const productName = card.dataset.name;
+                    const product = allProducts.find(p => p.name === productName);
                     if (product) {
                         addToOrder(product);
                     }
@@ -690,7 +665,7 @@
                     if (item.quantity > 1) item.quantity--;
                     else orderItems.splice(index, 1);
                 } else if (button.classList.contains('plus')) {
-                    const product = allProducts.find(p => p.id == item.id);
+                    const product = allProducts.find(p => p.name == item.name);
                     if (product && item.quantity < product.item_total) {
                         item.quantity++;
                     } else {
@@ -700,13 +675,16 @@
                 updateOrderSummary();
             });
 
+
             stockStatusFilter.addEventListener('click', (e) => {
                 if (e.target.matches('.category-btn')) {
                     stockStatusFilter.querySelector('.active').classList.remove('active');
                     e.target.classList.add('active');
-                    updateProductView();
+                    const status = e.target.dataset.stockStatus;
+                    fetchProducts(status);
                 }
             });
+
 
             categoryFilterContainer.addEventListener('click', (e) => {
                 if (e.target.matches('.category-btn')) {
@@ -726,7 +704,6 @@
                 const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0);
                 
                 if (discountRate > 0) {
-                    // Show discount modal
                     discountModalItemsCount.textContent = totalItems;
                     discountModalSubtotal.textContent = `₱${subtotal.toFixed(2)}`;
                     discountModalDiscount.textContent = `-₱${discountAmount.toFixed(2)}`;
@@ -735,7 +712,6 @@
                     updatePaymentMethodStyles(discountPaymentMethodContainer);
 
                 } else {
-                    // Show regular modal
                     regularModalItemsCount.textContent = totalItems;
                     regularModalSubtotal.textContent = `₱${subtotal.toFixed(2)}`;
                     regularModalTotalAmount.textContent = `₱${total.toFixed(2)}`;
@@ -848,7 +824,7 @@
                 orderItems = [];
                 discountSelector.value = "0";
                 updateOrderSummary();
-                fetchAndRenderData(); // Refresh products to show updated stock
+                fetchProducts(); 
             });
             
             printReceiptBtn.addEventListener('click', () => {
@@ -861,13 +837,11 @@
                     const radio = label.querySelector('input[type="radio"]');
                     const icon = label.querySelector('i');
 
-                    // Reset styles
                     label.classList.remove('border-brand-green', 'bg-green-50', 'border-blue-500', 'bg-blue-50');
                     label.classList.add('border-gray-200', 'bg-gray-50');
                     icon.classList.remove('text-brand-green', 'text-blue-500');
                     icon.classList.add('text-gray-600');
 
-                    // Apply styles to the checked one
                     if (radio.checked) {
                         const activeIcon = label.querySelector('i');
                         if (radio.value === 'cash') {
@@ -892,9 +866,9 @@
                 regularPaymentMethodContainer.addEventListener('change', () => updatePaymentMethodStyles(regularPaymentMethodContainer));
             }
 
-
             // Initial load
-            fetchAndRenderData();
+            fetchProducts();
+            fetchCategories();
         });
     </script>
 </body>

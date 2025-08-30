@@ -18,6 +18,9 @@ switch ($action) {
         echo json_encode(['success' => false, 'message' => 'Invalid action']);
 }
 
+/**
+ * Handles processing a sale and now logs the transaction to purchase_history.
+ */
 function handleSaleProcessing($conn) {
     $orderData = json_decode(file_get_contents('php://input'), true);
 
@@ -29,40 +32,170 @@ function handleSaleProcessing($conn) {
     $conn->begin_transaction();
 
     try {
-        // Prepare the statement once outside the loop for efficiency
-        $stmt = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
-        
+        $updateStmt = $conn->prepare("UPDATE products SET stock = ?, item_total = ? WHERE id = ?");
+        // New statement to insert into purchase history
+        $historyStmt = $conn->prepare("INSERT INTO purchase_history (product_name, quantity, total_price, transaction_date) VALUES (?, ?, ?, ?)");
+
         foreach ($orderData as $item) {
-            // Ensure data types are correct
-            $quantity = (int) $item['quantity'];
-            $id = (int) $item['id'];
-            
-            // Bind parameters and execute for each item in the order
-            $stmt->bind_param("iii", $quantity, $id, $quantity);
-            $stmt->execute();
-            
-            // Check if the update was successful for this item
-            if ($stmt->affected_rows == 0) {
-                // If 0 rows were affected, it means the stock was insufficient or product ID was invalid
-                // This will trigger the catch block and rollback the entire transaction
-                $productName = isset($item['name']) ? $item['name'] : "ID: " . $id;
-                throw new Exception("Insufficient stock for product: " . $productName);
+            $product_name = $item['name'];
+            $quantity_to_sell = (int) $item['quantity'];
+
+            // Step 1: Fetch all available, non-expired lots for this product name, ordered by expiration date (FEFO).
+            $fetchLotsStmt = $conn->prepare(
+                "SELECT id, item_total, items_per_stock FROM products 
+                 WHERE name = ? AND item_total > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
+                 ORDER BY expiration_date ASC"
+            );
+            $fetchLotsStmt->bind_param("s", $product_name);
+            $fetchLotsStmt->execute();
+            $lots = $fetchLotsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $fetchLotsStmt->close();
+
+            // Step 2: Verify if the total available items across all lots is enough for the sale.
+            $total_available_items = array_sum(array_column($lots, 'item_total'));
+            if ($quantity_to_sell > $total_available_items) {
+                throw new Exception("Insufficient stock for product: " . htmlspecialchars($product_name) . ". Requested: " . $quantity_to_sell, 400);
             }
+
+            // Step 3: Loop through the lots and deduct items.
+            $quantity_remaining_to_sell = $quantity_to_sell;
+            foreach ($lots as $lot) {
+                if ($quantity_remaining_to_sell <= 0) break;
+
+                $items_in_this_lot = (int) $lot['item_total'];
+                $items_to_take_from_lot = min($quantity_remaining_to_sell, $items_in_this_lot);
+                
+                $new_item_total = $items_in_this_lot - $items_to_take_from_lot;
+                $items_per_stock = (int) $lot['items_per_stock'];
+
+                if ($items_per_stock <= 0) {
+                    throw new Exception("Product configuration error: 'items_per_stock' is not set for product ID: " . $lot['id']);
+                }
+                
+                $new_stock = floor($new_item_total / $items_per_stock);
+                if ($new_item_total <= 0) $new_stock = 0;
+
+                $updateStmt->bind_param("iii", $new_stock, $new_item_total, $lot['id']);
+                $updateStmt->execute();
+
+                $quantity_remaining_to_sell -= $items_to_take_from_lot;
+            }
+
+            // Step 4: After successfully updating stock, log the sale to purchase_history.
+            $total_price = (float)$item['price'] * $quantity_to_sell;
+            $transaction_date = date('Y-m-d H:i:s');
+            $historyStmt->bind_param("sids", $product_name, $quantity_to_sell, $total_price, $transaction_date);
+            $historyStmt->execute();
         }
         
-        $stmt->close();
-        
-        // If all items were processed successfully, commit the transaction
+        $updateStmt->close();
+        $historyStmt->close();
         $conn->commit();
-        echo json_encode(['success' => true, 'message' => 'Sale processed and stock updated.']);
+        echo json_encode(['success' => true, 'message' => 'Sale processed successfully.']);
 
     } catch (Exception $e) {
-        // If any part of the process fails, roll back all database changes
         $conn->rollback();
+        // Return a specific HTTP status code for client-side handling if needed
+        $errorCode = $e->getCode() == 400 ? 400 : 500;
+        http_response_code($errorCode);
         echo json_encode(['success' => false, 'message' => 'Failed to process sale: ' . $e->getMessage()]);
     }
 
     $conn->close();
+}
+
+
+function handleProductAddition($conn) {
+    // This logic handles updating an existing product's stock
+    $productName = trim($_POST['name']);
+    $stmt = $conn->prepare("SELECT * FROM products WHERE name = ? AND lot_number = ?");
+    $stmt->bind_param("ss", $productName, $_POST['lot_number']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $existingProduct = $result->fetch_assoc();
+    $stmt->close();
+
+    if ($existingProduct) {
+        $newStock = $existingProduct['stock'] + (int)$_POST['stock'];
+        $newItemTotal = $existingProduct['item_total'] + (int)$_POST['item_total'];
+
+        $sql = "UPDATE products SET stock = ?, item_total = ?, price = ?, cost = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
+        $updateStmt = $conn->prepare($sql);
+        $updateStmt->bind_param( "iddssssi", $newStock, $newItemTotal, $_POST['price'], $_POST['cost'], $_POST['batch_number'], $_POST['expiration_date'], $_POST['supplier'], $existingProduct['id'] );
+
+        if ($updateStmt->execute()) {
+            $fetchStmt = $conn->prepare("SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE p.id = ?");
+            $fetchStmt->bind_param("i", $existingProduct['id']);
+            $fetchStmt->execute();
+            $updatedProductData = $fetchStmt->get_result()->fetch_assoc();
+            echo json_encode(['success' => true, 'action' => 'updated', 'product' => $updatedProductData]);
+        } else {
+            echo json_encode(['success' => false, 'message' => $updateStmt->error]);
+        }
+        $updateStmt->close();
+
+    } else {
+        // This logic handles adding a completely new product
+        $stock_to_add = (int)$_POST['stock'];
+        $items_to_add = (int)$_POST['item_total'];
+        $items_per_stock = ($stock_to_add > 0) ? ($items_to_add / $stock_to_add) : 0;
+        
+        $newlyCreatedCategory = null;
+        $categoryId = $_POST['category'];
+        $newCategoryName = isset($_POST['new_category']) ? trim($_POST['new_category']) : '';
+
+        if ($categoryId === 'others' && !empty($newCategoryName)) {
+            $catStmt = $conn->prepare("SELECT id FROM categories WHERE name = ?");
+            $catStmt->bind_param("s", $newCategoryName);
+            $catStmt->execute();
+            $catResult = $catStmt->get_result();
+            if ($row = $catResult->fetch_assoc()) {
+                $categoryId = $row['id'];
+            } else {
+                $insertCatStmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
+                $insertCatStmt->bind_param("s", $newCategoryName);
+                $insertCatStmt->execute();
+                $categoryId = $insertCatStmt->insert_id;
+                $newlyCreatedCategory = ['id' => $categoryId, 'name' => $newCategoryName];
+                $insertCatStmt->close();
+            }
+            $catStmt->close();
+        }
+
+        $imagePath = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+            $targetDir = "../uploads/";
+            if (!file_exists($targetDir)) mkdir($targetDir, 0777, true);
+            $fileName = uniqid() . '_' . basename($_FILES["image"]["name"]);
+            $targetFile = $targetDir . $fileName;
+            if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFile)) {
+                $imagePath = 'uploads/' . $fileName;
+            }
+        }
+
+        $sql = "INSERT INTO products (name, lot_number, category_id, price, cost, date_added, expiration_date, supplier, batch_number, image_path, stock, item_total, items_per_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $insertStmt = $conn->prepare($sql);
+        $dateAdded = date('Y-m-d H:i:s');
+
+        $insertStmt->bind_param( "ssiddsssssidi", $productName, $_POST['lot_number'], $categoryId, $_POST['price'], $_POST['cost'], $dateAdded, $_POST['expiration_date'], $_POST['supplier'], $_POST['batch_number'], $imagePath, $stock_to_add, $items_to_add, $items_per_stock );
+
+        if ($insertStmt->execute()) {
+            $newProductId = $insertStmt->insert_id;
+            $fetchStmt = $conn->prepare("SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE p.id = ?");
+            $fetchStmt->bind_param("i", $newProductId);
+            $fetchStmt->execute();
+            $newProductData = $fetchStmt->get_result()->fetch_assoc();
+
+            $response = ['success' => true, 'action' => 'inserted', 'product' => $newProductData];
+            if ($newlyCreatedCategory) {
+                 $response['newCategory'] = $newlyCreatedCategory;
+            }
+            echo json_encode($response);
+        } else {
+            echo json_encode(['success' => false, 'message' => $insertStmt->error]);
+        }
+        $insertStmt->close();
+    }
 }
 
 
@@ -122,103 +255,5 @@ function handleProductDeletion($conn) {
         echo json_encode(['success' => false, 'message' => 'Failed to delete product: ' . $e->getMessage()]);
     }
 }
-
-
-function handleProductAddition($conn) {
-    $productName = trim($_POST['name']);
-    $stmt = $conn->prepare("SELECT * FROM products WHERE name = ? AND lot_number = ?");
-    $stmt->bind_param("ss", $productName, $_POST['lot_number']);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $existingProduct = $result->fetch_assoc();
-    $stmt->close();
-
-    if ($existingProduct) {
-        $newStock = $existingProduct['stock'] + (int)$_POST['stock'];
-        $newItemTotal = $existingProduct['item_total'] + (float)$_POST['item_total'];
-
-        $sql = "UPDATE products SET stock = ?, item_total = ?, price = ?, cost = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
-        $updateStmt = $conn->prepare($sql);
-        $updateStmt->bind_param(
-            "iddssssi",
-            $newStock,
-            $newItemTotal,
-            $_POST['price'],
-            $_POST['cost'],
-            $_POST['batch_number'],
-            $_POST['expiration_date'],
-            $_POST['supplier'],
-            $existingProduct['id']
-        );
-
-        if ($updateStmt->execute()) {
-            $fetchStmt = $conn->prepare("SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE p.id = ?");
-            $fetchStmt->bind_param("i", $existingProduct['id']);
-            $fetchStmt->execute();
-            $updatedProductData = $fetchStmt->get_result()->fetch_assoc();
-
-            echo json_encode(['success' => true, 'action' => 'updated', 'product' => $updatedProductData]);
-        } else {
-            echo json_encode(['success' => false, 'message' => $updateStmt->error]);
-        }
-        $updateStmt->close();
-
-    } else {
-        $newlyCreatedCategory = null;
-        $categoryId = $_POST['category'];
-        $newCategoryName = isset($_POST['new_category']) ? trim($_POST['new_category']) : '';
-
-        if ($categoryId === 'others' && !empty($newCategoryName)) {
-            $catStmt = $conn->prepare("SELECT id FROM categories WHERE name = ?");
-            $catStmt->bind_param("s", $newCategoryName);
-            $catStmt->execute();
-            $catResult = $catStmt->get_result();
-            if ($row = $catResult->fetch_assoc()) {
-                $categoryId = $row['id'];
-            } else {
-                $insertCatStmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
-                $insertCatStmt->bind_param("s", $newCategoryName);
-                $insertCatStmt->execute();
-                $categoryId = $insertCatStmt->insert_id;
-                $newlyCreatedCategory = ['id' => $categoryId, 'name' => $newCategoryName];
-                $insertCatStmt->close();
-            }
-            $catStmt->close();
-        }
-
-        $imagePath = null;
-        if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $targetDir = "../uploads/";
-            if (!file_exists($targetDir)) mkdir($targetDir, 0777, true);
-            $fileName = uniqid() . '_' . basename($_FILES["image"]["name"]);
-            $targetFile = $targetDir . $fileName;
-            if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFile)) {
-                $imagePath = 'uploads/' . $fileName;
-            }
-        }
-
-        $sql = "INSERT INTO products (name, lot_number, category_id, price, cost, date_added, expiration_date, supplier, batch_number, image_path, stock, item_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $insertStmt = $conn->prepare($sql);
-        $dateAdded = date('Y-m-d H:i:s');
-
-        $insertStmt->bind_param( "ssiddsssssid", $productName, $_POST['lot_number'], $categoryId, $_POST['price'], $_POST['cost'], $dateAdded, $_POST['expiration_date'], $_POST['supplier'], $_POST['batch_number'], $imagePath, $_POST['stock'], $_POST['item_total'] );
-
-        if ($insertStmt->execute()) {
-            $newProductId = $insertStmt->insert_id;
-            $fetchStmt = $conn->prepare("SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id WHERE p.id = ?");
-            $fetchStmt->bind_param("i", $newProductId);
-            $fetchStmt->execute();
-            $newProductData = $fetchStmt->get_result()->fetch_assoc();
-
-            $response = ['success' => true, 'action' => 'inserted', 'product' => $newProductData];
-            if ($newlyCreatedCategory) {
-                 $response['newCategory'] = $newlyCreatedCategory;
-            }
-            echo json_encode($response);
-        } else {
-            echo json_encode(['success' => false, 'message' => $insertStmt->error]);
-        }
-        $insertStmt->close();
-    }
-}
 ?>
+

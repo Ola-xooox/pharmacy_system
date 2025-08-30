@@ -1,44 +1,70 @@
 <?php
     require '../db_connect.php';
 
-    // Fetch ALL products for JavaScript filtering, including expired ones
+    // --- Fetch Grouped Data for JavaScript ---
+    // This fetches all individual product lots to be filtered and displayed by JavaScript.
     $products_result = $conn->query("SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC");
-    $products = [];
+    $all_products_json = [];
     while($row = $products_result->fetch_assoc()) {
-        $products[] = $row;
+        $all_products_json[] = $row;
     }
 
-    // Fetch all categories
+    // --- Fetch Grouped Out of Stock Data ---
+    // This query specifically fetches a de-duplicated list for the "Out of Stock" view.
+    $out_of_stock_grouped_result = $conn->query("
+        SELECT 
+            p.name, 
+            p.category_id,
+            c.name as category_name,
+            SUM(p.stock) as stock, 
+            SUM(p.item_total) as item_total
+        FROM products p 
+        JOIN categories c ON p.category_id = c.id 
+        WHERE (p.expiration_date > CURDATE() OR p.expiration_date IS NULL)
+        GROUP BY p.name, p.category_id, c.name
+        HAVING SUM(p.item_total) <= 0
+    ");
+    $out_of_stock_grouped_json = [];
+    while($row = $out_of_stock_grouped_result->fetch_assoc()) {
+        $out_of_stock_grouped_json[] = $row;
+    }
+
+
+    // --- Fetch Categories ---
     $categories_result = $conn->query("SELECT * FROM categories ORDER BY name ASC");
     $categories = [];
     while($row = $categories_result->fetch_assoc()) {
         $categories[] = $row;
     }
     
-    // Fetch product history
-    $history_result = $conn->query("SELECT h.*, c.name as category_name FROM product_history h JOIN categories c ON h.category_id = c.id ORDER BY h.deleted_at DESC");
+    // --- Fetch Product History ---
+    $history_result = $conn->query("SELECT h.*, c.name as category_name FROM product_history h LEFT JOIN categories c ON h.category_id = c.id ORDER BY h.deleted_at DESC");
     $product_history = [];
     while($row = $history_result->fetch_assoc()) {
         $product_history[] = $row;
     }
 
 
-    // --- Calculate Corrected Summary Counts ---
+    // --- Calculate Summary Counts ---
     $not_expired_condition = "(expiration_date > CURDATE() OR expiration_date IS NULL)";
     
-    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND " . $not_expired_condition);
+    // Count available product lots (individual batches)
+    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
     
-    $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 5 AND stock > 0 AND " . $not_expired_condition);
+    // Count low stock product lots
+    $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total <= 10 AND item_total > 0 AND " . $not_expired_condition);
     $low_stock_count = $low_stock_count_result->fetch_assoc()['count'];
 
-    $out_of_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 0 AND " . $not_expired_condition);
-    $out_of_stock_count = $out_of_stock_count_result->fetch_assoc()['count'];
+    // Count for out of stock is now based on the grouped query result
+    $out_of_stock_count = count($out_of_stock_grouped_json);
 
-    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
+    // Count lots with an expiration alert
+    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
     
-    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date <= CURDATE()");
+    // Count expired lots
+    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date <= CURDATE()");
     $expired_count = $expired_count_result->fetch_assoc()['count'];
     
     // Count for history
@@ -140,7 +166,8 @@
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
     <script>
-        let allProducts = <?php echo json_encode($products); ?>;
+        let allProducts = <?php echo json_encode($all_products_json); ?>;
+        const outOfStockGrouped = <?php echo json_encode($out_of_stock_grouped_json); ?>;
         const allHistory = <?php echo json_encode($product_history); ?>;
         const allCategories = <?php echo json_encode($categories); ?>;
         const summaryCounts = <?php echo json_encode($summary_counts); ?>;
@@ -159,12 +186,14 @@
             const dateTimeEl = document.getElementById('date-time');
 
             // --- HEADER & SIDEBAR LOGIC ---
-            userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
-            window.addEventListener('click', (e) => {
-                if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
-                    userMenu.classList.add('hidden');
-                }
-            });
+            if(userMenuButton){
+                userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
+                window.addEventListener('click', (e) => {
+                    if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
+                        userMenu.classList.add('hidden');
+                    }
+                });
+            }
             sidebarToggleBtn.addEventListener('click', () => {
                 if (window.innerWidth < 768) {
                     sidebar.classList.toggle('open-mobile');
@@ -187,11 +216,11 @@
 
             // Table Headers Configuration
             const tableHeaders = {
-                available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Price", "Date Added", "Expiration Date", "Action"],
+                available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Item Total", "Price", "Date Added", "Expiration Date", "Action"],
                 'low-stock': ["#", "Product Name", "Stock Level", "Item Total", "Action"],
                 'out-of-stock': ["#", "Product Name", "Stock Level", "Item Total"],
-                'expiration-alert': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expires In", "Expiration Date"],
-                'expired': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expired On", "Supplier"],
+                'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date"],
+                'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier"],
                 'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
             };
 
@@ -234,33 +263,29 @@
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
                             const isNotExpired = !expDate || expDate > today;
-                            return p.stock > 0 && isNotExpired;
+                            return p.item_total > 0 && isNotExpired;
                         });
                         break;
                     case 'low-stock':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
                             const isNotExpired = !expDate || expDate > today;
-                            return p.stock <= 5 && p.stock > 0 && isNotExpired;
+                            return p.item_total <= 10 && p.item_total > 0 && isNotExpired;
                         });
                         break;
                     case 'out-of-stock':
-                         viewFilteredProducts = allProducts.filter(p => {
-                            const expDate = parseDate(p.expiration_date);
-                            const isNotExpired = !expDate || expDate > today;
-                            return p.stock <= 0 && isNotExpired;
-                        });
+                        viewFilteredProducts = outOfStockGrouped;
                         break;
                     case 'expiration-alert':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return p.stock > 0 && expDate && expDate > today && expDate <= thirtyDaysFromNow;
+                            return p.item_total > 0 && expDate && expDate > today && expDate <= thirtyDaysFromNow;
                         });
                         break;
                     case 'expired':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return p.stock > 0 && expDate && expDate <= today;
+                            return p.item_total > 0 && expDate && expDate <= today;
                         });
                         break;
                     case 'history':
@@ -273,7 +298,6 @@
 
                 let categoryFilteredProducts = viewFilteredProducts;
                 if (activeCategory !== 'all') {
-                     // History table has category_id, so it can be filtered too
                     categoryFilteredProducts = viewFilteredProducts.filter(p => p.category_id == activeCategory);
                 }
 
@@ -301,7 +325,6 @@
 
                 tableBody.innerHTML = productsToRender.map((p, index) => {
                     let rowContent = '';
-                    // The data-id attribute holds the product ID for the delete action
                     let actionButton = `<button class="text-red-500 hover:text-red-700 delete-btn" title="Delete" data-id="${p.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>`;
 
                     switch(view) {
@@ -311,6 +334,7 @@
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
+                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>
                                 <td class="px-6 py-4">₱${Number(p.price).toFixed(2)}</td>
                                 <td class="px-6 py-4">${new Date(p.date_added).toLocaleDateString()}</td>
                                 <td class="px-6 py-4">${p.expiration_date || 'N/A'}</td>
@@ -320,14 +344,14 @@
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
+                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>
                                 <td class="px-6 py-4">${actionButton}</td>`;
                             break;
                         case 'out-of-stock':
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold text-red-600">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>`;
+                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>`;
                             break;
                         case 'expiration-alert':
                             const expDateAlert = new Date(p.expiration_date);
@@ -335,18 +359,18 @@
                             const daysUntilExp = Math.ceil(timeDiff / (1000 * 3600 * 24));
                             rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
-                                <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
+                                <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-semibold text-yellow-600">${daysUntilExp} days</td>
                                 <td class="px-6 py-4">${p.expiration_date}</td>`;
                             break;
                         case 'expired':
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
-                                <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
-                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
+                                <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
+                                <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-bold text-red-700">${p.expiration_date}</td>
                                 <td class="px-6 py-4">${p.supplier || 'N/A'}</td>`;
                             break;
@@ -377,8 +401,6 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        // For a real-time feel, you'd ideally re-fetch from the DB or get updated counts
-                        // For now, we just refresh the page to get the most accurate state.
                         alert('Product successfully moved to history.');
                         location.reload();
                     } else {
@@ -398,7 +420,6 @@
                 card.addEventListener('click', () => {
                     summaryCards.forEach(c => c.classList.remove('active'));
                     card.classList.add('active');
-                    // Hide category filters for history view as it might be less relevant
                     categoryBtnContainer.style.display = card.dataset.view === 'history' ? 'none' : 'flex';
                     updateTableView();
                 });
@@ -412,7 +433,6 @@
                 }
             });
 
-            // Event listener for delete buttons (using event delegation)
             tableBody.addEventListener('click', (e) => {
                 const deleteButton = e.target.closest('.delete-btn');
                 if (deleteButton) {

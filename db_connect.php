@@ -2,7 +2,7 @@
 $servername = "localhost";
 $username = "root"; // Default XAMPP username
 $password = "";     // Default XAMPP password
-$dbname = "inventory_db";
+$dbname = "pharmacy_system";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
