@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons for a clean look -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+  <link rel="icon" type="image/x-icon" href="mjpharma.jpg">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="w-full bg-green-500 text-white p-6 shadow-md flex items-center justify-between rounded-b-xl">
+        <div class="flex items-center space-x-4">
+            <img src="mjpharma.jpg" alt="Logo" class="rounded-full w-10 h-10">
+            <h1 class="text-2xl font-bold">Customer Management</h1>
+        </div>
+        <button class="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors">
+            <i class="ph-fill ph-sign-out text-2xl"></i>
+        </button>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-8 flex justify-center">
+        <!-- Customer Management Page -->
+        <div id="customer-management-page" class="w-full max-w-7xl">
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center space-x-2 mb-4 md:mb-0">
+                        <i class="ph-fill ph-users text-3xl text-green-500"></i>
+                        <span>Customer Directory</span>
+                    </h2>
+                    <div class="flex items-center space-x-2 w-full md:w-1/3">
+                        <div class="relative w-full">
+                            <input type="text" id="customer-search" placeholder="search customer..." class="w-full p-2 pl-10 rounded-lg border border-gray-300 focus:outline-none focus:ring focus:ring-green-500 focus:ring-opacity-50">
+                            <i class="ph-fill ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-green-500 text-white">
+                                <th class="py-3 px-4 font-semibold">No.</th>
+                                <th class="py-3 px-4 font-semibold">ID no.</th>
+                                <th class="py-3 px-4 font-semibold">Customer</th>
+                                <th class="py-3 px-4 font-semibold">Last Visit</th>
+                                <th class="py-3 px-4 font-semibold">Total spent</th>
+                                <th class="py-3 px-4 font-semibold">Visit</th>
+                                <th class="py-3 px-4 font-semibold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customer-table-body">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-center mt-6 space-x-2" id="customer-pagination">
+                    <!-- Pagination buttons will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Customer History -->
+    <div id="history-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="history-modal-title" class="text-2xl font-bold text-gray-800"></h3>
+                <button id="close-history-modal" class="text-gray-500 hover:text-gray-800">
+                    <i class="ph-fill ph-x text-2xl"></i>
+                </button>
+            </div>
+            <div id="history-modal-content" class="space-y-4">
+                <!-- History data will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const historyModal = document.getElementById('history-modal');
+        const closeHistoryModalBtn = document.getElementById('close-history-modal');
+        const historyModalTitle = document.getElementById('history-modal-title');
+        const historyModalContent = document.getElementById('history-modal-content');
+        const customerPagination = document.getElementById('customer-pagination');
+
+        // Mock data for the customers and their histories
+        const mockData = {
+            customers: [
+                { id: 123456, name: 'Indoso, Jairo', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123457, name: 'Pisngot, Mark James', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123458, name: 'Cabales, Edmalyn', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123459, name: 'Micah, Mhae', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123450, name: 'Elacion, Kim', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123451, name: 'Karl Vincent', lastVisit: '9/12/2025', totalSpent: '₱12,450', visits: 8 },
+                { id: 123452, name: 'Jane Doe', lastVisit: '9/10/2025', totalSpent: '₱8,200', visits: 5 },
+                { id: 123453, name: 'John Smith', lastVisit: '9/09/2025', totalSpent: '₱5,100', visits: 3 },
+            ],
+            customerHistories: {
+                123456: [
+                    { date: '2025-09-12', total: '₱5,000', items: ['Item A', 'Item B'] },
+                    { date: '2025-08-25', total: '₱3,000', items: ['Item C'] },
+                    { date: '2025-08-01', total: '₱4,450', items: ['Item D', 'Item E'] },
+                ],
+                123457: [
+                    { date: '2025-09-12', total: '₱1,000', items: ['Item F'] },
+                    { date: '2025-08-20', total: '₱11,450', items: ['Item G', 'Item H'] },
+                ],
+                123458: [
+                    { date: '2025-09-12', total: '₱7,000', items: ['Item I', 'Item J'] },
+                    { date: '2025-08-28', total: '₱5,450', items: ['Item K'] },
+                ],
+                123459: [
+                    { date: '2025-09-12', total: '₱12,450', items: ['Item L', 'Item M'] },
+                ],
+                123450: [
+                    { date: '2025-09-12', total: '₱8,000', items: ['Item N'] },
+                    { date: '2025-08-15', total: '₱4,450', items: ['Item O'] },
+                ],
+                123451: [
+                    { date: '2025-09-12', total: '₱12,450', items: ['Item P'] },
+                ],
+                123452: [
+                    { date: '2025-09-10', total: '₱3,000', items: ['Item Q'] },
+                    { date: '2025-08-22', total: '₱5,200', items: ['Item R'] },
+                ],
+                123453: [
+                    { date: '2025-09-09', total: '₱2,500', items: ['Item S'] },
+                    { date: '2025-08-18', total: '₱2,600', items: ['Item T'] },
+                ],
+            }
+        };
+
+        // Pagination variables
+        let customerCurrentPage = 1;
+        const customerRowsPerPage = 6;
+
+        // Function to render customer table with pagination
+        function renderCustomerTable(dataToRender = mockData.customers) {
+            const customerTableBody = document.getElementById('customer-table-body');
+            const startIndex = (customerCurrentPage - 1) * customerRowsPerPage;
+            const endIndex = startIndex + customerRowsPerPage;
+            const paginatedCustomers = dataToRender.slice(startIndex, endIndex);
+
+            customerTableBody.innerHTML = paginatedCustomers.map((item, index) => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 px-4">${startIndex + index + 1}</td>
+                    <td class="py-3 px-4">${item.id}</td>
+                    <td class="py-3 px-4">${item.name}</td>
+                    <td class="py-3 px-4">${item.lastVisit}</td>
+                    <td class="py-3 px-4">${item.totalSpent}</td>
+                    <td class="py-3 px-4"><span class="text-[#236B3D] font-bold">${item.visits} visits</span></td>
+                    <td class="py-3 px-4">
+                        <button class="view-history-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition-colors" data-customer-id="${item.id}">View History</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginationControls(dataToRender.length);
+        }
+
+        // Function to render pagination controls
+        function renderPaginationControls(totalItems) {
+            const totalPages = Math.ceil(totalItems / customerRowsPerPage);
+            customerPagination.innerHTML = '';
+
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.className = `bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors ${customerCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
+            prevButton.disabled = customerCurrentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (customerCurrentPage > 1) {
+                    customerCurrentPage--;
+                    const filteredData = performSearch();
+                    renderCustomerTable(filteredData);
+                }
+            });
+            customerPagination.appendChild(prevButton);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = `px-4 py-2 rounded-lg font-bold transition-colors ${i === customerCurrentPage ? 'bg-[#236B3D] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`;
+                pageButton.addEventListener('click', () => {
+                    customerCurrentPage = i;
+                    const filteredData = performSearch();
+                    renderCustomerTable(filteredData);
+                });
+                customerPagination.appendChild(pageButton);
+            }
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.className = `bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors ${customerCurrentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
+            nextButton.disabled = customerCurrentPage === totalPages;
+            nextButton.addEventListener('click', () => {
+                if (customerCurrentPage < totalPages) {
+                    customerCurrentPage++;
+                    const filteredData = performSearch();
+                    renderCustomerTable(filteredData);
+                }
+            });
+            customerPagination.appendChild(nextButton);
+        }
+
+        // Event listener for "View History" buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-history-btn')) {
+                const customerId = parseInt(e.target.dataset.customerId);
+                const customer = mockData.customers.find(c => c.id === customerId);
+                const history = mockData.customerHistories[customerId] || [];
+
+                historyModalTitle.textContent = `${customer.name}'s History`;
+                historyModalContent.innerHTML = history.length > 0 ? history.map(h => `
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                        <p class="font-bold">Date: ${h.date}</p>
+                        <p>Total: ${h.total}</p>
+                        <p>Items: ${h.items.join(', ')}</p>
+                    </div>
+                `).join('') : '<p class="text-gray-500">No transaction history found.</p>';
+
+                historyModal.classList.remove('hidden');
+                historyModal.classList.add('flex');
+            }
+        });
+
+        // Close modal button event listener
+        closeHistoryModalBtn.addEventListener('click', () => {
+            historyModal.classList.remove('flex');
+            historyModal.classList.add('hidden');
+        });
+
+        // Function to perform search and return filtered data
+        function performSearch() {
+            const searchInput = document.getElementById('customer-search');
+            const searchTerm = searchInput.value.toLowerCase();
+            return mockData.customers.filter(item => 
+                String(item.name).toLowerCase().includes(searchTerm) || 
+                String(item.id).toLowerCase().includes(searchTerm)
+            );
+        }
+
+        // Function to filter tables based on search input
+        function setupSearch() {
+            const searchInput = document.getElementById('customer-search');
+            searchInput.addEventListener('input', () => {
+                customerCurrentPage = 1;
+                const filteredData = performSearch();
+                renderCustomerTable(filteredData);
+            });
+        }
+        
+        // Initial setup on page load
+        window.onload = function() {
+            renderCustomerTable(); // Initial render for customer table
+            setupSearch();
+        };
+    </script>
+</body>
+</html>
