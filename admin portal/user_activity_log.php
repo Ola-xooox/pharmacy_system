@@ -1,5 +1,10 @@
 <?php 
 session_start();
+// Redirect if not logged in or not an admin
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit();
+}
 $currentPage = 'user_activity_log'; ?>
 <!DOCTYPE html>
 <html lang="en">

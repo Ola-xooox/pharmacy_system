@@ -1,5 +1,10 @@
 <?php
 session_start();
+// Redirect if not logged in or not an inventory user
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
+    header("Location: ../login.php");
+    exit();
+}
     require '../db_connect.php';
     $currentPage = 'history';
 
