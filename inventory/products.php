@@ -229,8 +229,9 @@
             setInterval(updateDateTime, 60000);
 
             function getStockStatus(stock) {
+                stock = parseInt(stock, 10);
                 if (stock <= 0) return { text: 'Out of Stock', class: 'out-of-stock' };
-                if (stock < 10) return { text: 'Low Stock', class: 'low-stock' };
+                if (stock > 0 && stock <= 5) return { text: 'Low Stock', class: 'low-stock' };
                 return { text: 'In Stock', class: 'in-stock' };
             }
 

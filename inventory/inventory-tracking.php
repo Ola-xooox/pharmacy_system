@@ -9,6 +9,25 @@
         $all_products_json[] = $row;
     }
 
+    // --- Fetch Grouped LOW STOCK Data ---
+    $low_stock_grouped_result = $conn->query("
+        SELECT 
+            p.name, 
+            p.category_id,
+            c.name as category_name,
+            SUM(p.stock) as stock, 
+            SUM(p.item_total) as item_total
+        FROM products p 
+        JOIN categories c ON p.category_id = c.id 
+        WHERE (p.expiration_date > CURDATE() OR p.expiration_date IS NULL) AND p.item_total > 0
+        GROUP BY p.name, p.category_id, c.name
+        HAVING SUM(p.stock) <= 5 AND SUM(p.stock) > 0
+    ");
+    $low_stock_grouped_json = [];
+    while($row = $low_stock_grouped_result->fetch_assoc()) {
+        $low_stock_grouped_json[] = $row;
+    }
+
     // --- Fetch Grouped Out of Stock Data ---
     // This query specifically fetches a de-duplicated list for the "Out of Stock" view.
     $out_of_stock_grouped_result = $conn->query("
@@ -52,15 +71,14 @@
     $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
     
-    // Count low stock product lots
-    $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total <= 10 AND item_total > 0 AND " . $not_expired_condition);
-    $low_stock_count = $low_stock_count_result->fetch_assoc()['count'];
+    // Count low stock product groups
+    $low_stock_count = count($low_stock_grouped_json);
 
     // Count for out of stock is now based on the grouped query result
     $out_of_stock_count = count($out_of_stock_grouped_json);
 
     // Count lots with an expiration alert
-    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
+    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
     
     // Count expired lots
@@ -167,6 +185,7 @@
 
     <script>
         let allProducts = <?php echo json_encode($all_products_json); ?>;
+        const lowStockGrouped = <?php echo json_encode($low_stock_grouped_json); ?>;
         const outOfStockGrouped = <?php echo json_encode($out_of_stock_grouped_json); ?>;
         const allHistory = <?php echo json_encode($product_history); ?>;
         const allCategories = <?php echo json_encode($categories); ?>;
@@ -217,10 +236,10 @@
             // Table Headers Configuration
             const tableHeaders = {
                 available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Item Total", "Price", "Date Added", "Expiration Date", "Action"],
-                'low-stock': ["#", "Product Name", "Stock Level", "Item Total", "Action"],
+                'low-stock': ["#", "Product Name", "Stock Level", "Item Total"],
                 'out-of-stock': ["#", "Product Name", "Stock Level", "Item Total"],
-                'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date"],
-                'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier"],
+                'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date", "Action"],
+                'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier", "Action"],
                 'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
             };
 
@@ -247,8 +266,8 @@
 
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const thirtyDaysFromNow = new Date(today);
-                thirtyDaysFromNow.setDate(today.getDate() + 30);
+                const oneMonthFromNow = new Date(today);
+                oneMonthFromNow.setMonth(today.getMonth() + 1);
 
                 const parseDate = (dateString) => {
                     if (!dateString) return null;
@@ -267,11 +286,7 @@
                         });
                         break;
                     case 'low-stock':
-                        viewFilteredProducts = allProducts.filter(p => {
-                            const expDate = parseDate(p.expiration_date);
-                            const isNotExpired = !expDate || expDate > today;
-                            return p.item_total <= 10 && p.item_total > 0 && isNotExpired;
-                        });
+                        viewFilteredProducts = lowStockGrouped;
                         break;
                     case 'out-of-stock':
                         viewFilteredProducts = outOfStockGrouped;
@@ -279,7 +294,7 @@
                     case 'expiration-alert':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return p.item_total > 0 && expDate && expDate > today && expDate <= thirtyDaysFromNow;
+                            return p.item_total > 0 && expDate && expDate > today && expDate <= oneMonthFromNow;
                         });
                         break;
                     case 'expired':
@@ -344,8 +359,7 @@
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>
-                                <td class="px-6 py-4">${actionButton}</td>`;
+                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>`;
                             break;
                         case 'out-of-stock':
                              rowContent = `
@@ -363,7 +377,8 @@
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-semibold text-yellow-600">${daysUntilExp} days</td>
-                                <td class="px-6 py-4">${p.expiration_date}</td>`;
+                                <td class="px-6 py-4">${p.expiration_date}</td>
+                                <td class="px-6 py-4">${actionButton}</td>`;
                             break;
                         case 'expired':
                              rowContent = `
@@ -372,7 +387,8 @@
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-bold text-red-700">${p.expiration_date}</td>
-                                <td class="px-6 py-4">${p.supplier || 'N/A'}</td>`;
+                                <td class="px-6 py-4">${p.supplier || 'N/A'}</td>
+                                <td class="px-6 py-4">${actionButton}</td>`;
                             break;
                         case 'history':
                              rowContent = `
@@ -388,7 +404,7 @@
             }
 
             async function deleteProduct(productId) {
-                if (!confirm('Are you sure you want to delete this product? This will move it to history.')) {
+                if (!confirm('Are you sure you want to delete this product lot? This will move it to history.')) {
                     return;
                 }
 

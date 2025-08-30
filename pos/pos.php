@@ -566,9 +566,11 @@
                 renderProducts(filteredProducts);
             }
             
+            // --- FIX: Updated getStockStatus logic to use 'stock' and new threshold ---
             function getStockStatus(stock) {
+                stock = parseInt(stock, 10);
                 if (stock <= 0) return { text: 'Out of Stock', class: 'out-of-stock' };
-                if (stock < 10) return { text: 'Low Stock', class: 'low-stock' };
+                if (stock > 0 && stock <= 5) return { text: 'Low Stock', class: 'low-stock' };
                 return { text: 'In Stock', class: 'in-stock' };
             }
 
@@ -578,7 +580,8 @@
                     return;
                 }
                 productGrid.innerHTML = productsToRender.map(p => {
-                    const stockStatus = getStockStatus(p.item_total);
+                    // --- FIX: Pass p.stock to the getStockStatus function ---
+                    const stockStatus = getStockStatus(p.stock);
                     const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}" class="product-image">` : placeholderSVG;
                     return `
                         <div class="product-card ${p.item_total <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-name="${p.product_identifier}">
@@ -873,4 +876,3 @@
     </script>
 </body>
 </html>
-

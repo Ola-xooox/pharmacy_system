@@ -18,6 +18,7 @@ if ($status_filter === 'outOfStock') {
 $products_result = $conn->query("
     SELECT
         p.name,
+        SUM(p.stock) AS stock,
         SUM(p.item_total) AS item_total,
         c.name AS category_name,
         SUBSTRING_INDEX(GROUP_CONCAT(p.price ORDER BY p.expiration_date ASC), ',', 1) AS price,

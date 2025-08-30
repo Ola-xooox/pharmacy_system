@@ -72,7 +72,9 @@ function handleSaleProcessing($conn) {
                     throw new Exception("Product configuration error: 'items_per_stock' is not set for product ID: " . $lot['id']);
                 }
                 
-                $new_stock = floor($new_item_total / $items_per_stock);
+                // --- FIX: Changed floor to ceil for correct stock calculation ---
+                $new_stock = ceil($new_item_total / $items_per_stock);
+
                 if ($new_item_total <= 0) $new_stock = 0;
 
                 $updateStmt->bind_param("iii", $new_stock, $new_item_total, $lot['id']);
@@ -256,4 +258,3 @@ function handleProductDeletion($conn) {
     }
 }
 ?>
-
