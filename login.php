@@ -1,3 +1,45 @@
+<?php
+session_start();
+require 'db_connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND password = ?");
+    $stmt->bind_param("ss", $username, $password);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+
+    if ($user) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+
+        switch ($user['role']) {
+            case 'pos':
+                header("Location: pos/pos.php");
+                break;
+            case 'inventory':
+                header("Location: inventory/products.php");
+                break;
+            case 'cms':
+                header("Location: cms/costumer.html");
+                break;
+            case 'admin':
+                header("Location: admin portal/admin.html");
+                break;
+            default:
+                header("Location: login.html");
+                break;
+        }
+        exit();
+    } else {
+        echo "<script>alert('Invalid username or password'); window.location.href = 'login.html';</script>";
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -135,7 +177,7 @@
             <p class="text-gray-500 mt-2">Sign in to access your account</p>
         </div>
         
-        <form id="loginForm">
+        <form id="loginForm" action="login.php" method="POST">
             <div class="form-group">
                 <label for="username" class="form-label">Username</label>
                 <div class="input-wrapper">
@@ -171,24 +213,5 @@
             <p>© 2025 MJ Pharmacy. All rights reserved.</p>
         </div>
     </div>
-
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Get form values
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            // In a real application, you would perform validation and
-            // an AJAX request to a server here.
-            
-            // For this demo, we just show a success message and redirect.
-            alert(`Login successful!\nWelcome, ${username}!`);
-            
-            // Redirect to the POS page on successful login
-            window.location.href = 'pos.html';
-        });
-    </script>
 </body>
 </html>
