@@ -17,7 +17,13 @@
             <div class="relative">
                 <button id="user-menu-button" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     <span class="sr-only">Open user menu</span>
-                    <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">A</div>
+                     <?php
+                        $userName = $_SESSION['name'] ?? 'User';
+                        $userInitial = strtoupper(substr($userName, 0, 1));
+                    ?>
+                    <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">
+                        <?php echo htmlspecialchars($userInitial); ?>
+                    </div>
                 </button>
                 <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden" role="menu">
                     <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>
