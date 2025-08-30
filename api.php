@@ -11,7 +11,6 @@ switch ($action) {
     case 'delete_product':
         handleProductDeletion($conn);
         break;
-    // New case to process a sale and update stock
     case 'process_sale':
         handleSaleProcessing($conn);
         break;
@@ -30,26 +29,35 @@ function handleSaleProcessing($conn) {
     $conn->begin_transaction();
 
     try {
+        // Prepare the statement once outside the loop for efficiency
         $stmt = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
         
         foreach ($orderData as $item) {
-            $quantity = $item['quantity'];
-            $id = $item['id'];
+            // Ensure data types are correct
+            $quantity = (int) $item['quantity'];
+            $id = (int) $item['id'];
             
+            // Bind parameters and execute for each item in the order
             $stmt->bind_param("iii", $quantity, $id, $quantity);
             $stmt->execute();
             
+            // Check if the update was successful for this item
             if ($stmt->affected_rows == 0) {
-                // This means stock was insufficient or product ID was invalid
-                throw new Exception("Insufficient stock for product ID: " . $id);
+                // If 0 rows were affected, it means the stock was insufficient or product ID was invalid
+                // This will trigger the catch block and rollback the entire transaction
+                $productName = isset($item['name']) ? $item['name'] : "ID: " . $id;
+                throw new Exception("Insufficient stock for product: " . $productName);
             }
         }
         
         $stmt->close();
+        
+        // If all items were processed successfully, commit the transaction
         $conn->commit();
         echo json_encode(['success' => true, 'message' => 'Sale processed and stock updated.']);
 
     } catch (Exception $e) {
+        // If any part of the process fails, roll back all database changes
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => 'Failed to process sale: ' . $e->getMessage()]);
     }

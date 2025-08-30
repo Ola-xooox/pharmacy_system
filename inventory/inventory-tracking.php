@@ -25,14 +25,22 @@
 
     // --- Calculate Corrected Summary Counts ---
     $not_expired_condition = "(expiration_date > CURDATE() OR expiration_date IS NULL)";
-    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE " . $not_expired_condition);
+    
+    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
+    
     $low_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 5 AND stock > 0 AND " . $not_expired_condition);
     $low_stock_count = $low_stock_count_result->fetch_assoc()['count'];
-    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
+
+    $out_of_stock_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock <= 0 AND " . $not_expired_condition);
+    $out_of_stock_count = $out_of_stock_count_result->fetch_assoc()['count'];
+
+    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
-    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE expiration_date <= CURDATE()");
+    
+    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date <= CURDATE()");
     $expired_count = $expired_count_result->fetch_assoc()['count'];
+    
     // Count for history
     $history_count = count($product_history);
 
@@ -40,6 +48,7 @@
     $summary_counts = [
         'available' => $available_count,
         'lowStock' => $low_stock_count,
+        'outOfStock' => $out_of_stock_count,
         'expAlert' => $exp_alert_count,
         'expired' => $expired_count,
         'history' => $history_count
@@ -82,7 +91,7 @@
             <main class="flex-1 overflow-y-auto p-6">
                 <h2 class="text-3xl font-bold mb-6">Inventory Tracking</h2>
 
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                     <button class="summary-card active p-4 rounded-lg text-left" data-view="available">
                         <p class="text-sm">Available Products</p>
                         <p id="count-available" class="text-2xl font-bold">0</p>
@@ -90,6 +99,10 @@
                     <button class="summary-card p-4 rounded-lg text-left" data-view="low-stock">
                         <p class="text-sm">Low Stock</p>
                         <p id="count-low-stock" class="text-2xl font-bold">0</p>
+                    </button>
+                    <button class="summary-card p-4 rounded-lg text-left" data-view="out-of-stock">
+                        <p class="text-sm">Out of Stock</p>
+                        <p id="count-out-of-stock" class="text-2xl font-bold">0</p>
                     </button>
                     <button class="summary-card p-4 rounded-lg text-left" data-view="expiration-alert">
                         <p class="text-sm">Expiration Alert</p>
@@ -176,6 +189,7 @@
             const tableHeaders = {
                 available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Price", "Date Added", "Expiration Date", "Action"],
                 'low-stock': ["#", "Product Name", "Stock Level", "Item Total", "Action"],
+                'out-of-stock': ["#", "Product Name", "Stock Level", "Item Total"],
                 'expiration-alert': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expires In", "Expiration Date"],
                 'expired': ["#", "Product Name", "Stock", "Lot Num", "Batch Num", "Expired On", "Supplier"],
                 'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
@@ -185,6 +199,7 @@
             function updateSummaryCounts() {
                 document.getElementById('count-available').textContent = summaryCounts.available;
                 document.getElementById('count-low-stock').textContent = summaryCounts.lowStock;
+                document.getElementById('count-out-of-stock').textContent = summaryCounts.outOfStock;
                 document.getElementById('count-exp-alert').textContent = summaryCounts.expAlert;
                 document.getElementById('count-expired').textContent = summaryCounts.expired;
                 document.getElementById('count-history').textContent = summaryCounts.history;
@@ -218,7 +233,8 @@
                     case 'available':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return !expDate || expDate > today;
+                            const isNotExpired = !expDate || expDate > today;
+                            return p.stock > 0 && isNotExpired;
                         });
                         break;
                     case 'low-stock':
@@ -228,16 +244,23 @@
                             return p.stock <= 5 && p.stock > 0 && isNotExpired;
                         });
                         break;
+                    case 'out-of-stock':
+                         viewFilteredProducts = allProducts.filter(p => {
+                            const expDate = parseDate(p.expiration_date);
+                            const isNotExpired = !expDate || expDate > today;
+                            return p.stock <= 0 && isNotExpired;
+                        });
+                        break;
                     case 'expiration-alert':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return expDate && expDate > today && expDate <= thirtyDaysFromNow;
+                            return p.stock > 0 && expDate && expDate > today && expDate <= thirtyDaysFromNow;
                         });
                         break;
                     case 'expired':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return expDate && expDate <= today;
+                            return p.stock > 0 && expDate && expDate <= today;
                         });
                         break;
                     case 'history':
@@ -300,6 +323,12 @@
                                 <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>
                                 <td class="px-6 py-4">${actionButton}</td>`;
                             break;
+                        case 'out-of-stock':
+                             rowContent = `
+                                <td class="px-6 py-4">${p.name}</td>
+                                <td class="px-6 py-4 font-bold text-red-600">${p.stock}</td>
+                                <td class="px-6 py-4 font-semibold">${Number(p.item_total)}</td>`;
+                            break;
                         case 'expiration-alert':
                             const expDateAlert = new Date(p.expiration_date);
                             const timeDiff = expDateAlert.getTime() - today.getTime();
@@ -348,19 +377,10 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        // Find and remove the product from the local 'allProducts' array
-                        const index = allProducts.findIndex(p => p.id == productId);
-                        if (index > -1) {
-                            allProducts.splice(index, 1);
-                        }
-                        
-                        // NOTE: This will not auto-update the history view in real-time without another DB query.
-                        // For now, we just update the counts and the current view. A page refresh would show the history.
-                        summaryCounts.available--; // Or decrement other counts if needed
-                        updateSummaryCounts();
-                        updateTableView(); // Re-render the table with the product removed
-
+                        // For a real-time feel, you'd ideally re-fetch from the DB or get updated counts
+                        // For now, we just refresh the page to get the most accurate state.
                         alert('Product successfully moved to history.');
+                        location.reload();
                     } else {
                         alert('Error: ' + result.message);
                     }
@@ -394,8 +414,9 @@
 
             // Event listener for delete buttons (using event delegation)
             tableBody.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-btn')) {
-                    const productId = e.target.dataset.id;
+                const deleteButton = e.target.closest('.delete-btn');
+                if (deleteButton) {
+                    const productId = deleteButton.dataset.id;
                     deleteProduct(productId);
                 }
             });
@@ -409,3 +430,4 @@
     </script>
 </body>
 </html>
+
