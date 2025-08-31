@@ -22,20 +22,36 @@ $salesData = $salesStmt->get_result()->fetch_assoc();
 $totalSalesToday = $salesData['total_sales_today'] ?? 0;
 $salesStmt->close();
 
-// Fetch Inventory Summary Data
-$inventoryStmt = $conn->prepare("SELECT SUM(item_total) AS total_inventory, COUNT(*) AS total_products FROM products");
-$inventoryStmt->execute();
-$inventoryData = $inventoryStmt->get_result()->fetch_assoc();
-$totalInventory = $inventoryData['total_inventory'] ?? 0;
-$totalProducts = $inventoryData['total_products'] ?? 0;
-$inventoryStmt->close();
+// Fetch Total Products
+$productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products");
+$productsStmt->execute();
+$productsData = $productsStmt->get_result()->fetch_assoc();
+$totalProducts = $productsData['total_products'] ?? 0;
+$productsStmt->close();
 
-// Fetch Low Stock Count (assuming a threshold, e.g., stock < 20)
-$lowStockStmt = $conn->prepare("SELECT COUNT(*) AS low_stock_count FROM products WHERE stock < 20");
+// Fetch Expiration Alert Count (within 1 month, excluding expired)
+$expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
+$expAlertStmt->execute();
+$expAlertData = $expAlertStmt->get_result()->fetch_assoc();
+$expAlertCount = $expAlertData['exp_alert_count'] ?? 0;
+$expAlertStmt->close();
+
+
+// Fetch Low Stock Count (Sum of items per product name is <= 5)
+$lowStockStmt = $conn->prepare("
+    SELECT COUNT(*) as low_stock_count FROM (
+        SELECT name
+        FROM products
+        WHERE (expiration_date > CURDATE() OR expiration_date IS NULL)
+        GROUP BY name
+        HAVING SUM(item_total) <= 5 AND SUM(item_total) > 0
+    ) AS low_stock_products
+");
 $lowStockStmt->execute();
 $lowStockData = $lowStockStmt->get_result()->fetch_assoc();
 $lowStockCount = $lowStockData['low_stock_count'] ?? 0;
 $lowStockStmt->close();
+
 
 // Fetch Recent Transactions
 $transactionsStmt = $conn->prepare("SELECT product_name, total_price, transaction_date FROM purchase_history ORDER BY transaction_date DESC LIMIT 5");
@@ -43,7 +59,7 @@ $transactionsStmt->execute();
 $recentTransactions = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $transactionsStmt->close();
 
-// Fetch Sales Data for the Chart (e.g., daily sales for the last 7 days)
+// Fetch Sales Data for the Chart (daily sales for the last 7 days)
 $chartDataStmt = $conn->prepare("
     SELECT DATE(transaction_date) as date, SUM(total_price) as total_sales
     FROM purchase_history
@@ -55,15 +71,28 @@ $chartDataStmt->execute();
 $rawChartData = $chartDataStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $chartDataStmt->close();
 
+// Fetch top 5 products for inventory chart
+$inventoryChartStmt = $conn->prepare("
+    SELECT name, SUM(item_total) as total_stock 
+    FROM products 
+    GROUP BY name 
+    ORDER BY total_stock DESC 
+    LIMIT 5
+");
+$inventoryChartStmt->execute();
+$inventoryChartResult = $inventoryChartStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$inventoryChartStmt->close();
+
+
 $conn->close();
 
-// Prepare chart data for JavaScript
+// Prepare sales chart data
 $chartLabels = [];
 $chartSalesData = [];
 $period = new DatePeriod(new DateTime('-6 days'), new DateInterval('P1D'), new DateTime('+1 day'));
 foreach ($period as $date) {
     $formattedDate = $date->format('Y-m-d');
-    $chartLabels[] = $date->format('D'); // Day of the week
+    $chartLabels[] = $date->format('D');
     $found = false;
     foreach ($rawChartData as $row) {
         if ($row['date'] === $formattedDate) {
@@ -76,7 +105,11 @@ foreach ($period as $date) {
         $chartSalesData[] = 0;
     }
 }
-// --- End of PHP Data Fetching ---
+
+// Prepare inventory chart data
+$inventoryChartLabels = array_column($inventoryChartResult, 'name');
+$inventoryChartData = array_column($inventoryChartResult, 'total_stock');
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -86,6 +119,7 @@ foreach ($period as $date) {
     <title>Admin Portal - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
@@ -109,23 +143,23 @@ foreach ($period as $date) {
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500" >Total sales today</p>
-                                <p class="text-2xl font-bold text-[#236B3D] id="total-sales-today">₱<?php echo htmlspecialchars($totalSalesToday); ?></p>
+                                <p class="text-2xl font-bold text-[#236B3D]" id="total-sales-today">₱<?php echo htmlspecialchars(number_format($totalSalesToday, 2)); ?></p>
                             </div>
                             <i class="ph-fill ph-chart-line text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
-                                <p class="text-sm text-gray-500">Active User</p>
-                                <p class="text-2xl font-bold text-[#236B3D]">5</p>
+                                <p class="text-sm text-gray-500">Total Products</p>
+                                <p class="text-2xl font-bold text-[#236B3D]"><?php echo htmlspecialchars($totalProducts); ?></p>
                             </div>
                             <i class="ph-fill ph-user-list text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
-                                <p class="text-sm text-gray-500">Total inventory</p>
-                                <p class="text-2xl font-bold text-[#236B3D]" id="total-inventory"><?php echo htmlspecialchars($totalInventory); ?></p>
+                                <p class="text-sm text-gray-500">Expiration Alert</p>
+                                <p class="text-2xl font-bold text-orange-500" id="exp-alert-count"><?php echo htmlspecialchars($expAlertCount); ?></p>
                             </div>
-                            <i class="ph-fill ph-package text-4xl text-gray-400"></i>
+                            <i class="ph-fill ph-clock-countdown text-4xl text-orange-500"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
@@ -155,20 +189,20 @@ foreach ($period as $date) {
                                     <div class="flex justify-between items-center border-b pb-2">
                                         <div>
                                             <p class="font-medium"><?php echo htmlspecialchars($transaction['product_name']); ?></p>
-                                            <p class="text-sm text-gray-500"><?php echo htmlspecialchars($transaction['transaction_date']); ?></p>
+                                            <p class="text-sm text-gray-500"><?php echo htmlspecialchars(date('M d, Y, g:i A', strtotime($transaction['transaction_date']))); ?></p>
                                         </div>
-                                        <p class="text-lg font-bold text-[#236B3D]">₱<?php echo htmlspecialchars($transaction['total_price']); ?></p>
+                                        <p class="text-lg font-bold text-[#236B3D]">₱<?php echo htmlspecialchars(number_format($transaction['total_price'], 2)); ?></p>
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <p class="text-center text-gray-500">No recent transactions today.</p>
+                                    <p class="text-center text-gray-500 py-8">No recent transactions today.</p>
                                 <?php endif; ?>
                             </div>
                         </div>
                     </div>
                     
                     <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h2 class="text-xl font-bold mb-4 text-gray-800">Inventory Stock</h2>
+                        <h2 class="text-xl font-bold mb-4 text-gray-800">Top 5 Inventory Stock</h2>
                         <div style="position: relative; height:300px;">
                             <canvas id="inventoryStockChart"></canvas>
                         </div>
@@ -230,6 +264,10 @@ foreach ($period as $date) {
             const salesOverviewChartCanvas = document.getElementById('salesOverviewChart');
             if (salesOverviewChartCanvas) {
                 const ctx = salesOverviewChartCanvas.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, 'rgba(1, 167, 79, 0.5)');
+                gradient.addColorStop(1, 'rgba(1, 167, 79, 0)');
+
                 new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -238,8 +276,14 @@ foreach ($period as $date) {
                             label: 'Total Sales (₱)',
                             data: <?php echo json_encode($chartSalesData); ?>,
                             borderColor: '#01A74F',
-                            tension: 0.1,
-                            fill: false
+                            backgroundColor: gradient,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#01A74F',
+                            pointHoverRadius: 7,
+                            pointHoverBackgroundColor: '#01A74F',
+                            pointHoverBorderColor: '#fff',
                         }]
                     },
                     options: {
@@ -252,36 +296,23 @@ foreach ($period as $date) {
                 });
             }
             
-            // Inventory Stock Chart (Placeholder)
+            // Inventory Stock Chart
             const inventoryStockChartCanvas = document.getElementById('inventoryStockChart');
             if (inventoryStockChartCanvas) {
                 const ctx = inventoryStockChartCanvas.getContext('2d');
-                // You would need to fetch specific inventory data for this chart
-                // Example data:
-                const inventoryChartData = {
-                    labels: ['Amoxicillin', 'Biogesic', 'Neozep', 'Paracetamol'],
-                    datasets: [{
-                        label: 'Stock Levels',
-                        data: [50, 20, 10, 80],
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.2)',
-                            'rgba(54, 162, 235, 0.2)',
-                            'rgba(255, 206, 86, 0.2)',
-                            'rgba(75, 192, 192, 0.2)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                };
-
                 new Chart(ctx, {
                     type: 'bar',
-                    data: inventoryChartData,
+                    data: {
+                        labels: <?php echo json_encode($inventoryChartLabels); ?>,
+                        datasets: [{
+                            label: 'Total Items in Stock',
+                            data: <?php echo json_encode($inventoryChartData); ?>,
+                            backgroundColor: '#01A74F',
+                            borderColor: '#018d43',
+                            borderWidth: 1,
+                            borderRadius: 5,
+                        }]
+                    },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
@@ -295,3 +326,4 @@ foreach ($period as $date) {
     </script>
 </body>
 </html>
+

@@ -14,7 +14,8 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Fetch Sales Overview Data
+// Set the timezone to your local timezone
+date_default_timezone_set('Asia/Manila');
 $today = date('Y-m-d');
 
 // Total Revenue for today
@@ -24,18 +25,18 @@ $totalRevenueStmt->execute();
 $totalRevenue = $totalRevenueStmt->get_result()->fetch_assoc()['total_revenue'] ?? 0;
 $totalRevenueStmt->close();
 
-// Total Orders for today
-$totalOrdersStmt = $conn->prepare("SELECT COUNT(*) AS total_orders FROM purchase_history WHERE DATE(transaction_date) = ?");
+// Total Orders for today (Sum of all quantities sold)
+$totalOrdersStmt = $conn->prepare("SELECT SUM(quantity) AS total_orders FROM purchase_history WHERE DATE(transaction_date) = ?");
 $totalOrdersStmt->bind_param("s", $today);
 $totalOrdersStmt->execute();
 $totalOrders = $totalOrdersStmt->get_result()->fetch_assoc()['total_orders'] ?? 0;
 $totalOrdersStmt->close();
 
-// Net Profit for today (assuming you have a 'cost' column in your products table)
+// Net Profit for today (Total Price - Total Cost)
 $netProfitStmt = $conn->prepare("
-    SELECT SUM(ph.total_price - (ph.quantity * p.cost)) AS net_profit
+    SELECT SUM(ph.total_price) - SUM(ph.quantity * COALESCE(p.cost, 0)) AS net_profit
     FROM purchase_history ph
-    JOIN products p ON ph.product_name = p.name
+    LEFT JOIN (SELECT name, AVG(cost) as cost FROM products GROUP BY name) p ON ph.product_name = p.name
     WHERE DATE(ph.transaction_date) = ?
 ");
 $netProfitStmt->bind_param("s", $today);
@@ -44,13 +45,13 @@ $netProfit = $netProfitStmt->get_result()->fetch_assoc()['net_profit'] ?? 0;
 $netProfitStmt->close();
 
 // Fetch Today's Transactions for the table
-$transactionsStmt = $conn->prepare("SELECT product_name, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
+$transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
 $transactionsStmt->bind_param("s", $today);
 $transactionsStmt->execute();
 $transactionsList = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $transactionsStmt->close();
 
-// Fetch Sales Data for the Chart (e.g., daily sales for the last 7 days)
+// Fetch Sales Data for the Chart (daily sales for the last 7 days)
 $chartDataStmt = $conn->prepare("
     SELECT DATE(transaction_date) as date, SUM(total_price) as total_sales
     FROM purchase_history
@@ -115,21 +116,21 @@ foreach ($period as $date) {
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Total Revenue</p>
-                                <p class="text-2xl font-bold text-[#236B3D] id="total-revenue">₱<?php echo htmlspecialchars($totalRevenue); ?></p>
+                                <p class="text-2xl font-bold text-[#236B3D]" id="total-revenue">₱<?php echo htmlspecialchars(number_format($totalRevenue, 2)); ?></p>
                             </div>
                             <i class="ph-fill ph-currency-rub text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Net Profit</p>
-                                <p class="text-2xl font-bold text-green-500" id="net-profit">₱<?php echo htmlspecialchars($netProfit); ?></p>
+                                <p class="text-2xl font-bold text-green-500" id="net-profit">₱<?php echo htmlspecialchars(number_format($netProfit, 2)); ?></p>
                             </div>
                             <i class="ph-fill ph-piggy-bank text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
-                                <p class="text-sm text-gray-500">Total Orders</p>
-                                <p class="text-2xl font-bold text-[#236B3D]" id="total-orders"><?php echo htmlspecialchars($totalOrders); ?></p>
+                                <p class="text-sm text-gray-500">Total Items Sold</p>
+                                <p class="text-2xl font-bold text-[#236B3D]" id="total-orders"><?php echo htmlspecialchars($totalOrders ?? 0); ?></p>
                             </div>
                             <i class="ph-fill ph-shopping-bag text-4xl text-gray-400"></i>
                         </div>
@@ -147,6 +148,7 @@ foreach ($period as $date) {
                                 <thead>
                                     <tr class="bg-gray-50 border-b-2 border-gray-200">
                                         <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600 text-center">Quantity</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Total Price</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Time Stamp</th>
                                     </tr>
@@ -156,13 +158,14 @@ foreach ($period as $date) {
                                         <?php foreach ($transactionsList as $transaction): ?>
                                             <tr class="border-b border-gray-200">
                                                 <td class="py-3 px-4"><?php echo htmlspecialchars($transaction['product_name']); ?></td>
-                                                <td class="py-3 px-4">₱<?php echo htmlspecialchars($transaction['total_price']); ?></td>
-                                                <td class="py-3 px-4"><?php echo htmlspecialchars($transaction['transaction_date']); ?></td>
+                                                <td class="py-3 px-4 text-center"><?php echo htmlspecialchars($transaction['quantity']); ?></td>
+                                                <td class="py-3 px-4">₱<?php echo htmlspecialchars(number_format($transaction['total_price'], 2)); ?></td>
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars(date('g:i A', strtotime($transaction['transaction_date']))); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="3" class="text-center py-4 text-gray-500">No transactions to display.</td>
+                                            <td colspan="4" class="text-center py-8 text-gray-500">No transactions to display for today.</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -193,30 +196,14 @@ foreach ($period as $date) {
                     }
                 });
             }
-
-            if(overlay) {
-                overlay.addEventListener('click', () => {
-                    if (sidebar) sidebar.classList.remove('open-mobile');
-                    overlay.classList.add('hidden');
-                });
-            }
-
+            if(overlay) { overlay.addEventListener('click', () => { if (sidebar) sidebar.classList.remove('open-mobile'); overlay.classList.add('hidden'); }); }
             if(userMenuButton && userMenu){
                 userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
                 window.addEventListener('click', (e) => {
-                    if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
-                        userMenu.classList.add('hidden');
-                    }
+                    if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) { userMenu.classList.add('hidden'); }
                 });
             }
-            
-            function updateDateTime() {
-                if(dateTimeEl){
-                    const now = new Date();
-                    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                    dateTimeEl.textContent = now.toLocaleDateString('en-US', options);
-                }
-            }
+            function updateDateTime() { if(dateTimeEl){ const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }; dateTimeEl.textContent = now.toLocaleDateString('en-US', options); } }
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
@@ -232,20 +219,16 @@ foreach ($period as $date) {
                             label: 'Total Sales (₱)',
                             data: <?php echo json_encode($chartSalesData); ?>,
                             borderColor: '#01A74F',
-                            tension: 0.1,
-                            fill: false
+                            backgroundColor: 'rgba(1, 167, 79, 0.1)',
+                            tension: 0.3,
+                            fill: true
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
                 });
             }
         });
     </script>
 </body>
 </html>
+
