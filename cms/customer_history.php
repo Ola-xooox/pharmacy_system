@@ -282,11 +282,14 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                     }
                     
                     transactionListBody.innerHTML = transactions.map(tx => {
-                        const productList = tx.items.map(item => `<div class="truncate">${item.product_name} (x${item.quantity})</div>`).join('');
+                        // UPDATED: Display product list correctly
+                        const productList = tx.items.length > 0
+                            ? tx.items.map(item => `<div class="truncate">${item.product_name} (x${item.quantity})</div>`).join('')
+                            : 'N/A';
                         
                         return `
                         <tr class="hover:bg-gray-50 cursor-pointer" data-transaction-id="${tx.id}" data-total="${tx.total_amount}" data-date="${tx.transaction_date}" data-customer-name="${customerName}">
-                            <td class="px-4 py-3 text-xs">${productList || 'N/A'}</td>
+                            <td class="px-4 py-3 text-xs">${productList}</td>
                             <td class="px-4 py-3 font-mono text-xs">RX${tx.id}</td>
                             <td class="px-4 py-3 text-xs">${new Date(tx.transaction_date).toLocaleString()}</td>
                             <td class="px-4 py-3 text-right font-semibold">${formatCurrency(tx.total_amount)}</td>
@@ -297,9 +300,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                     transactionListBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-red-500">Could not load history.</td></tr>`;
                 }
             }
-
+            
+            // UPDATED: Function to open receipt by fetching details using transaction ID
             async function openReceiptModal({ transactionId, total, date, customerName }) {
-                const phpDate = new Date(date).toISOString().slice(0, 19).replace('T', ' ');
                 document.getElementById('receipt-date').textContent = new Date(date).toLocaleString();
                 document.getElementById('receipt-no').textContent = `RX${transactionId}`;
                 document.getElementById('receipt-customer').textContent = customerName;
@@ -308,7 +311,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                 receiptModal.classList.add('active');
 
                 try {
-                    const response = await fetch(`../api/customer_api.php?action=get_receipt_details&date=${encodeURIComponent(phpDate)}&total=${total}`);
+                    // Fetch receipt details using the reliable transaction ID
+                    const response = await fetch(`../api/customer_api.php?action=get_receipt_details&id=${transactionId}`);
                     const result = await response.json();
                     
                     if (result.success && result.items.length > 0) {
@@ -338,7 +342,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                     openHistoryModal(customerId, customerName);
                 }
             });
-
+            
+            // UPDATED: Event listener for transaction rows to open receipt
             transactionListBody.addEventListener('click', e => {
                 const transactionRow = e.target.closest('tr');
                 if (transactionRow && transactionRow.dataset.transactionId) {

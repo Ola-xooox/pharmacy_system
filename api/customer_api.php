@@ -17,8 +17,8 @@ switch ($action) {
     case 'get_history':
         handleGetHistory($conn);
         break;
-    case 'log_sale':
-        handleLogSale($conn);
+    case 'complete_sale': // UPDATED: New action to handle the entire sale process
+        handleCompleteSale($conn);
         break;
     case 'get_customer_transactions':
         handleGetCustomerTransactions($conn);
@@ -64,27 +64,30 @@ function handleGetHistory($conn) {
     ]);
 }
 
-function handleLogSale($conn) {
+// NEW UNIFIED FUNCTION
+function handleCompleteSale($conn) {
     $data = json_decode(file_get_contents('php://input'), true);
-    if (!$data) {
+    if (!$data || !isset($data['items']) || !isset($data['total_amount'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Invalid input.']);
+        echo json_encode(['success' => false, 'message' => 'Invalid input data.']);
         return;
     }
 
     $customerName = trim($data['customer_name'] ?? 'Walk-in');
-    $customerId = trim($data['customer_id'] ?? '');
-    $totalAmount = $data['total_amount'] ?? 0;
+    $customerIdNo = trim($data['customer_id'] ?? '');
+    $totalAmount = $data['total_amount'];
+    $items = $data['items'];
 
-    if ($totalAmount <= 0) {
-        echo json_encode(['success' => true, 'message' => 'No amount to log.']);
+    if (empty($items) || $totalAmount <= 0) {
+        echo json_encode(['success' => true, 'message' => 'No items to log.']);
         return;
     }
 
     $conn->begin_transaction();
     try {
+        // Step 1: Find or create customer_history record
         $stmt = $conn->prepare("SELECT id FROM customer_history WHERE customer_name = ? AND customer_id_no = ?");
-        $stmt->bind_param("ss", $customerName, $customerId);
+        $stmt->bind_param("ss", $customerName, $customerIdNo);
         $stmt->execute();
         $result = $stmt->get_result();
         $historyId = null;
@@ -97,28 +100,49 @@ function handleLogSale($conn) {
             $updateStmt->close();
         } else {
             $insertStmt = $conn->prepare("INSERT INTO customer_history (customer_name, customer_id_no, total_visits, total_spent) VALUES (?, ?, 1, ?)");
-            $insertStmt->bind_param("ssd", $customerName, $customerId, $totalAmount);
+            $insertStmt->bind_param("ssd", $customerName, $customerIdNo, $totalAmount);
             $insertStmt->execute();
             $historyId = $insertStmt->insert_id;
             $insertStmt->close();
         }
         $stmt->close();
 
-        if ($historyId) {
-            $transStmt = $conn->prepare("INSERT INTO transactions (customer_history_id, total_amount) VALUES (?, ?)");
-            $transStmt->bind_param("id", $historyId, $totalAmount);
-            $transStmt->execute();
-            $transStmt->close();
+        if (!$historyId) {
+            throw new Exception("Failed to create or find customer history record.");
         }
 
+        // Step 2: Create a single transaction record and get its ID
+        $transStmt = $conn->prepare("INSERT INTO transactions (customer_history_id, total_amount) VALUES (?, ?)");
+        $transStmt->bind_param("id", $historyId, $totalAmount);
+        $transStmt->execute();
+        $transactionId = $transStmt->insert_id; // CRITICAL: Get the new transaction ID
+        $transStmt->close();
+
+        if (!$transactionId) {
+            throw new Exception("Failed to create transaction record.");
+        }
+
+        // Step 3: Insert each purchased item into purchase_history, linking it to the transaction ID
+        $purchaseStmt = $conn->prepare("INSERT INTO purchase_history (transaction_id, product_name, quantity, total_price, transaction_date) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
+        foreach ($items as $item) {
+            $product_name = $item['name'];
+            $quantity = (int)$item['quantity'];
+            $item_total_price = (float)$item['price'] * $quantity;
+            $purchaseStmt->bind_param("isid", $transactionId, $product_name, $quantity, $item_total_price);
+            $purchaseStmt->execute();
+        }
+        $purchaseStmt->close();
+
         $conn->commit();
-        echo json_encode(['success' => true, 'message' => 'Customer history logged successfully.']);
+        echo json_encode(['success' => true, 'message' => 'Sale logged successfully.']);
+
     } catch (Exception $e) {
         $conn->rollback();
         http_response_code(500);
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
+
 
 function handleGetCustomerTransactions($conn) {
     $customerId = $_GET['id'] ?? 0;
@@ -128,6 +152,7 @@ function handleGetCustomerTransactions($conn) {
         return;
     }
 
+    // Fetch transactions for the customer
     $stmt = $conn->prepare("SELECT id, total_amount, transaction_date FROM transactions WHERE customer_history_id = ? ORDER BY transaction_date DESC");
     $stmt->bind_param("i", $customerId);
     $stmt->execute();
@@ -140,14 +165,13 @@ function handleGetCustomerTransactions($conn) {
         return;
     }
 
-    $itemsStmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_date = ?");
-
+    // UPDATED LOGIC: Fetch items for each transaction using the correct transaction_id
+    $itemsStmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_id = ?");
     foreach ($transactions as &$tx) { 
-        $itemsStmt->bind_param("s", $tx['transaction_date']);
+        $itemsStmt->bind_param("i", $tx['id']); // Bind the transaction ID
         $itemsStmt->execute();
         $items_result = $itemsStmt->get_result();
         $items = $items_result->fetch_all(MYSQLI_ASSOC);
-        
         $tx['items'] = $items;
     }
     unset($tx);
@@ -156,33 +180,30 @@ function handleGetCustomerTransactions($conn) {
     echo json_encode($transactions);
 }
 
-
 function handleGetReceiptDetails($conn) {
-    $date = $_GET['date'] ?? '';
-    $totalFromTransaction = isset($_GET['total']) ? (float)$_GET['total'] : 0;
+    // UPDATED LOGIC: Use transaction_id for a reliable lookup
+    $transactionId = $_GET['id'] ?? 0;
 
-    if (empty($date) || $totalFromTransaction <= 0) {
+    if (empty($transactionId)) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Missing date or total for lookup.']);
+        echo json_encode(['success' => false, 'message' => 'Missing transaction ID for lookup.']);
         return;
     }
 
-    $stmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_date = ?");
-    $stmt->bind_param("s", $date);
+    $stmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_id = ?");
+    $stmt->bind_param("i", $transactionId);
     $stmt->execute();
     $result = $stmt->get_result();
     $items = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     
     if (empty($items)) {
-         echo json_encode(['success' => false, 'message' => 'No purchased items were found for this exact transaction time.']);
+         echo json_encode(['success' => false, 'message' => 'No purchased items were found for this transaction.']);
          return;
     }
 
     echo json_encode(['success' => true, 'items' => $items]);
 }
 
-
 $conn->close();
 ?>
-

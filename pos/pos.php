@@ -308,16 +308,16 @@
                         <div class="space-y-3">
                             <div>
                                 <label for="discount-customer-name" class="text-xs sm:text-sm font-medium text-gray-600">Customer Name</label>
-                                <input type="text" id="discount-customer-name" placeholder="Mr. Example" class="mt-1 w-full p-2 border rounded-md bg-white text-sm">
+                                <input type="text" id="discount-customer-name" placeholder="Mr. Example" class="mt-1 w-full p-2 border rounded-md bg-white text-sm" required>
                             </div>
                             <div>
                                 <label for="discount-id-number" class="text-xs sm:text-sm font-medium text-gray-600">ID Number</label>
-                                <input type="text" id="discount-id-number" placeholder="12345" class="mt-1 w-full p-2 border rounded-md bg-white text-sm">
+                                <input type="text" id="discount-id-number" placeholder="12345" class="mt-1 w-full p-2 border rounded-md bg-white text-sm" required>
                             </div>
                             <div>
                                 <label class="text-xs sm:text-sm font-medium text-gray-600">Discount Type</label>
                                 <div class="flex items-center gap-4 mt-1 sm:mt-2 text-sm">
-                                    <label class="flex items-center gap-2"><input type="radio" name="discount-type" value="senior" class="form-radio text-brand-green"> Senior Citizen</label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="discount-type" value="senior" class="form-radio text-brand-green" required> Senior Citizen</label>
                                     <label class="flex items-center gap-2"><input type="radio" name="discount-type" value="pwd" class="form-radio text-brand-green"> PWD</label>
                                 </div>
                             </div>
@@ -368,8 +368,8 @@
                     <div class="bg-gray-50 p-4 rounded-lg mb-4">
                         <h4 class="font-semibold mb-3 text-gray-700">Customer Information</h4>
                         <div>
-                            <label for="regular-customer-name" class="text-xs sm:text-sm font-medium text-gray-600">Customer Name</label>
-                            <input type="text" id="regular-customer-name" placeholder="Mr. Example" class="mt-1 w-full p-2 border rounded-md bg-white text-sm">
+                            <label for="regular-customer-name" class="text-xs sm:text-sm font-medium text-gray-600">Customer Name (Optional)</label>
+                            <input type="text" id="regular-customer-name" placeholder="Walk-in Customer" class="mt-1 w-full p-2 border rounded-md bg-white text-sm">
                         </div>
                     </div>
 
@@ -739,23 +739,48 @@
                 regularPaymentForm.reset();
             });
             
-            async function processSale() {
-                 try {
-                    const response = await fetch('../api.php?action=process_sale', {
+            // NEW UNIFIED FUNCTION TO PROCESS SALE AND LOG CUSTOMER DATA
+            async function completePurchase(customerData) {
+                const saleData = {
+                    ...customerData,
+                    items: orderItems,
+                    total_amount: parseFloat(totalElement.textContent.replace('₱', ''))
+                };
+
+                // First, process the inventory reduction
+                try {
+                    const stockResponse = await fetch('../api.php?action=process_sale', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(orderItems)
                     });
-                    const result = await response.json();
+                    const stockResult = await stockResponse.json();
+                    if (!stockResponse.ok) {
+                        alert(`Error processing sale: ${stockResult.message || 'Server error'}`);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Stock update error:', error);
+                    alert('An error occurred while connecting to the server for stock update.');
+                    return false;
+                }
 
-                    if (!response.ok) { // Check for non-2xx status codes
-                        alert(`Error processing sale: ${result.message || 'Server error'}`);
+                // Second, log the complete sale with customer history
+                try {
+                    const historyResponse = await fetch('../api/customer_api.php?action=complete_sale', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(saleData)
+                    });
+                    const historyResult = await historyResponse.json();
+                     if (!historyResponse.ok) {
+                        alert(`Error logging customer history: ${historyResult.message || 'Server error'}`);
                         return false;
                     }
                     return true;
                 } catch (error) {
-                    console.error('Sale processing error:', error);
-                    alert('An error occurred while connecting to the server.');
+                    console.error('Customer history logging error:', error);
+                    alert('An error occurred while logging the sale.');
                     return false;
                 }
             }
@@ -766,7 +791,12 @@
                 btn.disabled = true;
                 btn.textContent = 'Processing...';
 
-                if (await processSale()) {
+                const customerData = {
+                    customer_name: discountCustomerNameInput.value,
+                    customer_id: discountIdNumberInput.value,
+                };
+
+                if (await completePurchase(customerData)) {
                     showReceipt();
                     discountPaymentModal.classList.remove('active');
                 }
@@ -781,7 +811,12 @@
                 btn.disabled = true;
                 btn.textContent = 'Processing...';
 
-                if (await processSale()) {
+                const customerData = {
+                    customer_name: regularCustomerNameInput.value || 'Walk-in',
+                    customer_id: '',
+                };
+
+                if (await completePurchase(customerData)) {
                     showReceipt();
                     regularPaymentModal.classList.remove('active');
                 }
@@ -789,32 +824,10 @@
                 btn.disabled = false;
                 btn.textContent = 'Complete Payment';
             });
-
-            async function logCustomerHistory(customerName, customerId, totalAmount) {
-                try {
-                    const response = await fetch('../api/customer_api.php?action=log_sale', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            customer_name: customerName,
-                            customer_id: customerId,
-                            total_amount: totalAmount
-                        })
-                    });
-                    const result = await response.json();
-                    if (!result.success) {
-                        console.error('Failed to log customer history:', result.message);
-                    } else {
-                        console.log("Customer history logged successfully.");
-                    }
-                } catch (error) {
-                    console.error('Error logging customer history:', error);
-                }
-            }
             
             function showReceipt() {
                 const discountRate = parseFloat(discountSelector.value);
-                const customerName = (discountRate > 0) ? discountCustomerNameInput.value : regularCustomerNameInput.value;
+                const customerName = (discountRate > 0) ? discountCustomerNameInput.value : (regularCustomerNameInput.value || 'Walk-in');
                 const idNumber = (discountRate > 0) ? discountIdNumberInput.value : '';
                 const discountType = (discountRate > 0) ? document.querySelector('input[name="discount-type"]:checked')?.value : '';
                 const paymentMethodRadio = (discountRate > 0) ? 'discount-payment-method' : 'regular-payment-method';
@@ -824,7 +837,7 @@
                 receiptDate.textContent = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 receiptNo.textContent = `RX${Date.now().toString().slice(-6)}`;
                 
-                receiptCustomer.textContent = customerName || 'Walk-in';
+                receiptCustomer.textContent = customerName;
                 receiptId.textContent = `${idNumber || 'N/A'} ${discountType ? `(${discountType.charAt(0).toUpperCase() + discountType.slice(1)})` : ''}`;
                 receiptPaymentMethod.textContent = paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1);
 
@@ -855,13 +868,9 @@
                 receiptDiscount.textContent = `-₱${discountAmount.toFixed(2)}`;
                 receiptTotal.textContent = `₱${total.toFixed(2)}`;
 
-                // Log customer history before showing receipt
-                logCustomerHistory(customerName, idNumber, total);
-
                 receiptModal.classList.add('active');
                 lucide.createIcons();
             }
-
 
             newTransactionBtn.addEventListener('click', () => {
                 receiptModal.classList.remove('active');
