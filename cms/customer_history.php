@@ -1,37 +1,33 @@
+<?php
+session_start();
+// Redirect if not logged in or not a CMS user
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
+    header("Location: ../login.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Management</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Phosphor Icons for a clean look -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
     </style>
-  <link rel="icon" type="image/x-icon" href="mjpharma.jpg">
+  <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
-    <!-- Header -->
-    <header class="w-full bg-green-500 text-white p-6 shadow-md flex items-center justify-between rounded-b-xl">
-        <div class="flex items-center space-x-4">
-            <img src="mjpharma.jpg" alt="Logo" class="rounded-full w-10 h-10">
-            <h1 class="text-2xl font-bold">Customer Management</h1>
-        </div>
-        <button class="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors">
-            <i class="ph-fill ph-sign-out text-2xl"></i>
-        </button>
-    </header>
+    <?php include 'cms_header.php'; ?>
 
-    <!-- Main Content Area -->
     <main class="flex-1 p-8 flex justify-center">
-        <!-- Customer Management Page -->
         <div id="customer-management-page" class="w-full max-w-7xl">
             <div class="bg-white p-6 rounded-2xl shadow-md">
                 <div class="flex flex-col md:flex-row justify-between items-center mb-6">
@@ -60,18 +56,15 @@
                             </tr>
                         </thead>
                         <tbody id="customer-table-body">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
                 <div class="flex justify-center mt-6 space-x-2" id="customer-pagination">
-                    <!-- Pagination buttons will be populated by JavaScript -->
-                </div>
+                    </div>
             </div>
         </div>
     </main>
 
-    <!-- Modal for Customer History -->
     <div id="history-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
             <div class="flex justify-between items-center mb-4">
@@ -81,12 +74,14 @@
                 </button>
             </div>
             <div id="history-modal-content" class="space-y-4">
-                <!-- History data will be populated here -->
-            </div>
+                </div>
         </div>
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
         // Get references to DOM elements
         const historyModal = document.getElementById('history-modal');
         const closeHistoryModalBtn = document.getElementById('close-history-modal');
@@ -176,7 +171,7 @@
 
             const prevButton = document.createElement('button');
             prevButton.textContent = 'Previous';
-            prevButton.className = `bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors ${customerCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
+            prevButton.className = \`bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors \${customerCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}\`;
             prevButton.disabled = customerCurrentPage === 1;
             prevButton.addEventListener('click', () => {
                 if (customerCurrentPage > 1) {
@@ -190,7 +185,7 @@
             for (let i = 1; i <= totalPages; i++) {
                 const pageButton = document.createElement('button');
                 pageButton.textContent = i;
-                pageButton.className = `px-4 py-2 rounded-lg font-bold transition-colors ${i === customerCurrentPage ? 'bg-[#236B3D] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`;
+                pageButton.className = \`px-4 py-2 rounded-lg font-bold transition-colors \${i === customerCurrentPage ? 'bg-[#236B3D] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}\`;
                 pageButton.addEventListener('click', () => {
                     customerCurrentPage = i;
                     const filteredData = performSearch();
@@ -201,7 +196,7 @@
 
             const nextButton = document.createElement('button');
             nextButton.textContent = 'Next';
-            nextButton.className = `bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors ${customerCurrentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
+            nextButton.className = \`bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors \${customerCurrentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}\`;
             nextButton.disabled = customerCurrentPage === totalPages;
             nextButton.addEventListener('click', () => {
                 if (customerCurrentPage < totalPages) {
@@ -220,14 +215,14 @@
                 const customer = mockData.customers.find(c => c.id === customerId);
                 const history = mockData.customerHistories[customerId] || [];
 
-                historyModalTitle.textContent = `${customer.name}'s History`;
-                historyModalContent.innerHTML = history.length > 0 ? history.map(h => `
+                historyModalTitle.textContent = \`\${customer.name}'s History\`;
+                historyModalContent.innerHTML = history.length > 0 ? history.map(h => \`
                     <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-                        <p class="font-bold">Date: ${h.date}</p>
-                        <p>Total: ${h.total}</p>
-                        <p>Items: ${h.items.join(', ')}</p>
+                        <p class="font-bold">Date: \${h.date}</p>
+                        <p>Total: \${h.total}</p>
+                        <p>Items: \${h.items.join(', ')}</p>
                     </div>
-                `).join('') : '<p class="text-gray-500">No transaction history found.</p>';
+                \`).join('') : '<p class="text-gray-500">No transaction history found.</p>';
 
                 historyModal.classList.remove('hidden');
                 historyModal.classList.add('flex');
@@ -244,8 +239,8 @@
         function performSearch() {
             const searchInput = document.getElementById('customer-search');
             const searchTerm = searchInput.value.toLowerCase();
-            return mockData.customers.filter(item => 
-                String(item.name).toLowerCase().includes(searchTerm) || 
+            return mockData.customers.filter(item =>
+                String(item.name).toLowerCase().includes(searchTerm) ||
                 String(item.id).toLowerCase().includes(searchTerm)
             );
         }
@@ -259,7 +254,7 @@
                 renderCustomerTable(filteredData);
             });
         }
-        
+
         // Initial setup on page load
         window.onload = function() {
             renderCustomerTable(); // Initial render for customer table

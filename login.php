@@ -28,7 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: inventory/products.php");
                 break;
             case 'cms':
-                header("Location: cms/costumer.html");
+                header("Location: cms/customer_history.php");
                 break;
             case 'admin':
                 header("Location: admin portal/dashboard.php");
