@@ -1,11 +1,44 @@
-<?php 
+<?php
+// All PHP data fetching logic MUST go at the top of the file
 session_start();
 // Redirect if not logged in or not an admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
-$currentPage = 'inventory_report'; ?>
+$currentPage = 'inventory_report'; 
+
+// --- Start of PHP Data Fetching ---
+require_once '../db_connect.php'; // Corrected path from previous errors
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch Inventory Summary Data
+$inventorySummaryStmt = $conn->prepare("SELECT SUM(item_total) AS total_stocks, COUNT(*) AS total_products FROM products");
+$inventorySummaryStmt->execute();
+$inventorySummary = $inventorySummaryStmt->get_result()->fetch_assoc();
+$totalStocks = $inventorySummary['total_stocks'] ?? 0;
+$totalProducts = $inventorySummary['total_products'] ?? 0;
+$inventorySummaryStmt->close();
+
+// Fetch Expiring Soon Count
+$expiringSoonStmt = $conn->prepare("SELECT COUNT(*) AS expiring_soon FROM products WHERE expiration_date IS NOT NULL AND expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)");
+$expiringSoonStmt->execute();
+$expiringSoon = $expiringSoonStmt->get_result()->fetch_assoc()['expiring_soon'] ?? 0;
+$expiringSoonStmt->close();
+
+// Fetch All Products for the Table
+$inventoryListStmt = $conn->prepare("SELECT name, stock, expiration_date, supplier, date_added FROM products ORDER BY name ASC");
+$inventoryListStmt->execute();
+$inventoryList = $inventoryListStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$inventoryListStmt->close();
+
+// --- End of PHP Data Fetching ---
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +48,6 @@ $currentPage = 'inventory_report'; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="admin_styles.css">
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
@@ -39,15 +71,15 @@ $currentPage = 'inventory_report'; ?>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Total stocks</p>
-                                <p class="text-2xl font-bold text-[#236B3D]">750</p>
-                                <span class="text-xs text-gray-400">8 products</span>
+                                <p class="text-2xl font-bold text-[#236B3D]"><?php echo htmlspecialchars($totalStocks); ?></p>
+                                <span class="text-xs text-gray-400"><?php echo htmlspecialchars($totalProducts); ?> products</span>
                             </div>
                             <i class="ph-fill ph-package text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Expiring Soon</p>
-                                <p class="text-2xl font-bold text-orange-500">50</p>
+                                <p class="text-2xl font-bold text-orange-500"><?php echo htmlspecialchars($expiringSoon); ?></p>
                                 <span class="text-xs text-gray-400">within 3 months</span>
                             </div>
                             <i class="ph-fill ph-clock-countdown text-4xl text-gray-400"></i>
@@ -75,8 +107,17 @@ $currentPage = 'inventory_report'; ?>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Recieved Date</th>
                                     </tr>
                                 </thead>
-                                <tbody id="inventory-table-body">
-                                    </tbody>
+                                <tbody>
+                                    <?php foreach ($inventoryList as $product): ?>
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-3 px-4"><?php echo htmlspecialchars($product['name']); ?></td>
+                                        <td class="py-3 px-4"><?php echo htmlspecialchars($product['stock']); ?></td>
+                                        <td class="py-3 px-4"><?php echo htmlspecialchars($product['expiration_date']); ?></td>
+                                        <td class="py-3 px-4"><?php echo htmlspecialchars($product['supplier']); ?></td>
+                                        <td class="py-3 px-4"><?php echo htmlspecialchars($product['date_added']); ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -85,7 +126,6 @@ $currentPage = 'inventory_report'; ?>
         </main>
     </div>
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
-    <script src="admin_script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -133,5 +173,41 @@ $currentPage = 'inventory_report'; ?>
             setInterval(updateDateTime, 60000);
         });
     </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // PHP variables are used here to prepare data for the chart
+        const chartLabels = <?php echo json_encode(array_column($inventoryList, 'name')); ?>;
+        const chartData = <?php echo json_encode(array_column($inventoryList, 'stock')); ?>;
+
+        const data = {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Total Stock',
+                backgroundColor: '#01A74F',
+                borderColor: '#01A74F',
+                data: chartData,
+            }]
+        };
+
+        const config = {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+
+        const myChart = new Chart(
+            document.getElementById('inventoryStatusChart'),
+            config
+        );
+    });
+</script>
 </body>
 </html>

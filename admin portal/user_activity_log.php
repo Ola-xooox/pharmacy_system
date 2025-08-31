@@ -5,7 +5,33 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
-$currentPage = 'user_activity_log'; ?>
+$currentPage = 'user_activity_log';
+
+// --- Start of PHP Data Fetching ---
+require_once '../db_connect.php'; 
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch all activity log data, joining with the users table to get the name
+$activityLogStmt = $conn->prepare("
+    SELECT 
+        u.username, 
+        a.action_description, 
+        a.timestamp 
+    FROM user_activity_log a
+    JOIN users u ON a.user_id = u.id
+    ORDER BY a.timestamp DESC
+");
+$activityLogStmt->execute();
+$activityLog = $activityLogStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$activityLogStmt->close();
+
+$conn->close();
+// --- End of PHP Data Fetching ---
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,8 +39,8 @@ $currentPage = 'user_activity_log'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal - User Activity Log</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="admin_styles.css">
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
@@ -49,8 +75,21 @@ $currentPage = 'user_activity_log'; ?>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Time Stamp</th>
                                     </tr>
                                 </thead>
-                                <tbody id="activity-table-body">
-                                    </tbody>
+                                <tbody>
+                                    <?php if (!empty($activityLog)): ?>
+                                        <?php foreach ($activityLog as $log): ?>
+                                            <tr class="border-b border-gray-200">
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars($log['username']); ?></td>
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars($log['action_description']); ?></td>
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars($log['timestamp']); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="3" class="text-center py-4 text-gray-500">No activity to display.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -59,7 +98,6 @@ $currentPage = 'user_activity_log'; ?>
         </main>
     </div>
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
-    <script src="admin_script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');

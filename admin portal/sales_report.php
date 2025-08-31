@@ -5,7 +5,86 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
-$currentPage = 'sales_report'; ?>
+$currentPage = 'sales_report';
+
+// --- Start of PHP Data Fetching ---
+require_once '../db_connect.php';
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch Sales Overview Data
+$today = date('Y-m-d');
+
+// Total Revenue for today
+$totalRevenueStmt = $conn->prepare("SELECT SUM(total_price) AS total_revenue FROM purchase_history WHERE DATE(transaction_date) = ?");
+$totalRevenueStmt->bind_param("s", $today);
+$totalRevenueStmt->execute();
+$totalRevenue = $totalRevenueStmt->get_result()->fetch_assoc()['total_revenue'] ?? 0;
+$totalRevenueStmt->close();
+
+// Total Orders for today
+$totalOrdersStmt = $conn->prepare("SELECT COUNT(*) AS total_orders FROM purchase_history WHERE DATE(transaction_date) = ?");
+$totalOrdersStmt->bind_param("s", $today);
+$totalOrdersStmt->execute();
+$totalOrders = $totalOrdersStmt->get_result()->fetch_assoc()['total_orders'] ?? 0;
+$totalOrdersStmt->close();
+
+// Net Profit for today (assuming you have a 'cost' column in your products table)
+$netProfitStmt = $conn->prepare("
+    SELECT SUM(ph.total_price - (ph.quantity * p.cost)) AS net_profit
+    FROM purchase_history ph
+    JOIN products p ON ph.product_name = p.name
+    WHERE DATE(ph.transaction_date) = ?
+");
+$netProfitStmt->bind_param("s", $today);
+$netProfitStmt->execute();
+$netProfit = $netProfitStmt->get_result()->fetch_assoc()['net_profit'] ?? 0;
+$netProfitStmt->close();
+
+// Fetch Today's Transactions for the table
+$transactionsStmt = $conn->prepare("SELECT product_name, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
+$transactionsStmt->bind_param("s", $today);
+$transactionsStmt->execute();
+$transactionsList = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$transactionsStmt->close();
+
+// Fetch Sales Data for the Chart (e.g., daily sales for the last 7 days)
+$chartDataStmt = $conn->prepare("
+    SELECT DATE(transaction_date) as date, SUM(total_price) as total_sales
+    FROM purchase_history
+    WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+    GROUP BY DATE(transaction_date)
+    ORDER BY DATE(transaction_date) ASC
+");
+$chartDataStmt->execute();
+$rawChartData = $chartDataStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$chartDataStmt->close();
+
+$conn->close();
+
+// Prepare chart data for JavaScript
+$chartLabels = [];
+$chartSalesData = [];
+$period = new DatePeriod(new DateTime('-6 days'), new DateInterval('P1D'), new DateTime('+1 day'));
+foreach ($period as $date) {
+    $formattedDate = $date->format('Y-m-d');
+    $chartLabels[] = $date->format('D'); // Day of the week
+    $found = false;
+    foreach ($rawChartData as $row) {
+        if ($row['date'] === $formattedDate) {
+            $chartSalesData[] = $row['total_sales'];
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        $chartSalesData[] = 0;
+    }
+}
+// --- End of PHP Data Fetching ---
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +94,6 @@ $currentPage = 'sales_report'; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="admin_styles.css">
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
@@ -28,32 +106,30 @@ $currentPage = 'sales_report'; ?>
 </head>
 <body class="bg-gray-100 min-h-screen flex">
     <?php include 'admin_sidebar.php'; ?>
-
     <div class="flex-1 flex flex-col overflow-hidden">
         <?php include 'admin_header.php'; ?>
-
         <main class="flex-1 overflow-y-auto p-6">
             <div id="page-content">
                 <div id="sales-report-page" class="space-y-8">
-                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Total Revenue</p>
-                                <p class="text-2xl font-bold text-[#236B3D]">₱4,850</p>
+                                <p class="text-2xl font-bold text-[#236B3D] id="total-revenue">₱<?php echo htmlspecialchars($totalRevenue); ?></p>
                             </div>
                             <i class="ph-fill ph-currency-rub text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Net Profit</p>
-                                <p class="text-2xl font-bold text-green-500">₱1,445</p>
+                                <p class="text-2xl font-bold text-green-500" id="net-profit">₱<?php echo htmlspecialchars($netProfit); ?></p>
                             </div>
                             <i class="ph-fill ph-piggy-bank text-4xl text-gray-400"></i>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Total Orders</p>
-                                <p class="text-2xl font-bold text-[#236B3D]">18</p>
+                                <p class="text-2xl font-bold text-[#236B3D]" id="total-orders"><?php echo htmlspecialchars($totalOrders); ?></p>
                             </div>
                             <i class="ph-fill ph-shopping-bag text-4xl text-gray-400"></i>
                         </div>
@@ -70,13 +146,26 @@ $currentPage = 'sales_report'; ?>
                             <table class="w-full text-left">
                                 <thead>
                                     <tr class="bg-gray-50 border-b-2 border-gray-200">
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Date's</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Item's Profit</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Profit</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600">Total Price</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600">Time Stamp</th>
                                     </tr>
                                 </thead>
-                                <tbody id="sales-table-body">
-                                    </tbody>
+                                <tbody>
+                                    <?php if (!empty($transactionsList)): ?>
+                                        <?php foreach ($transactionsList as $transaction): ?>
+                                            <tr class="border-b border-gray-200">
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars($transaction['product_name']); ?></td>
+                                                <td class="py-3 px-4">₱<?php echo htmlspecialchars($transaction['total_price']); ?></td>
+                                                <td class="py-3 px-4"><?php echo htmlspecialchars($transaction['transaction_date']); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="3" class="text-center py-4 text-gray-500">No transactions to display.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -85,7 +174,6 @@ $currentPage = 'sales_report'; ?>
         </main>
     </div>
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
-    <script src="admin_script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -131,6 +219,32 @@ $currentPage = 'sales_report'; ?>
             }
             updateDateTime();
             setInterval(updateDateTime, 60000);
+
+            // Chart
+            const salesPerformanceChartCanvas = document.getElementById('salesPerformanceChart');
+            if (salesPerformanceChartCanvas) {
+                const ctx = salesPerformanceChartCanvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: <?php echo json_encode($chartLabels); ?>,
+                        datasets: [{
+                            label: 'Total Sales (₱)',
+                            data: <?php echo json_encode($chartSalesData); ?>,
+                            borderColor: '#01A74F',
+                            tension: 0.1,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>

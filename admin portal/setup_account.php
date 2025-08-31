@@ -75,7 +75,6 @@ $currentPage = 'setup_account';
     <title>Admin Portal - Set Up Account</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="admin_styles.css">
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
