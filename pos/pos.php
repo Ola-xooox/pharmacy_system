@@ -572,7 +572,6 @@
                 renderProducts(filteredProducts);
             }
             
-            // --- FIX: Updated getStockStatus logic to use 'stock' and new threshold ---
             function getStockStatus(stock) {
                 stock = parseInt(stock, 10);
                 if (stock <= 0) return { text: 'Out of Stock', class: 'out-of-stock' };
@@ -586,7 +585,6 @@
                     return;
                 }
                 productGrid.innerHTML = productsToRender.map(p => {
-                    // --- FIX: Pass p.stock to the getStockStatus function ---
                     const stockStatus = getStockStatus(p.stock);
                     const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}" class="product-image">` : placeholderSVG;
                     return `
@@ -750,12 +748,13 @@
                     });
                     const result = await response.json();
 
-                    if (!result.success) {
-                        alert(`Error processing sale: ${result.message}`);
+                    if (!response.ok) { // Check for non-2xx status codes
+                        alert(`Error processing sale: ${result.message || 'Server error'}`);
                         return false;
                     }
                     return true;
                 } catch (error) {
+                    console.error('Sale processing error:', error);
                     alert('An error occurred while connecting to the server.');
                     return false;
                 }
@@ -763,26 +762,60 @@
             
             discountPaymentForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const btn = e.submitter;
+                btn.disabled = true;
+                btn.textContent = 'Processing...';
+
                 if (await processSale()) {
-                    discountPaymentModal.classList.remove('active');
                     showReceipt();
-                    lucide.createIcons();
+                    discountPaymentModal.classList.remove('active');
                 }
+                
+                btn.disabled = false;
+                btn.textContent = 'Complete Payment';
             });
             
             regularPaymentForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const btn = e.submitter;
+                btn.disabled = true;
+                btn.textContent = 'Processing...';
+
                 if (await processSale()) {
-                    regularPaymentModal.classList.remove('active');
                     showReceipt();
-                    lucide.createIcons();
+                    regularPaymentModal.classList.remove('active');
                 }
+
+                btn.disabled = false;
+                btn.textContent = 'Complete Payment';
             });
+
+            async function logCustomerHistory(customerName, customerId, totalAmount) {
+                try {
+                    const response = await fetch('../api/customer_api.php?action=log_sale', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customer_name: customerName,
+                            customer_id: customerId,
+                            total_amount: totalAmount
+                        })
+                    });
+                    const result = await response.json();
+                    if (!result.success) {
+                        console.error('Failed to log customer history:', result.message);
+                    } else {
+                        console.log("Customer history logged successfully.");
+                    }
+                } catch (error) {
+                    console.error('Error logging customer history:', error);
+                }
+            }
             
             function showReceipt() {
                 const discountRate = parseFloat(discountSelector.value);
                 const customerName = (discountRate > 0) ? discountCustomerNameInput.value : regularCustomerNameInput.value;
-                const idNumber = (discountRate > 0) ? discountIdNumberInput.value : 'N/A';
+                const idNumber = (discountRate > 0) ? discountIdNumberInput.value : '';
                 const discountType = (discountRate > 0) ? document.querySelector('input[name="discount-type"]:checked')?.value : '';
                 const paymentMethodRadio = (discountRate > 0) ? 'discount-payment-method' : 'regular-payment-method';
                 const paymentMethod = document.querySelector(`input[name="${paymentMethodRadio}"]:checked`).value;
@@ -791,8 +824,8 @@
                 receiptDate.textContent = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 receiptNo.textContent = `RX${Date.now().toString().slice(-6)}`;
                 
-                receiptCustomer.textContent = customerName || 'N/A';
-                receiptId.textContent = `${idNumber} ${discountType ? `(${discountType.charAt(0).toUpperCase() + discountType.slice(1)})` : ''}`;
+                receiptCustomer.textContent = customerName || 'Walk-in';
+                receiptId.textContent = `${idNumber || 'N/A'} ${discountType ? `(${discountType.charAt(0).toUpperCase() + discountType.slice(1)})` : ''}`;
                 receiptPaymentMethod.textContent = paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1);
 
                 receiptItems.innerHTML = `<div class="flex justify-between font-bold mb-2">
@@ -822,7 +855,11 @@
                 receiptDiscount.textContent = `-₱${discountAmount.toFixed(2)}`;
                 receiptTotal.textContent = `₱${total.toFixed(2)}`;
 
+                // Log customer history before showing receipt
+                logCustomerHistory(customerName, idNumber, total);
+
                 receiptModal.classList.add('active');
+                lucide.createIcons();
             }
 
 

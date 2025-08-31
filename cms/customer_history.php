@@ -37,24 +37,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
-        .modal-overlay {
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-            pointer-events: none;
-        }
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .modal-content {
-            transform: scale(0.95) translateY(10px);
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-            opacity: 0;
-        }
-        .modal-overlay.active .modal-content {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-        }
     </style>
   <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
 </head>
@@ -106,39 +88,33 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
         </main>
     </div>
 
-    <div id="history-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 z-50">
-        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-3xl">
-            <div class="p-6 border-b flex justify-between items-center">
-                <h3 id="history-modal-title" class="text-xl font-bold text-gray-800"></h3>
-                <button id="close-history-modal" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div id="history-modal-content" class="p-6 max-h-[60vh] overflow-y-auto space-y-4">
-                </div>
-             <div class="p-6 bg-gray-50 rounded-b-xl text-right">
-                <button id="close-history-modal-footer" class="px-5 py-2.5 text-sm font-semibold bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Close</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-
-            const historyModal = document.getElementById('history-modal');
-            const closeHistoryModalBtns = [document.getElementById('close-history-modal'), document.getElementById('close-history-modal-footer')];
-            const historyModalTitle = document.getElementById('history-modal-title');
-            const historyModalContent = document.getElementById('history-modal-content');
             const searchInput = document.getElementById('customer-search');
-
-            const mockData = {
-                customers: [ { id: 123456, name: 'Jairo Indoso', lastVisit: '2025-08-28', totalSpent: 12450, visits: 8, avatarInitial: 'JI' }, { id: 123457, name: 'Mark James Pisngot', lastVisit: '2025-08-30', totalSpent: 12450, visits: 8, avatarInitial: 'MP' }, { id: 123458, name: 'Edmalyn Cabales', lastVisit: '2025-08-25', totalSpent: 12450, visits: 8, avatarInitial: 'EC' }, { id: 123459, name: 'Mhae Micah', lastVisit: '2025-08-22', totalSpent: 12450, visits: 8, avatarInitial: 'MM' }, { id: 123450, name: 'Kim Elacion', lastVisit: '2025-08-19', totalSpent: 12450, visits: 8, avatarInitial: 'KE' }, { id: 123451, name: 'Karl Vincent', lastVisit: '2025-08-15', totalSpent: 12450, visits: 8, avatarInitial: 'KV' }, { id: 123452, name: 'Jane Doe', lastVisit: '2025-08-10', totalSpent: 8200, visits: 5, avatarInitial: 'JD' }, { id: 123453, name: 'John Smith', lastVisit: '2025-08-09', totalSpent: 5100, visits: 3, avatarInitial: 'JS' }, ],
-                customerHistories: { 123456: [ { date: '2025-08-28', total: 5000, items: ['Amoxicillin 500mg', 'Biogesic'] }, { date: '2025-08-01', total: 4450, items: ['Diatabs', 'Neozep'] }, { date: '2025-07-15', total: 3000, items: ['Paracetamol'] }, ], 123457: [ { date: '2025-08-30', total: 1000, items: ['Solmux'] }, { date: '2025-08-20', total: 11450, items: ['Bioflu', 'Alaxan FR'] }, ], 123458: [ { date: '2025-08-25', total: 7000, items: ['Medicol', 'Tuseran'] }, { date: '2025-08-12', total: 5450, items: ['Kremil-S'] }, ], }
-            };
+            const tableBody = document.getElementById('customer-table-body');
+            const paginationContainer = document.getElementById('customer-pagination');
 
             let currentPage = 1;
-            const rowsPerPage = 6;
+            let currentSearch = '';
+            let debounceTimer;
+
+            async function fetchCustomerHistory(page = 1, search = '') {
+                try {
+                    // **MODIFIED URL to point to the new single API file**
+                    const response = await fetch(`../api/customer_api.php?action=get_history&page=${page}&search=${encodeURIComponent(search)}`);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Network response was not ok: ${response.statusText}. Server says: ${errorText}`);
+                    }
+                    const data = await response.json();
+                    renderTable(data.customers);
+                    renderPagination(data);
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-red-500">Could not load customer data. Please check the browser console (F12) for more details.</td></tr>`;
+                }
+            }
 
             function formatCurrency(amount) {
                 return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
@@ -148,63 +124,58 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                 return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             }
 
-            function renderTable() {
-                const searchTerm = searchInput.value.toLowerCase();
-                const filteredCustomers = mockData.customers.filter(customer =>
-                    customer.name.toLowerCase().includes(searchTerm) ||
-                    String(customer.id).includes(searchTerm)
-                );
+            function getInitials(name) {
+                if (!name) return '';
+                const parts = name.split(' ').filter(p => p);
+                if (parts.length > 1) {
+                    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+                }
+                return name.substring(0, 2).toUpperCase();
+            }
 
-                const tableBody = document.getElementById('customer-table-body');
-                const paginatedData = filteredCustomers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
-                if (paginatedData.length === 0) {
-                     tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-500"><div class="flex flex-col items-center gap-4"><i data-lucide="user-x" class="w-16 h-16 text-gray-300"></i><div><p class="font-semibold text-lg">No Customers Found</p><p class="text-sm mt-1">Your search for "${searchTerm}" did not return any results.</p></div></div></td></tr>`;
-                     lucide.createIcons();
+            function renderTable(customers) {
+                if (!customers || customers.length === 0) {
+                     tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-500"><div class="flex flex-col items-center gap-4"><i data-lucide="user-x" class="w-16 h-16 text-gray-300"></i><div><p class="font-semibold text-lg">No Customers Found</p><p class="text-sm mt-1">Try adjusting your search or complete a new transaction in the POS.</p></div></div></td></tr>`;
                 } else {
-                    tableBody.innerHTML = paginatedData.map(customer => `
+                    tableBody.innerHTML = customers.map(customer => `
                         <tr class="hover:bg-gray-50 transition-colors duration-200">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-full bg-brand-green-light text-brand-green flex items-center justify-center font-bold text-sm">${customer.avatarInitial}</div>
+                                    <div class="w-10 h-10 rounded-full bg-brand-green-light text-brand-green flex items-center justify-center font-bold text-sm">${getInitials(customer.customer_name)}</div>
                                     <div>
-                                        <div class="font-semibold text-gray-800">${customer.name}</div>
+                                        <div class="font-semibold text-gray-800">${customer.customer_name}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-gray-500 font-mono text-xs">${customer.id}</td>
+                            <td class="px-6 py-4 text-gray-500 font-mono text-xs">${customer.customer_id_no || 'N/A'}</td>
                             <td class="px-6 py-4 text-center">
-                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">${customer.visits}</span>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">${customer.total_visits}</span>
                             </td>
-                            <td class="px-6 py-4 font-semibold text-gray-900">${formatCurrency(customer.totalSpent)}</td>
-                            <td class="px-6 py-4 text-gray-500">${formatDate(customer.lastVisit)}</td>
+                            <td class="px-6 py-4 font-semibold text-gray-900">${formatCurrency(customer.total_spent)}</td>
+                            <td class="px-6 py-4 text-gray-500">${formatDate(customer.last_visit)}</td>
                             <td class="px-6 py-4 text-center">
-                                <button class="view-history-btn flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-brand-green bg-gray-100 hover:bg-brand-green-light px-4 py-2 rounded-lg transition-all duration-200" data-customer-id="${customer.id}">
+                                <button class="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-brand-green bg-gray-100 hover:bg-brand-green-light px-4 py-2 rounded-lg transition-all duration-200">
                                     <i data-lucide="history" class="w-4 h-4"></i>
                                     <span>History</span>
                                 </button>
                             </td>
                         </tr>
                     `).join('');
-                     lucide.createIcons();
                 }
-                renderPagination(filteredCustomers.length);
+                lucide.createIcons();
             }
             
-            function renderPagination(totalItems) {
-                const paginationContainer = document.getElementById('customer-pagination');
-                const totalPages = Math.ceil(totalItems / rowsPerPage);
-                const startItem = (currentPage - 1) * rowsPerPage + 1;
-                const endItem = Math.min(startItem + rowsPerPage - 1, totalItems);
-
-                if (totalItems <= rowsPerPage) {
+            function renderPagination({ totalPages, currentPage, totalResults, limit }) {
+                if (!totalResults || totalResults <= limit) {
                     paginationContainer.innerHTML = '';
                     return;
                 }
-
+                const startItem = (currentPage - 1) * limit + 1;
+                const endItem = Math.min(startItem + limit - 1, totalResults);
+                
                 let paginationHTML = `
                     <div class="text-sm text-gray-600">
-                        Showing <span class="font-semibold text-gray-800">${startItem}</span> to <span class="font-semibold text-gray-800">${endItem}</span> of <span class="font-semibold text-gray-800">${totalItems}</span> results
+                        Showing <span class="font-semibold text-gray-800">${startItem}</span> to <span class="font-semibold text-gray-800">${endItem}</span> of <span class="font-semibold text-gray-800">${totalResults}</span> results
                     </div>
                     <div class="flex items-center gap-1">
                 `;
@@ -224,55 +195,30 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
 
             function changePage(newPage) {
                 currentPage = newPage;
-                renderTable();
+                fetchCustomerHistory(currentPage, currentSearch);
             }
             
-            document.getElementById('customer-pagination').addEventListener('click', e => {
+            paginationContainer.addEventListener('click', e => {
                 const target = e.target.closest('button');
                 if (!target) return;
                 
+                const totalPages = document.querySelectorAll('.page-btn').length;
                 if (target.classList.contains('page-btn')) changePage(Number(target.dataset.page));
-                if (target.classList.contains('prev-btn')) changePage(currentPage - 1);
-                if (target.classList.contains('next-btn')) changePage(currentPage + 1);
+                if (target.classList.contains('prev-btn') && currentPage > 1) changePage(currentPage - 1);
+                if (target.classList.contains('next-btn') && currentPage < totalPages) changePage(currentPage + 1);
             });
 
-            document.getElementById('customer-table-body').addEventListener('click', e => {
-                const button = e.target.closest('.view-history-btn');
-                if (button) {
-                    const customerId = button.dataset.customerId;
-                    const customer = mockData.customers.find(c => c.id == customerId);
-                    const history = mockData.customerHistories[customerId] || [];
-
-                    historyModalTitle.textContent = `Purchase History for ${customer.name}`;
-                    if (history.length > 0) {
-                        historyModalContent.innerHTML = history.map(h => `
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-2 gap-2">
-                                    <div class="font-semibold text-gray-800 flex items-center gap-2">
-                                        <i data-lucide="calendar" class="w-4 h-4 text-gray-500"></i> ${formatDate(h.date)}
-                                    </div>
-                                    <div class="font-bold text-brand-green text-lg">${formatCurrency(h.total)}</div>
-                                </div>
-                                <div class="text-sm text-gray-600 pt-2 border-t border-gray-200 mt-2">
-                                    <span class="font-semibold text-gray-700">Items Purchased:</span> ${h.items.join(', ')}
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        historyModalContent.innerHTML = '<div class="text-center py-12 text-gray-500 flex flex-col items-center gap-4"><i data-lucide="shopping-basket" class="w-12 h-12 text-gray-300"></i><div><p class="font-semibold">No History Found</p><p class="text-sm">This customer has no recorded transactions.</p></div></div>';
-                    }
-                    historyModal.classList.add('active');
-                    lucide.createIcons();
-                }
-            });
-
-            closeHistoryModalBtns.forEach(btn => btn.addEventListener('click', () => historyModal.classList.remove('active')));
             searchInput.addEventListener('input', () => {
-                currentPage = 1;
-                renderTable();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    currentSearch = searchInput.value;
+                    currentPage = 1;
+                    fetchCustomerHistory(currentPage, currentSearch);
+                }, 300); // 300ms delay
             });
 
-            renderTable();
+            // Initial load
+            fetchCustomerHistory();
         });
     </script>
 </body>
