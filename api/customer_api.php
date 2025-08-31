@@ -20,6 +20,12 @@ switch ($action) {
     case 'log_sale':
         handleLogSale($conn);
         break;
+    case 'get_customer_transactions':
+        handleGetCustomerTransactions($conn);
+        break;
+    case 'get_receipt_details':
+        handleGetReceiptDetails($conn);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid or no action specified.']);
@@ -46,11 +52,7 @@ function handleGetHistory($conn) {
     $stmt->bind_param("ssii", $searchTerm, $searchTerm, $limit, $offset);
     $stmt->execute();
     $result = $stmt->get_result();
-
-    $customers = [];
-    while ($row = $result->fetch_assoc()) {
-        $customers[] = $row;
-    }
+    $customers = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
     echo json_encode([
@@ -70,11 +72,10 @@ function handleLogSale($conn) {
         return;
     }
 
-    $customerName = trim($data['customer_name'] ?? '');
+    $customerName = trim($data['customer_name'] ?? 'Walk-in');
     $customerId = trim($data['customer_id'] ?? '');
     $totalAmount = $data['total_amount'] ?? 0;
 
-    if (empty($customerName)) $customerName = 'Walk-in';
     if ($totalAmount <= 0) {
         echo json_encode(['success' => true, 'message' => 'No amount to log.']);
         return;
@@ -88,8 +89,7 @@ function handleLogSale($conn) {
         $result = $stmt->get_result();
         $historyId = null;
 
-        if ($result->num_rows > 0) {
-            $row = $result->fetch_assoc();
+        if ($row = $result->fetch_assoc()) {
             $historyId = $row['id'];
             $updateStmt = $conn->prepare("UPDATE customer_history SET total_visits = total_visits + 1, total_spent = total_spent + ?, last_visit = CURRENT_TIMESTAMP WHERE id = ?");
             $updateStmt->bind_param("di", $totalAmount, $historyId);
@@ -120,5 +120,69 @@ function handleLogSale($conn) {
     }
 }
 
+function handleGetCustomerTransactions($conn) {
+    $customerId = $_GET['id'] ?? 0;
+    if (!$customerId) {
+        http_response_code(400);
+        echo json_encode([]);
+        return;
+    }
+
+    $stmt = $conn->prepare("SELECT id, total_amount, transaction_date FROM transactions WHERE customer_history_id = ? ORDER BY transaction_date DESC");
+    $stmt->bind_param("i", $customerId);
+    $stmt->execute();
+    $transactions_result = $stmt->get_result();
+    $transactions = $transactions_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    if (empty($transactions)) {
+        echo json_encode([]);
+        return;
+    }
+
+    $itemsStmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_date = ?");
+
+    foreach ($transactions as &$tx) { 
+        $itemsStmt->bind_param("s", $tx['transaction_date']);
+        $itemsStmt->execute();
+        $items_result = $itemsStmt->get_result();
+        $items = $items_result->fetch_all(MYSQLI_ASSOC);
+        
+        $tx['items'] = $items;
+    }
+    unset($tx);
+    $itemsStmt->close();
+
+    echo json_encode($transactions);
+}
+
+
+function handleGetReceiptDetails($conn) {
+    $date = $_GET['date'] ?? '';
+    $totalFromTransaction = isset($_GET['total']) ? (float)$_GET['total'] : 0;
+
+    if (empty($date) || $totalFromTransaction <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Missing date or total for lookup.']);
+        return;
+    }
+
+    $stmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_date = ?");
+    $stmt->bind_param("s", $date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $items = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    
+    if (empty($items)) {
+         echo json_encode(['success' => false, 'message' => 'No purchased items were found for this exact transaction time.']);
+         return;
+    }
+
+    echo json_encode(['success' => true, 'items' => $items]);
+}
+
+
 $conn->close();
 ?>
+
