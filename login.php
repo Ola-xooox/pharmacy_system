@@ -71,23 +71,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 2.5rem;
         }
         
-        .pharmacy-logo-bg {
-            width: 4rem;
-            height: 4rem;
-            margin: 0 auto 1.5rem auto;
-            border-radius: 50%;
-            background-color: #e0f2f1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .pharmacy-logo-svg {
-            width: 2rem;
-            height: 2rem;
-            color: #01A74F;
-        }
-        
         .form-group {
             margin-bottom: 1.25rem;
         }
@@ -170,12 +153,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body>
     <div class="login-container">
         <div class="text-center mb-8">
-            <div class="pharmacy-logo-bg">
-                <svg class="pharmacy-logo-svg" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16l5-5 5 5" />
-                </svg>
-            </div>
+            <img src="mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-20 h-20 mx-auto mb-4 rounded-full object-cover">
             <h1 class="text-2xl font-bold text-gray-800">MJ Pharmacy</h1>
             <p class="text-gray-500 mt-2">Sign in to access your account</p>
         </div>
