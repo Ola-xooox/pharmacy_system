@@ -8,7 +8,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     require '../db_connect.php';
 
     // --- Fetch Grouped Data for JavaScript ---
-    // This fetches all individual product lots to be filtered and displayed by JavaScript.
     $products_result = $conn->query("SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC");
     $all_products_json = [];
     while($row = $products_result->fetch_assoc()) {
@@ -35,7 +34,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     }
 
     // --- Fetch Grouped Out of Stock Data ---
-    // This query specifically fetches a de-duplicated list for the "Out of Stock" view.
     $out_of_stock_grouped_result = $conn->query("
         SELECT 
             p.name, 
@@ -73,25 +71,19 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     // --- Calculate Summary Counts ---
     $not_expired_condition = "(expiration_date > CURDATE() OR expiration_date IS NULL)";
     
-    // Count available product lots (individual batches)
     $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
     
-    // Count low stock product groups
     $low_stock_count = count($low_stock_grouped_json);
 
-    // Count for out of stock is now based on the grouped query result
     $out_of_stock_count = count($out_of_stock_grouped_json);
 
-    // Count lots with an expiration alert
     $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
     
-    // Count expired lots
     $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date <= CURDATE()");
     $expired_count = $expired_count_result->fetch_assoc()['count'];
     
-    // Count for history
     $history_count = count($product_history);
 
 
@@ -210,7 +202,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             const userMenu = document.getElementById('user-menu');
             const dateTimeEl = document.getElementById('date-time');
 
-            // --- HEADER & SIDEBAR LOGIC ---
             if(userMenuButton){
                 userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
                 window.addEventListener('click', (e) => {
@@ -239,17 +230,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
-            // Table Headers Configuration
+            // UPDATED: Table Headers Configuration
             const tableHeaders = {
                 available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Item Total", "Price", "Date Added", "Expiration Date", "Action"],
                 'low-stock': ["#", "Product Name", "Stock Level", "Item Total"],
                 'out-of-stock': ["#", "Product Name", "Stock Level", "Item Total"],
-                'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date", "Action"],
-                'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier", "Action"],
+                'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date"],
+                'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier"],
                 'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
             };
 
-            // --- MAIN LOGIC ---
             function updateSummaryCounts() {
                 document.getElementById('count-available').textContent = summaryCounts.available;
                 document.getElementById('count-low-stock').textContent = summaryCounts.lowStock;
@@ -383,8 +373,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-semibold text-yellow-600">${daysUntilExp} days</td>
-                                <td class="px-6 py-4">${p.expiration_date}</td>
-                                <td class="px-6 py-4">${actionButton}</td>`;
+                                <td class="px-6 py-4">${p.expiration_date}</td>`;
                             break;
                         case 'expired':
                              rowContent = `
@@ -393,8 +382,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
                                 <td class="px-6 py-4 font-bold text-red-700">${p.expiration_date}</td>
-                                <td class="px-6 py-4">${p.supplier || 'N/A'}</td>
-                                <td class="px-6 py-4">${actionButton}</td>`;
+                                <td class="px-6 py-4">${p.supplier || 'N/A'}</td>`;
                             break;
                         case 'history':
                              rowContent = `
@@ -472,4 +460,3 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     </script>
 </body>
 </html>
-

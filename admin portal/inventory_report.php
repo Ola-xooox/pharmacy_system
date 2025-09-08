@@ -24,14 +24,12 @@ $totalProducts = $inventorySummary['total_products'] ?? 0;
 $inventorySummaryStmt->close();
 
 // Fetch Expiration Alert Count (within 1 month, EXCLUDING today and past dates)
-// This counts products expiring from TOMORROW up to 1 month from now.
 $expiringSoonStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS expiring_soon FROM products WHERE expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
 $expiringSoonStmt->execute();
 $expiringSoon = $expiringSoonStmt->get_result()->fetch_assoc()['expiring_soon'] ?? 0;
 $expiringSoonStmt->close();
 
 // Fetch Expired Products Count (products expired ON or BEFORE today)
-// This counts products that expired today or in the past.
 $expiredStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS expired_count FROM products WHERE expiration_date <= CURDATE()");
 $expiredStmt->execute();
 $expiredCount = $expiredStmt->get_result()->fetch_assoc()['expired_count'] ?? 0;
@@ -249,4 +247,3 @@ $conn->close();
     </script>
 </body>
 </html>
-

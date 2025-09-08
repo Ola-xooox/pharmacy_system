@@ -71,9 +71,10 @@ $chartDataStmt->execute();
 $rawChartData = $chartDataStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $chartDataStmt->close();
 
-// Fetch top 5 products for inventory chart
+// --- FIXED QUERY ---
+// Fetch top 5 products for inventory chart using SUM(stock)
 $inventoryChartStmt = $conn->prepare("
-    SELECT name, SUM(item_total) as total_stock 
+    SELECT name, SUM(stock) as total_stock 
     FROM products 
     GROUP BY name 
     ORDER BY total_stock DESC 
@@ -202,7 +203,10 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     </div>
                     
                     <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h2 class="text-xl font-bold mb-4 text-gray-800">Top 5 Inventory Stock</h2>
+                        <h2 class="text-xl font-bold mb-4 flex justify-between items-center text-gray-800">
+                            <span>Top 5 Inventory Overview</span>
+                            <a href="inventory_report.php" class="text-[#236B3D] font-medium text-sm hover:underline">View Full Report</a>
+                        </h2>
                         <div style="position: relative; height:300px;">
                             <canvas id="inventoryStockChart"></canvas>
                         </div>
@@ -305,7 +309,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     data: {
                         labels: <?php echo json_encode($inventoryChartLabels); ?>,
                         datasets: [{
-                            label: 'Total Items in Stock',
+                            label: 'Total Stock',
                             data: <?php echo json_encode($inventoryChartData); ?>,
                             backgroundColor: '#01A74F',
                             borderColor: '#018d43',
@@ -326,4 +330,3 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
     </script>
 </body>
 </html>
-
