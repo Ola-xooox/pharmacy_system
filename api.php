@@ -174,12 +174,17 @@ function handleProductAddition($conn) {
 
         $imagePath = null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $targetDir = "../uploads/";
-            if (!file_exists($targetDir)) mkdir($targetDir, 0777, true);
-            $fileName = uniqid() . '_' . basename($_FILES["image"]["name"]);
-            $targetFile = $targetDir . $fileName;
-            if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFile)) {
-                $imagePath = 'uploads/' . $fileName;
+            $uploadDir = 'uploads/products/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $imageExtension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $imageName = uniqid() . '_' . time() . '.' . $imageExtension;
+            $imagePath = $uploadDir . $imageName;
+            
+            if (!move_uploaded_file($_FILES['image']['tmp_name'], $imagePath)) {
+                $imagePath = null;
             }
         }
 

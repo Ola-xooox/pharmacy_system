@@ -76,8 +76,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 <button id="user-menu-button" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     <span class="sr-only">Open user menu</span>
                      <?php
-                        $userName = $_SESSION['name'] ?? 'User';
-                        $userInitial = strtoupper(substr($userName, 0, 1));
+                        $username = $_SESSION['username'] ?? 'User';
+                        $userInitial = strtoupper(substr($username, 0, 1));
                         $profileImage = $_SESSION['profile_image'] ?? null;
 
                         if ($profileImage) {
@@ -89,7 +89,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 </button>
                 <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden" role="menu">
                     <a href="#" id="profile-modal-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>
-                    <a href="../logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</a>
+                    <a href="#" id="sign-out-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</a>
                 </div>
             </div>
         </div>
@@ -136,6 +136,33 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
   </div>
 </div>
 
+<!-- Sign Out Confirmation Modal -->
+<div id="signout-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                    <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Sign Out</h3>
+                <p class="text-sm text-gray-500 mb-6">Are you sure you want to sign out? You will need to log in again to access the system.</p>
+                <div class="flex justify-center gap-3">
+                    <button id="cancel-signout-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button id="confirm-signout-btn" class="px-4 py-2 text-sm font-medium text-white bg-yellow-600 border border-transparent rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const profileModalBtn = document.getElementById('profile-modal-btn');
@@ -143,6 +170,10 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
         const closeProfileModalBtn = document.getElementById('close-profile-modal-btn');
         const notificationBellBtn = document.getElementById('notification-bell-btn');
         const notificationDropdown = document.getElementById('notification-dropdown');
+        const signOutBtn = document.getElementById('sign-out-btn');
+        const signOutModal = document.getElementById('signout-modal');
+        const confirmSignOutBtn = document.getElementById('confirm-signout-btn');
+        const cancelSignOutBtn = document.getElementById('cancel-signout-btn');
 
         if (profileModalBtn) {
             profileModalBtn.addEventListener('click', (e) => {
@@ -162,6 +193,35 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
             window.addEventListener('click', (e) => {
                 if (!notificationBellBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
                     notificationDropdown.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Sign out modal functionality
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                signOutModal.classList.remove('hidden');
+            });
+        }
+        
+        if (confirmSignOutBtn) {
+            confirmSignOutBtn.addEventListener('click', () => {
+                window.location.href = '../logout.php';
+            });
+        }
+        
+        if (cancelSignOutBtn) {
+            cancelSignOutBtn.addEventListener('click', () => {
+                signOutModal.classList.add('hidden');
+            });
+        }
+        
+        // Close modal when clicking outside
+        if (signOutModal) {
+            signOutModal.addEventListener('click', (e) => {
+                if (e.target === signOutModal) {
+                    signOutModal.classList.add('hidden');
                 }
             });
         }

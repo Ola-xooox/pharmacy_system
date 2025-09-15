@@ -181,6 +181,57 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
 
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Delete Product</h3>
+                    <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete this product lot? This action will move it to history and cannot be undone.</p>
+                    <div class="flex justify-center gap-3">
+                        <button id="cancel-delete-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            Cancel
+                        </button>
+                        <button id="confirm-delete-btn" class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal for Product Deletion -->
+    <div id="delete-success-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                        <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Product Deleted Successfully!</h3>
+                    <p class="text-sm text-gray-500 mb-6">The product has been successfully moved to history and is no longer available in your active inventory.</p>
+                    <div class="flex justify-center">
+                        <button id="close-delete-success-modal-btn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allProducts = <?php echo json_encode($all_products_json); ?>;
         const lowStockGrouped = <?php echo json_encode($low_stock_grouped_json); ?>;
@@ -201,6 +252,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             const userMenuButton = document.getElementById('user-menu-button');
             const userMenu = document.getElementById('user-menu');
             const dateTimeEl = document.getElementById('date-time');
+            const deleteModal = document.getElementById('delete-modal');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const deleteSuccessModal = document.getElementById('delete-success-modal');
+            const closeDeleteSuccessModalBtn = document.getElementById('close-delete-success-modal-btn');
+            let productToDelete = null;
 
             if(userMenuButton){
                 userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
@@ -336,7 +393,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
 
                 tableBody.innerHTML = productsToRender.map((p, index) => {
                     let rowContent = '';
-                    let actionButton = `<button class="text-red-500 hover:text-red-700 delete-btn" title="Delete" data-id="${p.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>`;
+                    if (view === 'available') {
+                        console.log(`Product ${index}:`, p.name, 'ID:', p.id, 'Type:', typeof p.id);
+                    }
+                    let actionButton = (view === 'available' && p.id) ? `<button class="text-red-500 hover:text-red-700 delete-btn" title="Delete" data-id="${p.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>` : '';
 
                     switch(view) {
                         case 'available':
@@ -397,22 +457,45 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                 }).join('');
             }
 
+            function showDeleteModal(productId) {
+                console.log('showDeleteModal called with productId:', productId, 'Type:', typeof productId);
+                productToDelete = productId;
+                console.log('productToDelete set to:', productToDelete);
+                deleteModal.classList.remove('hidden');
+            }
+
+            function hideDeleteModal() {
+                deleteModal.classList.add('hidden');
+                productToDelete = null;
+            }
+
             async function deleteProduct(productId) {
-                if (!confirm('Are you sure you want to delete this product lot? This will move it to history.')) {
+                console.log('Attempting to delete product with ID:', productId);
+                console.log('Product ID type:', typeof productId);
+                
+                // Convert string to integer
+                const numericProductId = parseInt(productId, 10);
+                console.log('Converted to numeric ID:', numericProductId);
+                
+                if (!numericProductId || numericProductId <= 0) {
+                    alert('Invalid Product ID');
                     return;
                 }
-
+                
                 try {
                     const response = await fetch('../api.php?action=delete_product', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: productId })
+                        body: JSON.stringify({ id: numericProductId })
                     });
-                    const result = await response.json();
+                    
+                    const responseText = await response.text();
+                    console.log('Raw API response:', responseText);
+                    
+                    const result = JSON.parse(responseText);
 
                     if (result.success) {
-                        alert('Product successfully moved to history.');
-                        location.reload();
+                        deleteSuccessModal.classList.remove('hidden');
                     } else {
                         alert('Error: ' + result.message);
                     }
@@ -446,11 +529,45 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             tableBody.addEventListener('click', (e) => {
                 const deleteButton = e.target.closest('.delete-btn');
                 if (deleteButton) {
-                    const productId = deleteButton.dataset.id;
-                    deleteProduct(productId);
+                    const productId = deleteButton.getAttribute('data-id');
+                    console.log('Delete button clicked, productId:', productId, 'Type:', typeof productId);
+                    showDeleteModal(productId);
                 }
             });
 
+            confirmDeleteBtn.addEventListener('click', () => {
+                console.log('Confirm delete clicked, productToDelete:', productToDelete, 'Type:', typeof productToDelete);
+                if (productToDelete) {
+                    const idToDelete = productToDelete;
+                    hideDeleteModal();
+                    deleteProduct(idToDelete);
+                } else {
+                    console.error('No product to delete!');
+                    alert('No product selected for deletion.');
+                }
+            });
+
+            cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+
+            deleteModal.addEventListener('click', (e) => {
+                if (e.target === deleteModal) {
+                    hideDeleteModal();
+                }
+            });
+
+            // Success modal functionality
+            closeDeleteSuccessModalBtn.addEventListener('click', () => {
+                deleteSuccessModal.classList.add('hidden');
+                location.reload();
+            });
+            
+            // Close success modal when clicking outside
+            deleteSuccessModal.addEventListener('click', (e) => {
+                if (e.target === deleteSuccessModal) {
+                    deleteSuccessModal.classList.add('hidden');
+                    location.reload();
+                }
+            });
 
             // --- Initial Page Load ---
             updateSummaryCounts();

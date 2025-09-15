@@ -13,10 +13,33 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// First check what columns exist in users table
+$checkStmt = $conn->prepare("DESCRIBE users");
+$checkStmt->execute();
+$columns = $checkStmt->get_result();
+$columnNames = [];
+while ($col = $columns->fetch_assoc()) {
+    $columnNames[] = $col['Field'];
+}
+$checkStmt->close();
+
+// Build query based on available columns
+if (in_array('name', $columnNames)) {
+    $nameColumn = 'u.name';
+} else if (in_array('first_name', $columnNames) && in_array('last_name', $columnNames)) {
+    if (in_array('middle_name', $columnNames)) {
+        $nameColumn = "CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name)";
+    } else {
+        $nameColumn = "CONCAT(u.first_name, ' ', u.last_name)";
+    }
+} else {
+    $nameColumn = 'u.username'; // fallback to username
+}
+
 // Fetch all activity log data, joining with the users table to get the user's name
 $activityLogStmt = $conn->prepare("
     SELECT 
-        u.name, 
+        {$nameColumn} as name, 
         u.role,
         a.action_description, 
         a.timestamp 

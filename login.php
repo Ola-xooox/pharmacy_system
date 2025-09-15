@@ -7,44 +7,67 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // --- SECURITY WARNING ---
-    // Storing and comparing passwords in plain text is not secure.
-    // It is highly recommended to use password_hash() and password_verify().
-    
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND password = ?");
-    $stmt->bind_param("ss", $username, $password);
+    // Get user by username only
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
 
     if ($user) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['name'] = $user['name'];
-        $_SESSION['profile_image'] = $user['profile_image'];
-
-        switch ($user['role']) {
-            case 'pos':
-                header("Location: pos/pos.php");
-                break;
-            case 'inventory':
-                header("Location: inventory/products.php");
-                break;
-            case 'cms':
-                header("Location: cms/customer_history.php");
-                break;
-            case 'admin':
-                header("Location: admin portal/dashboard.php");
-                break;
-            default:
-                header("Location: login.php");
-                break;
+        // Check if password is hashed (starts with $2y$ for bcrypt)
+        $passwordValid = false;
+        
+        if (password_get_info($user['password'])['algo'] !== null) {
+            // Password is hashed, use password_verify
+            $passwordValid = password_verify($password, $user['password']);
+        } else {
+            // Password is plain text (for backward compatibility)
+            $passwordValid = ($password === $user['password']);
         }
-        exit();
-    } else {
-        echo "<script>alert('Invalid username or password'); window.location.href = 'login.php';</script>";
+        
+        if ($passwordValid) {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            
+            // Handle name field dynamically based on table structure
+            if (isset($user['name'])) {
+                $_SESSION['name'] = $user['name'];
+            } else if (isset($user['first_name']) && isset($user['last_name'])) {
+                $name = $user['first_name'] . ' ' . $user['last_name'];
+                if (isset($user['middle_name']) && !empty($user['middle_name'])) {
+                    $name = $user['first_name'] . ' ' . $user['middle_name'] . ' ' . $user['last_name'];
+                }
+                $_SESSION['name'] = $name;
+            } else {
+                $_SESSION['name'] = $user['username']; // fallback to username
+            }
+            
+            $_SESSION['profile_image'] = $user['profile_image'];
+
+            switch ($user['role']) {
+                case 'pos':
+                    header("Location: pos/pos.php");
+                    break;
+                case 'inventory':
+                    header("Location: inventory/products.php");
+                    break;
+                case 'cms':
+                    header("Location: cms/customer_history.php");
+                    break;
+                case 'admin':
+                    header("Location: admin portal/dashboard.php");
+                    break;
+                default:
+                    header("Location: login.php");
+                    break;
+            }
+            exit();
+        }
     }
+    
+    echo "<script>alert('Invalid username or password'); window.location.href = 'login.php';</script>";
 }
 ?>
 <!DOCTYPE html>
@@ -56,7 +79,301 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background: linear-gradient(to right, #01A74F, #385d35);
+            background: linear-gradient(135deg, #22C55E 0%, #16A34A 25%, #15803D 50%, #166534 75%, #14532D 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.2' d='M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,138.7C960,139,1056,117,1152,117.3C1248,117,1344,139,1392,149.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3Cpath fill='%23ffffff' fill-opacity='0.3' d='M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,218.7C672,235,768,245,864,240C960,235,1056,213,1152,197.3C1248,181,1344,171,1392,165.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3Cpath fill='%23ffffff' fill-opacity='0.4' d='M0,256L48,245.3C96,235,192,213,288,208C384,203,480,213,576,213.3C672,213,768,203,864,208C960,213,1056,235,1152,240C1248,245,1344,235,1392,229.3L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E") no-repeat bottom;
+            background-size: cover;
+            animation: wave 15s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                transform: translateX(0px) translateY(0px) scale(1);
+            }
+            25% {
+                transform: translateX(-20px) translateY(-10px) scale(1.02);
+            }
+            50% {
+                transform: translateX(20px) translateY(-20px) scale(1.04);
+            }
+            75% {
+                transform: translateX(-10px) translateY(-5px) scale(1.02);
+            }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Floating particles animation */
+        .particle {
+            position: absolute;
+            background: rgba(234, 179, 8, 0.3);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.2);
+        }
+
+        .particle:nth-child(1) {
+            width: 8px;
+            height: 8px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .particle:nth-child(2) {
+            width: 12px;
+            height: 12px;
+            top: 60%;
+            left: 80%;
+            animation-delay: 2s;
+        }
+
+        .particle:nth-child(3) {
+            width: 6px;
+            height: 6px;
+            top: 80%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .particle:nth-child(4) {
+            width: 10px;
+            height: 10px;
+            top: 40%;
+            left: 70%;
+            animation-delay: 1s;
+        }
+
+        .particle:nth-child(5) {
+            width: 8px;
+            height: 8px;
+            top: 10%;
+            left: 60%;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+                opacity: 1;
+            }
+        }
+
+        /* Bubble particles */
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            animation: bubble 8s infinite ease-in-out;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bubble:nth-child(6) {
+            width: 15px;
+            height: 15px;
+            top: 85%;
+            left: 15%;
+            animation-delay: 0s;
+        }
+
+        .bubble:nth-child(7) {
+            width: 20px;
+            height: 20px;
+            top: 90%;
+            left: 45%;
+            animation-delay: 2s;
+        }
+
+        .bubble:nth-child(8) {
+            width: 12px;
+            height: 12px;
+            top: 95%;
+            left: 75%;
+            animation-delay: 4s;
+        }
+
+        .bubble:nth-child(9) {
+            width: 18px;
+            height: 18px;
+            top: 88%;
+            left: 25%;
+            animation-delay: 1s;
+        }
+
+        .bubble:nth-child(10) {
+            width: 14px;
+            height: 14px;
+            top: 92%;
+            left: 65%;
+            animation-delay: 3s;
+        }
+
+        .bubble:nth-child(11) {
+            width: 16px;
+            height: 16px;
+            top: 87%;
+            left: 85%;
+            animation-delay: 5s;
+        }
+
+        @keyframes bubble {
+            0% {
+                transform: translateY(0px) scale(0);
+                opacity: 0;
+            }
+            10% {
+                transform: translateY(-20px) scale(1);
+                opacity: 0.8;
+            }
+            90% {
+                transform: translateY(-100vh) scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-100vh) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Pharmacy-themed effects */
+        .pill {
+            position: absolute;
+            background: linear-gradient(135deg, #EAB308, #F59E0B);
+            border-radius: 20px;
+            animation: pill-float 12s infinite ease-in-out;
+            box-shadow: 0 2px 8px rgba(234, 179, 8, 0.3);
+        }
+
+        .pill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 50%;
+            bottom: 0;
+            background: linear-gradient(135deg, #22C55E, #16A34A);
+            border-radius: 20px 0 0 20px;
+        }
+
+        .pill:nth-child(12) {
+            width: 35px;
+            height: 18px;
+            top: 25%;
+            left: 5%;
+            animation-delay: 0s;
+        }
+
+        .pill:nth-child(13) {
+            width: 30px;
+            height: 15px;
+            top: 45%;
+            left: 90%;
+            animation-delay: 4s;
+        }
+
+        .pill:nth-child(14) {
+            width: 32px;
+            height: 16px;
+            top: 65%;
+            left: 8%;
+            animation-delay: 8s;
+        }
+
+        @keyframes pill-float {
+            0%, 100% {
+                transform: translateX(0px) translateY(0px) rotate(0deg);
+                opacity: 0.6;
+            }
+            25% {
+                transform: translateX(20px) translateY(-15px) rotate(45deg);
+                opacity: 0.8;
+            }
+            50% {
+                transform: translateX(-10px) translateY(-30px) rotate(90deg);
+                opacity: 1;
+            }
+            75% {
+                transform: translateX(15px) translateY(-15px) rotate(135deg);
+                opacity: 0.8;
+            }
+        }
+
+        /* Medical cross particles */
+        .medical-cross {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 24px;
+            animation: cross-pulse 6s infinite ease-in-out;
+        }
+
+        .medical-cross:nth-child(15) {
+            top: 15%;
+            left: 85%;
+            animation-delay: 0s;
+        }
+
+        .medical-cross:nth-child(16) {
+            top: 75%;
+            left: 12%;
+            animation-delay: 2s;
+        }
+
+        .medical-cross:nth-child(17) {
+            top: 35%;
+            left: 92%;
+            animation-delay: 4s;
+        }
+
+        @keyframes cross-pulse {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 0.4;
+            }
+            50% {
+                transform: scale(1.3) rotate(180deg);
+                opacity: 0.8;
+            }
+        }
+
+        /* Heartbeat pulse effect on logo */
+        .heartbeat {
+            animation: heartbeat 2s infinite ease-in-out;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% {
+                transform: scale(1);
+            }
+            14% {
+                transform: scale(1.05);
+            }
+            28% {
+                transform: scale(1);
+            }
+            42% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(1);
+            }
         }
 
         .input-wrapper {
@@ -97,14 +414,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         .form-input:focus {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(1, 167, 79, 0.2);
-            border-color: #01A74F; 
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+            border-color: #22C55E; 
             background-color: #ffffff;
         }
         
         .btn-primary {
             width: 100%;
-            background-color: #01A74F; 
+            background: linear-gradient(135deg, #22C55E 0%, #EAB308 100%);
             color: white;
             font-weight: 600;
             padding: 0.75rem 1rem;
@@ -112,30 +429,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             transition: all 0.2s ease-in-out;
             border: none;
             cursor: pointer;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
         
         .btn-primary:hover {
-            background-color: #018d43; 
-            box-shadow: 0 4px 12px rgba(1, 167, 79, 0.2); 
+            background: linear-gradient(135deg, #16A34A 0%, #D97706 100%);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); 
+            transform: translateY(-1px);
         }
         
         .btn-primary:focus {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(1, 167, 79, 0.4); 
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4); 
         }
     </style>
 </head>
 <body>
+    <!-- Floating particles -->
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    
+    <!-- Bubble particles -->
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    
+    <!-- Pharmacy-themed elements -->
+    <div class="pill"></div>
+    <div class="pill"></div>
+    <div class="pill"></div>
+    <div class="medical-cross">✚</div>
+    <div class="medical-cross">✚</div>
+    <div class="medical-cross">✚</div>
 
-    <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="content-wrapper min-h-screen flex items-center justify-center p-4">
         <div class="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl flex overflow-hidden">
             
             <div class="w-1/2 bg-white/20 backdrop-blur-lg p-12 text-white hidden md:flex flex-col justify-center items-center text-center">
-                 <img src="mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-28 h-28 mx-auto rounded-full object-cover border-4 border-white/50">
+                 <img src="mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-28 h-28 mx-auto rounded-full object-cover border-4 border-white/50 heartbeat">
                  <h1 class="text-3xl font-bold mt-6">MJ Pharmacy</h1>
                  <p class="mt-2 text-gray-200">Innovation Starts Here</p>
                  <p class="text-sm text-gray-300 mt-8 leading-relaxed">
-                   Secure access to MJ Pharmacy’s management system. Log in to continue.
+                   Secure Access to MJ Pharmacy’s Management System. Log in to continue.
                  </p>
             </div>
 

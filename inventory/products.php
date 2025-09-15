@@ -151,6 +151,30 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         </div>
     </div>
 
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                        <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Product Added Successfully!</h3>
+                    <p class="text-sm text-gray-500 mb-6">The product has been added to your inventory and is now available for sale.</p>
+                    <div class="flex justify-center">
+                        <button id="close-success-modal-btn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const initialProducts = <?php echo json_encode($products); ?>;
         const initialCategories = <?php echo json_encode($categories); ?>;
@@ -178,6 +202,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             const userMenuButton = document.getElementById('user-menu-button');
             const userMenu = document.getElementById('user-menu');
             const dateTimeEl = document.getElementById('date-time');
+            const successModal = document.getElementById('success-modal');
+            const closeSuccessModalBtn = document.getElementById('close-success-modal-btn');
 
             addProductForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -194,8 +220,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                     const result = await response.json();
 
                     if (result.success) {
-                        alert('Product stock updated successfully!');
-                        location.reload();
+                        // Close the add product modal first
+                        addProductModal.classList.remove('active');
+                        // Show success modal
+                        successModal.classList.remove('hidden');
                     } else {
                         alert('Error: ' + result.message);
                     }
@@ -352,6 +380,18 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             cancelModalBtn.addEventListener('click', closeModal);
             addProductModal.addEventListener('click', (e) => {
                 if (e.target === addProductModal) closeModal();
+            });
+
+            closeSuccessModalBtn.addEventListener('click', () => {
+                successModal.classList.add('hidden');
+                location.reload();
+            });
+            
+            successModal.addEventListener('click', (e) => {
+                if (e.target === successModal) {
+                    successModal.classList.add('hidden');
+                    location.reload();
+                }
             });
 
             // Initial Page Load

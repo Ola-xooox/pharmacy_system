@@ -8,60 +8,151 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 require '../db_connect.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = $_POST['name'] ?? '';
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $roles = $_POST['roles'] ?? [];
+    try {
+        // Set content type for JSON response
+        header('Content-Type: application/json');
+        
+        $lastName = $_POST['last_name'] ?? '';
+        $firstName = $_POST['first_name'] ?? '';
+        $middleName = $_POST['middle_name'] ?? '';
+        
+        // Correctly combine the names into one string for the 'name' column
+        $name = $lastName . ', ' . $firstName;
+        if (!empty($middleName)) {
+            $name .= ' ' . $middleName;
+        }
 
-    if (empty($name) || empty($username) || empty($password) || empty($roles)) {
-        echo json_encode(['success' => false, 'message' => 'Please fill in all fields and select at least one role.']);
-        exit();
-    }
-    
-    $role = $roles[0]; 
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $roles = $_POST['roles'] ?? [];
 
-    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
+        // Validate required fields
+        if (empty($lastName) || empty($firstName) || empty($username) || empty($password) || empty($roles)) {
+            echo json_encode(['success' => false, 'message' => 'Please fill in all required fields and select at least one role.']);
+            exit();
+        }
+        
+        // Validate password length
+        if (strlen($password) < 6) {
+            echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters long.']);
+            exit();
+        }
+        
+        $role = $roles[0]; 
 
-    if ($result->num_rows > 0) {
-        echo json_encode(['success' => false, 'message' => 'Username already exists. Please choose another one.']);
+        // Check if username already exists
+        $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+        if (!$stmt) {
+            throw new Exception("Database prepare error: " . $conn->error);
+        }
+        
+        $stmt->bind_param("s", $username);
+        if (!$stmt->execute()) {
+            throw new Exception("Database execute error: " . $stmt->error);
+        }
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            echo json_encode(['success' => false, 'message' => 'Username already exists. Please choose another one.']);
+            $stmt->close();
+            exit();
+        }
         $stmt->close();
-        $conn->close();
-        exit();
-    }
-    $stmt->close();
-    
-    // Handle profile image upload
-    $profileImagePath = null;
-    if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
-        $targetDir = "../uploads/profiles/";
-        if (!file_exists($targetDir)) {
-            mkdir($targetDir, 0777, true); // Ensure the directory exists
-        }
         
-        $fileName = uniqid() . '_' . basename($_FILES["profile_image"]["name"]);
-        $targetFile = $targetDir . $fileName;
+        // Hash the password for security
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         
-        // Move the uploaded file
-        if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $targetFile)) {
-            $profileImagePath = 'uploads/profiles/' . $fileName; // Store relative path
+        // Handle profile image upload
+        $profileImagePath = null;
+        if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
+            $targetDir = "../uploads/profiles/";
+            if (!file_exists($targetDir)) {
+                mkdir($targetDir, 0777, true); // Ensure the directory exists
+            }
+            
+            // Validate file type
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+            $fileType = $_FILES['profile_image']['type'];
+            
+            if (!in_array($fileType, $allowedTypes)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG and PNG files are allowed.']);
+                exit();
+            }
+            
+            // Validate file size (5MB max)
+            if ($_FILES['profile_image']['size'] > 5 * 1024 * 1024) {
+                echo json_encode(['success' => false, 'message' => 'File size too large. Maximum size is 5MB.']);
+                exit();
+            }
+            
+            $fileName = uniqid() . '_' . basename($_FILES["profile_image"]["name"]);
+            $targetFile = $targetDir . $fileName;
+            
+            // Move the uploaded file
+            if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $targetFile)) {
+                $profileImagePath = 'uploads/profiles/' . $fileName; // Store relative path
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to upload profile image.']);
+                exit();
+            }
+        }
+
+        // Insert new user with hashed password
+        // First, let's check what columns exist in the users table
+        $checkStmt = $conn->prepare("DESCRIBE users");
+        $checkStmt->execute();
+        $columns = $checkStmt->get_result();
+        $columnNames = [];
+        while ($col = $columns->fetch_assoc()) {
+            $columnNames[] = $col['Field'];
+        }
+        $checkStmt->close();
+        
+        // Check if 'name' column exists, if not, use separate first_name, last_name columns
+        if (in_array('name', $columnNames)) {
+            $insertStmt = $conn->prepare("INSERT INTO users (name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?)");
+            if (!$insertStmt) {
+                throw new Exception("Database prepare error: " . $conn->error);
+            }
+            $insertStmt->bind_param("sssss", $name, $username, $hashedPassword, $role, $profileImagePath);
+        } else if (in_array('first_name', $columnNames) && in_array('last_name', $columnNames)) {
+            // Use separate columns
+            if (in_array('middle_name', $columnNames)) {
+                $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, middle_name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("sssssss", $firstName, $lastName, $middleName, $username, $hashedPassword, $role, $profileImagePath);
+            } else {
+                $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("ssssss", $firstName, $lastName, $username, $hashedPassword, $role, $profileImagePath);
+            }
+        } else {
+            // Log the actual column structure for debugging
+            error_log("Users table columns: " . implode(', ', $columnNames));
+            throw new Exception("Unknown table structure. Available columns: " . implode(', ', $columnNames));
+        }
+
+        if ($insertStmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'New account created successfully!']);
+        } else {
+            throw new Exception("Database execution error: " . $insertStmt->error);
+        }
+
+        $insertStmt->close();
+        
+    } catch (Exception $e) {
+        // Log the error for debugging
+        error_log("Setup Account Error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    } finally {
+        if (isset($conn)) {
+            $conn->close();
         }
     }
-
-    // NOTE: I am assuming you have added a `profile_image` VARCHAR(255) NULLABLE column to your `users` table.
-    $insertStmt = $conn->prepare("INSERT INTO users (name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?)");
-    $insertStmt->bind_param("sssss", $name, $username, $password, $role, $profileImagePath);
-
-    if ($insertStmt->execute()) {
-        echo json_encode(['success' => true, 'message' => 'New account created successfully!']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Error: ' . $insertStmt->error]);
-    }
-
-    $insertStmt->close();
-    $conn->close();
     exit();
 }
 
@@ -116,8 +207,16 @@ $currentPage = 'setup_account';
 
                                     <div class="sm:col-span-2 grid grid-cols-1 gap-6 content-start">
                                         <div>
-                                            <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
-                                            <div class="mt-1 relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg></div><input type="text" id="name" name="name" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="full name..." required></div>
+                                            <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                                            <input type="text" id="last_name" name="last_name" class="block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="Last Name" required>
+                                        </div>
+                                        <div>
+                                            <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                                            <input type="text" id="first_name" name="first_name" class="block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="First Name" required>
+                                        </div>
+                                        <div>
+                                            <label for="middle_name" class="block text-sm font-medium text-gray-700">Middle Name (Optional)</label>
+                                            <input type="text" id="middle_name" name="middle_name" class="block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="Middle Name">
                                         </div>
                                         <div>
                                             <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
