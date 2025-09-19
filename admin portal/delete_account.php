@@ -185,7 +185,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <button type="button" id="confirm-delete-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
                         Delete Account
                     </button>
-                    <button type="button" id="cancel-delete-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="button" id="cancel-delete-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancel
                     </button>
                 </div>
@@ -193,79 +193,150 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
+    <!-- Success Popup Modal -->
+    <div id="success-popup" class="fixed inset-0 flex items-center justify-center hidden z-50">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" aria-hidden="true"></div>
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full text-center relative z-50">
+            <div class="flex justify-center mb-3">
+                <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                    <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                         viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900">Success</h3>
+            <p class="mt-2 text-sm text-gray-600">The account has been deleted successfully.</p>
+            <div class="mt-4">
+                <button id="success-ok-btn"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen p-4 text-center">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <div class="inline-block bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all my-8 max-w-md w-full">
+                <div class="bg-white p-6">
+                    <div class="flex items-center">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                            <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                        </div>
+                        <div class="ml-4 text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">Error</h3>
+                            <p id="error-message" class="mt-2 text-sm text-gray-500">An error occurred.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse">
+                    <button type="button" id="error-ok-btn" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:ml-3 sm:w-auto sm:text-sm">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenu = document.getElementById('user-menu');
+        
+        // Modals
+        const successPopup = document.getElementById('success-popup');
+        const successOkBtn = document.getElementById('success-ok-btn');
+        const errorModal = document.getElementById('error-modal');
+        const errorOkBtn = document.getElementById('error-ok-btn');
+        const errorMessageEl = document.getElementById('error-message');
 
-            if(sidebarToggleBtn && sidebar) {
-                sidebarToggleBtn.addEventListener('click', () => {
-                    if (window.innerWidth < 768) {
-                        sidebar.classList.toggle('open-mobile');
-                        overlay.classList.toggle('hidden');
-                    } else {
-                        sidebar.classList.toggle('open-desktop');
-                    }
-                });
-            }
-
-            if(overlay) {
-                overlay.addEventListener('click', () => {
-                    if (sidebar) sidebar.classList.remove('open-mobile');
-                    overlay.classList.add('hidden');
-                });
-            }
-        });
-
-        let deleteUserId = null;
-
-        function confirmDelete(userId, username) {
-            deleteUserId = userId;
-            document.getElementById('delete-username').textContent = username;
-            document.getElementById('delete-modal').classList.remove('hidden');
+        if(sidebarToggleBtn && sidebar) {
+            sidebarToggleBtn.addEventListener('click', () => {
+                if (window.innerWidth < 768) {
+                    sidebar.classList.toggle('open-mobile');
+                    overlay.classList.toggle('hidden');
+                } else {
+                    sidebar.classList.toggle('open-desktop');
+                }
+            });
         }
 
-        document.getElementById('confirm-delete-btn').addEventListener('click', function() {
-            if (deleteUserId) {
-                const formData = new FormData();
-                formData.append('delete_user_id', deleteUserId);
+        if(overlay) {
+            overlay.addEventListener('click', () => {
+                if (sidebar) sidebar.classList.remove('open-mobile');
+                overlay.classList.add('hidden');
+            });
+        }
 
-                fetch('delete_account.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Account deleted successfully!');
-                        location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An unexpected error occurred.');
-                });
+        if (userMenuButton && userMenu) {
+            userMenuButton.addEventListener('click', () => {
+                userMenu.classList.toggle('hidden');
+            });
+            window.addEventListener('click', (e) => {
+                if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            });
+        }
 
+        // Success popup OK
+        if(successOkBtn) {
+            successOkBtn.addEventListener('click', () => {
+                successPopup.classList.add('hidden');
+                location.reload();
+            });
+        }
+
+        // Error modal OK
+        if(errorOkBtn) {
+            errorOkBtn.addEventListener('click', () => {
+                errorModal.classList.add('hidden');
+            });
+        }
+    });
+
+    let deleteUserId = null;
+
+    function confirmDelete(userId, username) {
+        deleteUserId = userId;
+        document.getElementById('delete-username').textContent = username;
+        document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (deleteUserId) {
+            const formData = new FormData();
+            formData.append('delete_user_id', deleteUserId);
+
+            fetch('delete_account.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
                 document.getElementById('delete-modal').classList.add('hidden');
-                deleteUserId = null;
-            }
-        });
+                if (data.success) {
+                    document.getElementById('success-popup').classList.remove('hidden');
+                } else {
+                    document.getElementById('error-message').textContent = data.message;
+                    document.getElementById('error-modal').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                document.getElementById('delete-modal').classList.add('hidden');
+                document.getElementById('error-message').textContent = "An error occurred.";
+                document.getElementById('error-modal').classList.remove('hidden');
+            });
+        }
+    });
 
-        document.getElementById('cancel-delete-btn').addEventListener('click', function() {
-            document.getElementById('delete-modal').classList.add('hidden');
-            deleteUserId = null;
-        });
-
-        // Close modal when clicking outside
-        document.getElementById('delete-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                this.classList.add('hidden');
-                deleteUserId = null;
-            }
-        });
+    document.getElementById('cancel-delete-btn').addEventListener('click', function() {
+        document.getElementById('delete-modal').classList.add('hidden');
+    });
     </script>
 </body>
 </html>

@@ -31,13 +31,13 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-40">
                     <div class="flex justify-between items-center p-3 sm:p-4 border-b">
                         <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
-                        <a href="/pharmacy_system/inventory/inventory-tracking.php" class="text-sm font-medium text-green-600 hover:text-green-800">View All</a>
+                        <a href="" class="text-sm font-medium text-green-600 hover:text-green-800"></a>
                     </div>
                     <div class="py-1 max-h-80 overflow-y-auto">
                         <?php if ($total_notifications > 0): ?>
                             <?php if (!empty($notifications_data['expiring_soon'])): ?>
                                 <?php foreach ($notifications_data['expiring_soon'] as $item): ?>
-                                    <a href="/pharmacy_system/inventory/inventory-tracking.php?view=expiration-alert" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                    <a href="" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         </div>
@@ -50,7 +50,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                             <?php endif; ?>
                             <?php if (!empty($notifications_data['expired'])): ?>
                                 <?php foreach ($notifications_data['expired'] as $item): ?>
-                                    <a href="/pharmacy_system/inventory/inventory-tracking.php?view=expired" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t">
+                                    <a href="" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
                                         </div>
@@ -72,24 +72,30 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 </div>
             </div>
             <!-- User Menu -->
-            <div class="relative z-40">
+            <div class="relative">
                 <button id="user-menu-button" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     <span class="sr-only">Open user menu</span>
                      <?php
-                        $userName = $_SESSION['name'] ?? 'User';
-                        $userInitial = strtoupper(substr($userName, 0, 1));
+                        $username = $_SESSION['username'] ?? 'User';
+                        $userInitial = strtoupper(substr($username, 0, 1));
                         $profileImage = $_SESSION['profile_image'] ?? null;
 
                         if ($profileImage) {
-                            echo '<img class="w-9 h-9 rounded-full object-cover" src="../' . htmlspecialchars($profileImage) . '" alt="User profile">';
+                            echo '<img class="w-8 h-8 rounded-full object-cover" src="../' . htmlspecialchars($profileImage) . '" alt="User profile">';
                         } else {
-                            echo '<div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">' . htmlspecialchars($userInitial) . '</div>';
+                            echo '<div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">' . htmlspecialchars($userInitial) . '</div>';
                         }
                     ?>
                 </button>
-                <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden" role="menu">
+                <?php
+    $username = $_SESSION['username'] ?? 'User';
+    $userName = $_SESSION['name'] ?? $username; // Add this line
+    $userInitial = strtoupper(substr($username, 0, 1));
+    $profileImage = $_SESSION['profile_image'] ?? null;
+?>
+                <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden z-40" role="menu">
                     <a href="#" id="profile-modal-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>
-                    <a href="../logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</a>
+                    <a href="../logout.php" id="signout-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</a>
                 </div>
             </div>
         </div>

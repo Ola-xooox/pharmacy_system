@@ -13,33 +13,14 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// First check what columns exist in users table
-$checkStmt = $conn->prepare("DESCRIBE users");
-$checkStmt->execute();
-$columns = $checkStmt->get_result();
-$columnNames = [];
-while ($col = $columns->fetch_assoc()) {
-    $columnNames[] = $col['Field'];
-}
-$checkStmt->close();
-
-// Build query based on available columns
-if (in_array('name', $columnNames)) {
-    $nameColumn = 'u.name';
-} else if (in_array('first_name', $columnNames) && in_array('last_name', $columnNames)) {
-    if (in_array('middle_name', $columnNames)) {
-        $nameColumn = "CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name)";
-    } else {
-        $nameColumn = "CONCAT(u.first_name, ' ', u.last_name)";
-    }
-} else {
-    $nameColumn = 'u.username'; // fallback to username
-}
-
-// Fetch all activity log data, joining with the users table to get the user's name
+// --- START: SIMPLIFIED AND MORE RELIABLE QUERY ---
+// This single query safely fetches the user's name by checking for different possible column formats.
+// 1. It prioritizes the 'name' column.
+// 2. If 'name' is empty, it combines first_name, middle_name, and last_name.
+// 3. If all else fails, it falls back to the username.
 $activityLogStmt = $conn->prepare("
     SELECT 
-        {$nameColumn} as name, 
+        COALESCE(username, CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name), u.username) as name, 
         u.role,
         a.action_description, 
         a.timestamp 
@@ -47,6 +28,8 @@ $activityLogStmt = $conn->prepare("
     JOIN users u ON a.user_id = u.id
     ORDER BY a.timestamp DESC
 ");
+// --- END: SIMPLIFIED AND MORE RELIABLE QUERY ---
+
 $activityLogStmt->execute();
 $activityLog = $activityLogStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $activityLogStmt->close();
@@ -100,7 +83,7 @@ $conn->close();
                                     <?php if (!empty($activityLog)): ?>
                                         <?php foreach ($activityLog as $log): ?>
                                             <tr class="border-b border-gray-200">
-                                                <td class="py-3 px-4"><?php echo htmlspecialchars($log['name']); ?></td>
+                                                <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-300 text-green-800 capitalize"><?php echo htmlspecialchars(trim($log['name'])); // Use trim to clean up any extra spaces ?></td>
                                                 <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize"><?php echo htmlspecialchars($log['role']); ?></span></td>
                                                 <td class="py-3 px-4"><?php echo htmlspecialchars($log['action_description']); ?></td>
                                                 <td class="py-3 px-4"><?php echo htmlspecialchars(date('F j, Y, g:i a', strtotime($log['timestamp']))); ?></td>
@@ -160,7 +143,7 @@ $conn->close();
                     const cells = rows[i].getElementsByTagName('td');
                     for (let j = 0; j < cells.length; j++) {
                         if (cells[j]) {
-                            if (cells[j].textContent.toLowerCase().indexOf(filter) > -1) {
+                            if (cells[j].textContent.toLowerCase().indexOf(filter) > -i) {
                                 rowVisible = true;
                                 break;
                             }

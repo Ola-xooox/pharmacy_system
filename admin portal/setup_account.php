@@ -220,11 +220,20 @@ $currentPage = 'setup_account';
                                         </div>
                                         <div>
                                             <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                                            <div class="mt-1 relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg></div><input type="text" id="username" name="username" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="user name..." required></div>
+                                            <div class="mt-1 relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg></div><input type="text" id="username" name="username" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="Username" required></div>
                                         </div>
                                         <div>
                                             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                                            <div class="mt-1 relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" /></svg></div><input type="password" id="password" name="password" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="••••••••" required></div>
+                                            <div class="mt-1 relative">
+                                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                                    <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" /></svg>
+                                                </div>
+                                                <input type="password" id="password" name="password" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 pr-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="••••••••" required>
+                                                <button type="button" id="password-toggle-btn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700">
+                                                    <i id="eye-icon" class="ph ph-eye text-xl"></i>
+                                                    <i id="eye-slashed-icon" class="ph ph-eye-slash text-xl hidden"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -249,87 +258,129 @@ $currentPage = 'setup_account';
     </div>
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
     <div id="success-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center"><div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm text-center"><div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100"><svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg></div><h3 class="text-2xl font-bold text-gray-800 mt-4">Success!</h3><p class="text-gray-500 mt-2">The new user account has been created successfully.</p><button id="close-modal-btn" class="mt-6 w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">OK</button></div></div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            const userMenuButton = document.getElementById('user-menu-button');
-            const userMenu = document.getElementById('user-menu');
-            const dateTimeEl = document.getElementById('date-time');
-            const form = document.getElementById('setup-account-form');
-            const successModal = document.getElementById('success-modal');
-            const closeModalBtn = document.getElementById('close-modal-btn');
-            const imageUploadInput = document.getElementById('profile_image');
-            const imagePreview = document.getElementById('image-preview');
-            const imagePlaceholder = document.getElementById('image-placeholder');
+        <div id="error-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center z-50">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
+        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+            <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800 mt-4">Error!</h3>
+        <p id="error-message" class="text-gray-500 mt-2">An error occurred.</p>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenu = document.getElementById('user-menu');
+        const dateTimeEl = document.getElementById('date-time');
+        const form = document.getElementById('setup-account-form');
+        const successModal = document.getElementById('success-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const imageUploadInput = document.getElementById('profile_image');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePlaceholder = document.getElementById('image-placeholder');
+        
+        // --- START: Add constants for the new error modal ---
+        const errorModal = document.getElementById('error-modal');
+        const errorMessageEl = document.getElementById('error-message');
+        // --- END: Add constants for the new error modal ---
 
-            if (sidebarToggleBtn && sidebar) {
-                sidebarToggleBtn.addEventListener('click', () => {
-                    if (window.innerWidth < 768) {
-                        sidebar.classList.toggle('open-mobile');
-                        overlay.classList.toggle('hidden');
-                    } else {
-                        sidebar.classList.toggle('open-desktop');
-                    }
-                });
-            }
-            if (overlay) { overlay.addEventListener('click', () => { if (sidebar) sidebar.classList.remove('open-mobile'); overlay.classList.add('hidden'); }); }
-            if (userMenuButton && userMenu) {
-                userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
-                window.addEventListener('click', (e) => {
-                    if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) { userMenu.classList.add('hidden'); }
-                });
-            }
-            function updateDateTime() { if (dateTimeEl) { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }; dateTimeEl.textContent = now.toLocaleDateString('en-US', options); } }
-            updateDateTime();
-            setInterval(updateDateTime, 60000);
+        const passwordInput = document.getElementById('password');
+        const passwordToggleBtn = document.getElementById('password-toggle-btn');
+        const eyeIcon = document.getElementById('eye-icon');
+        const eyeSlashedIcon = document.getElementById('eye-slashed-icon');
 
-            imageUploadInput.addEventListener('change', function() {
-                if (this.files && this.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        imagePreview.src = e.target.result;
-                        imagePreview.classList.remove('hidden');
-                        imagePlaceholder.classList.add('hidden');
-                    };
-                    reader.readAsDataURL(this.files[0]);
+        if (sidebarToggleBtn && sidebar) {
+            sidebarToggleBtn.addEventListener('click', () => {
+                if (window.innerWidth < 768) {
+                    sidebar.classList.toggle('open-mobile');
+                    overlay.classList.toggle('hidden');
+                } else {
+                    sidebar.classList.toggle('open-desktop');
                 }
             });
-
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(form);
-                
-                fetch('setup_account.php', {
-                    method: 'POST',
-                    body: formData,
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        successModal.classList.remove('hidden');
-                        successModal.classList.add('flex');
-                        form.reset();
-                        imagePreview.classList.add('hidden');
-                        imagePlaceholder.classList.remove('hidden');
-                        document.querySelectorAll('input[name="roles[]"]').forEach(checkbox => { checkbox.checked = false; });
-                    } else {
-                        alert('Error: ' + result.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An unexpected error occurred. Please try again.');
-                });
+        }
+        if (overlay) { overlay.addEventListener('click', () => { if (sidebar) sidebar.classList.remove('open-mobile'); overlay.classList.add('hidden'); }); }
+        if (userMenuButton && userMenu) {
+            userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
+            window.addEventListener('click', (e) => {
+                if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) { userMenu.classList.add('hidden'); }
             });
+        }
+        function updateDateTime() { if (dateTimeEl) { const now = new Date(); const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }; dateTimeEl.textContent = now.toLocaleDateString('en-US', options); } }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
 
-            closeModalBtn.addEventListener('click', function() {
-                successModal.classList.add('hidden');
-                successModal.classList.remove('flex');
+        if (passwordToggleBtn) {
+            passwordToggleBtn.addEventListener('click', () => {
+                const isPassword = passwordInput.type === 'password';
+                passwordInput.type = isPassword ? 'text' : 'password';
+                eyeIcon.classList.toggle('hidden', isPassword);
+                eyeSlashedIcon.classList.toggle('hidden', !isPassword);
+            });
+        }
+
+        imageUploadInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    imagePlaceholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(form);
+            
+            fetch('setup_account.php', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    successModal.classList.remove('hidden');
+                    successModal.classList.add('flex');
+                    form.reset();
+                    imagePreview.classList.add('hidden');
+                    imagePlaceholder.classList.remove('hidden');
+                    document.querySelectorAll('input[name="roles[]"]').forEach(checkbox => { checkbox.checked = false; });
+                } else {
+                    // --- MODIFIED: Show custom error modal instead of alert ---
+                    errorMessageEl.textContent = result.message;
+                    errorModal.classList.remove('hidden');
+                    errorModal.classList.add('flex');
+
+                    // Hide the modal after 2 seconds
+                    setTimeout(() => {
+                        errorModal.classList.add('hidden');
+                        errorModal.classList.remove('flex');
+                    }, 2000); // 2000 milliseconds = 2 seconds
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorMessageEl.textContent = 'An unexpected error occurred. Please try again.';
+                errorModal.classList.remove('hidden');
+                errorModal.classList.add('flex');
+                setTimeout(() => {
+                    errorModal.classList.add('hidden');
+                    errorModal.classList.remove('flex');
+                }, 2000);
             });
         });
-    </script>
-</body>
-</html>
+
+        closeModalBtn.addEventListener('click', function() {
+            successModal.classList.add('hidden');
+            successModal.classList.remove('flex');
+        });
+    });
+</script>
