@@ -3,6 +3,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
+
 // Fetch notifications
 $notifications_json = file_get_contents('http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/../api/get_notifications.php');
 $notifications_data = json_decode($notifications_json, true);
@@ -30,7 +31,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-40">
                     <div class="flex justify-between items-center p-3 sm:p-4 border-b">
                         <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
-                        <a href="/pharmacy_system/inventory/inventory-tracking.php" class="text-sm font-medium text-green-600 hover:text-green-800">View All</a>
+                        <a href="../inventory/inventory-tracking.php" class="text-sm font-medium text-green-600 hover:text-green-800">View All</a>
                     </div>
                     <div class="py-1 max-h-80 overflow-y-auto">
                         <?php if ($total_notifications > 0): ?>
@@ -86,6 +87,12 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                         }
                     ?>
                 </button>
+                <?php
+    $username = $_SESSION['username'] ?? 'User';
+    $userName = $_SESSION['name'] ?? $username; // Add this line
+    $userInitial = strtoupper(substr($username, 0, 1));
+    $profileImage = $_SESSION['profile_image'] ?? null;
+?>
                 <div id="user-menu" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 hidden z-40" role="menu">
                     <a href="#" id="profile-modal-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Your Profile</a>
                     <a href="#" id="signout-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</a>
