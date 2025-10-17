@@ -7,9 +7,9 @@ session_start();
 require 'db_connect.php';
 require_once 'gmail_config.php';
 
-// Use fallback mailer (tries email, always logs OTP)
-require_once 'fallback_otp_mailer.php';
-$otpMailer = new FallbackOTPMailer($conn);
+// Use improved Gmail mailer with multiple methods
+require_once 'gmail_curl_mailer.php';
+$otpMailer = new GmailCurlMailer($conn);
 
 $error = '';
 $success_message = '';
