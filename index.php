@@ -43,13 +43,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     if ($passwordValid) {
                         // Generate and send OTP
                         $otp = $otpMailer->generateOTP();
-                        if ($otpMailer->storeOTP($email, $otp) && $otpMailer->sendOTP($email, $otp)) {
+                        if ($otpMailer->storeOTP($email, $otp)) {
+                            // Try to send email (may fail on InfinityFree)
+                            $emailSent = $otpMailer->sendOTP($email, $otp);
+                            
+                            // Always proceed to OTP step if OTP is stored
                             $_SESSION['otp_email'] = $email;
                             $_SESSION['pending_user'] = $user;
-                            $success_message = "OTP sent to your email. Please check your inbox.";
+                            
+                            if ($emailSent) {
+                                $success_message = "OTP sent to your email. Please check your inbox.";
+                            } else {
+                                $success_message = "OTP generated! Email failed - check <a href='get_otp.php' target='_blank'>get_otp.php</a> for your code.";
+                            }
                             $step = 'otp';
                         } else {
-                            $error = "Failed to send OTP. Please try again.";
+                            $error = "Failed to generate OTP. Please try again.";
                         }
                     } else {
                         $error = "Invalid email or password.";
