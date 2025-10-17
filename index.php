@@ -7,9 +7,9 @@ session_start();
 require 'db_connect.php';
 require_once 'gmail_config.php';
 
-// Use Mailtrap for real email testing
-require_once 'mailtrap_otp_mailer.php';
-$otpMailer = new MailtrapOTPMailer($conn);
+// Use Gmail SMTP for sending OTP codes
+require_once 'gmail_otp_mailer.php';
+$otpMailer = new GmailOTPMailer($conn);
 
 $error = '';
 $success_message = '';

@@ -42,7 +42,7 @@ echo "<ul>";
 echo "<li><strong>PHP Version:</strong> " . phpversion() . "</li>";
 echo "<li><strong>Server:</strong> " . $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown' . "</li>";
 echo "<li><strong>Document Root:</strong> " . $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown' . "</li>";
-echo "<li><strong>Current Directory:</strong> " . __DIR__ . "</li>";
+echo "<li><strong>Current Directory:</strong> " . getcwd() . "</li>";
 echo "</ul>";
 
 echo "<h3>Session Test:</h3>";
