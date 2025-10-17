@@ -86,7 +86,7 @@ class MailtrapOTPMailer {
                 "AUTH LOGIN",
                 base64_encode(MAILTRAP_USERNAME),
                 base64_encode(MAILTRAP_PASSWORD),
-                "MAIL FROM: <lhandelpamisa0@gmail.com>",
+                "MAIL FROM: <olausersms3@gmail.com>",
                 "RCPT TO: <$email>",
                 "DATA"
             ];
@@ -104,7 +104,7 @@ class MailtrapOTPMailer {
             }
             
             // Send email content
-            $email_content = "From: MJ Pharmacy <lhandelpamisa0@gmail.com>\r\n";
+            $email_content = "From: MJ Pharmacy <olausersms3@gmail.com>\r\n";
             $email_content .= "To: $email\r\n";
             $email_content .= "Subject: $subject\r\n";
             $email_content .= "MIME-Version: 1.0\r\n";

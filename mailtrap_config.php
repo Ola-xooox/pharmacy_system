@@ -5,8 +5,8 @@
 // Mailtrap SMTP Configuration (Free - No Gmail needed)
 define('MAILTRAP_HOST', 'sandbox.smtp.mailtrap.io');
 define('MAILTRAP_PORT', 2525);
-define('MAILTRAP_USERNAME', 'dc7a32eeedcead'); // From Mailtrap inbox settings
-define('MAILTRAP_PASSWORD', 'a9fc2227dfdeb0'); // From Mailtrap inbox settings
+define('MAILTRAP_USERNAME', '1ad0b5f8a1400f'); // From Mailtrap inbox settings
+define('MAILTRAP_PASSWORD', '00b2226dcb9c80'); // From Mailtrap inbox settings
 
 // Instructions to get Mailtrap credentials:
 /*
