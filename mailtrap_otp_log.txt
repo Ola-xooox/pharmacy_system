@@ -1,0 +1,32 @@
+[2025-10-17 09:08:32] 📧 Mailtrap OTP for lhandelpamisa0@gmail.com: 542829
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 542829 (expires in 5 minutes)
+
+[2025-10-17 09:13:35] 📧 Mailtrap OTP for lhandelpamisa0@gmail.com: 868566
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 868566 (expires in 5 minutes)
+
+[2025-10-17 09:28:40] 📧 Mailtrap OTP for warrioscalvary@gmail.com: 154512
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 154512 (expires in 5 minutes)
+
+[2025-10-17 09:31:03] 📧 Mailtrap OTP for parkjihyoda@gmail.com: 178513
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 178513 (expires in 5 minutes)
+
+[2025-10-17 09:33:54] 📧 Mailtrap OTP for unstoppabegaming@gmail.com: 153996
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 153996 (expires in 5 minutes)
+
+[2025-10-17 09:42:14] 📧 Mailtrap OTP for unstoppabegaming@gmail.com: 838130
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 838130 (expires in 5 minutes)
+
+[2025-10-17 09:44:56] 📧 Mailtrap OTP for parkjihyoda@gmail.com: 328900
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 328900 (expires in 5 minutes)
+
+[2025-10-17 09:53:13] 📧 Mailtrap OTP for lhandelpamisa0@gmail.com: 281105
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 281105 (expires in 5 minutes)
+

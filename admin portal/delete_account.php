@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_user_id'])) {
 }
 
 // Fetch all users except current admin
-$usersStmt = $conn->prepare("SELECT id, username, role, profile_image FROM users WHERE id != ? ORDER BY username ASC");
+$usersStmt = $conn->prepare("SELECT id, username, email, role, profile_image FROM users WHERE id != ? ORDER BY username ASC");
 $usersStmt->bind_param("i", $_SESSION['user_id']);
 $usersStmt->execute();
 $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -109,6 +109,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                     <tr class="bg-gray-50 border-b-2 border-gray-200">
                                         <th class="py-3 px-4 font-semibold text-gray-600">User</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Username</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600">Email</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Role</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Actions</th>
                                     </tr>
@@ -131,6 +132,13 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                                 </td>
                                                 <td class="py-3 px-4"><?php echo htmlspecialchars($user['username']); ?></td>
                                                 <td class="py-3 px-4">
+                                                    <?php if (!empty($user['email'])): ?>
+                                                        <span class="text-gray-700"><?php echo htmlspecialchars($user['email']); ?></span>
+                                                    <?php else: ?>
+                                                        <span class="text-gray-400 italic">No email</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="py-3 px-4">
                                                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize">
                                                         <?php echo htmlspecialchars($user['role']); ?>
                                                     </span>
@@ -145,7 +153,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="4" class="text-center py-8 text-gray-500">No users to display.</td>
+                                            <td colspan="5" class="text-center py-8 text-gray-500">No users to display.</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>

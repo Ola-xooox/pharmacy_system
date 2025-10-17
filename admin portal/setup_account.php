@@ -15,6 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $lastName = $_POST['last_name'] ?? '';
         $firstName = $_POST['first_name'] ?? '';
         $middleName = $_POST['middle_name'] ?? '';
+        $email = $_POST['email'] ?? '';
         
         // Correctly combine the names into one string for the 'name' column
         $name = $lastName . ', ' . $firstName;
@@ -29,6 +30,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Validate required fields
         if (empty($lastName) || empty($firstName) || empty($username) || empty($password) || empty($roles)) {
             echo json_encode(['success' => false, 'message' => 'Please fill in all required fields and select at least one role.']);
+            exit();
+        }
+        
+        // Validate email if provided
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'Please enter a valid email address.']);
             exit();
         }
         
@@ -110,19 +117,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         // Check if 'name' column exists, if not, use separate first_name, last_name columns
         if (in_array('name', $columnNames)) {
-            $insertStmt = $conn->prepare("INSERT INTO users (name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?)");
-            if (!$insertStmt) {
-                throw new Exception("Database prepare error: " . $conn->error);
+            if (in_array('email', $columnNames)) {
+                $insertStmt = $conn->prepare("INSERT INTO users (name, username, email, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("ssssss", $name, $username, $email, $hashedPassword, $role, $profileImagePath);
+            } else {
+                $insertStmt = $conn->prepare("INSERT INTO users (name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("sssss", $name, $username, $hashedPassword, $role, $profileImagePath);
             }
-            $insertStmt->bind_param("sssss", $name, $username, $hashedPassword, $role, $profileImagePath);
         } else if (in_array('first_name', $columnNames) && in_array('last_name', $columnNames)) {
             // Use separate columns
-            if (in_array('middle_name', $columnNames)) {
+            if (in_array('middle_name', $columnNames) && in_array('email', $columnNames)) {
+                $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, middle_name, username, email, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("ssssssss", $firstName, $lastName, $middleName, $username, $email, $hashedPassword, $role, $profileImagePath);
+            } else if (in_array('middle_name', $columnNames)) {
                 $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, middle_name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 if (!$insertStmt) {
                     throw new Exception("Database prepare error: " . $conn->error);
                 }
                 $insertStmt->bind_param("sssssss", $firstName, $lastName, $middleName, $username, $hashedPassword, $role, $profileImagePath);
+            } else if (in_array('email', $columnNames)) {
+                $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, username, email, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Database prepare error: " . $conn->error);
+                }
+                $insertStmt->bind_param("sssssss", $firstName, $lastName, $username, $email, $hashedPassword, $role, $profileImagePath);
             } else {
                 $insertStmt = $conn->prepare("INSERT INTO users (first_name, last_name, username, password, role, profile_image) VALUES (?, ?, ?, ?, ?, ?)");
                 if (!$insertStmt) {
@@ -217,6 +244,18 @@ $currentPage = 'setup_account';
                                         <div>
                                             <label for="middle_name" class="block text-sm font-medium text-gray-700">Middle Name (Optional)</label>
                                             <input type="text" id="middle_name" name="middle_name" class="block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="Middle Name">
+                                        </div>
+                                        <div>
+                                            <label for="email" class="block text-sm font-medium text-gray-700">Email Address (Optional)</label>
+                                            <div class="mt-1 relative">
+                                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                                    <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                                    </svg>
+                                                </div>
+                                                <input type="email" id="email" name="email" class="block w-full rounded-md border-gray-300 shadow-sm pl-10 p-2.5 focus:border-green-500 focus:ring-green-500" placeholder="user@example.com">
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">Required for OTP login functionality</p>
                                         </div>
                                         <div>
                                             <label for="username" class="block text-sm font-medium text-gray-700">Username</label>

@@ -1,73 +1,134 @@
 <?php
 session_start();
-// Make sure you have a db_connect.php file that establishes a connection ($conn) to your database.
 require 'db_connect.php';
+require_once 'gmail_config.php';
+
+// Use Mailtrap for real email testing
+require_once 'mailtrap_otp_mailer.php';
+$otpMailer = new MailtrapOTPMailer($conn);
+
+$error = '';
+$success_message = '';
+$step = 'login'; // 'login' or 'otp'
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // Get user by username only
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-
-    if ($user) {
-        // Check if password is hashed (starts with $2y$ for bcrypt)
-        $passwordValid = false;
-        
-        if (password_get_info($user['password'])['algo'] !== null) {
-            // Password is hashed, use password_verify
-            $passwordValid = password_verify($password, $user['password']);
-        } else {
-            // Password is plain text (for backward compatibility)
-            $passwordValid = ($password === $user['password']);
-        }
-        
-        if ($passwordValid) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
+    if (isset($_POST['action'])) {
+        if ($_POST['action'] == 'login_with_otp') {
+            $email = trim($_POST['email']);
+            $password = $_POST['password'];
             
-            // Handle name field dynamically based on table structure
-            if (isset($user['name'])) {
-                $_SESSION['name'] = $user['name'];
-            } else if (isset($user['first_name']) && isset($user['last_name'])) {
-                $name = $user['first_name'] . ' ' . $user['last_name'];
-                if (isset($user['middle_name']) && !empty($user['middle_name'])) {
-                    $name = $user['first_name'] . ' ' . $user['middle_name'] . ' ' . $user['last_name'];
-                }
-                $_SESSION['name'] = $name;
+            if (empty($email) || empty($password)) {
+                $error = "Please enter both email and password.";
             } else {
-                $_SESSION['name'] = $user['username']; // fallback to username
+                // Check if user exists with this email and password
+                $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $user = $result->fetch_assoc();
+                
+                if ($user) {
+                    // Verify password
+                    $passwordValid = false;
+                    if (password_get_info($user['password'])['algo'] !== null) {
+                        $passwordValid = password_verify($password, $user['password']);
+                    } else {
+                        $passwordValid = ($password === $user['password']);
+                    }
+                    
+                    if ($passwordValid) {
+                        // Generate and send OTP
+                        $otp = $otpMailer->generateOTP();
+                        if ($otpMailer->storeOTP($email, $otp) && $otpMailer->sendOTP($email, $otp)) {
+                            $_SESSION['otp_email'] = $email;
+                            $_SESSION['pending_user'] = $user;
+                            $success_message = "OTP sent to your email. Please check your inbox.";
+                            $step = 'otp';
+                        } else {
+                            $error = "Failed to send OTP. Please try again.";
+                        }
+                    } else {
+                        $error = "Invalid email or password.";
+                    }
+                } else {
+                    $error = "Invalid email or password.";
+                }
             }
+        } elseif ($_POST['action'] == 'verify_otp') {
+            $otp = trim($_POST['otp']);
+            $email = $_SESSION['otp_email'] ?? '';
             
-            $_SESSION['profile_image'] = $user['profile_image'];
-
-            switch ($user['role']) {
-                case 'pos':
-                    header("Location: pos/pos.php");
-                    break;
-                case 'inventory':
-                    header("Location: inventory/products.php");
-                    break;
-                case 'cms':
-                    header("Location: cms/customer_history.php");
-                    break;
-                case 'admin':
-                    header("Location: admin portal/dashboard.php");
-                    break;
-                default:
-                    header("Location: login.php");
-                    break;
+            if (empty($otp)) {
+                $error = "Please enter the OTP code.";
+                $step = 'otp';
+            } else {
+                if ($otpMailer->verifyOTP($email, $otp)) {
+                    $user = $_SESSION['pending_user'];
+                    
+                    // Set session variables
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['role'] = $user['role'];
+                    
+                    // Handle name field
+                    if (isset($user['name'])) {
+                        $_SESSION['name'] = $user['name'];
+                    } else if (isset($user['first_name']) && isset($user['last_name'])) {
+                        $name = $user['first_name'] . ' ' . $user['last_name'];
+                        if (isset($user['middle_name']) && !empty($user['middle_name'])) {
+                            $name = $user['first_name'] . ' ' . $user['middle_name'] . ' ' . $user['last_name'];
+                        }
+                        $_SESSION['name'] = $name;
+                    } else {
+                        $_SESSION['name'] = $user['username'];
+                    }
+                    
+                    $_SESSION['profile_image'] = $user['profile_image'];
+                    
+                    // Clean up temporary session data
+                    unset($_SESSION['otp_email']);
+                    unset($_SESSION['pending_user']);
+                    
+                    // Redirect based on role
+                    switch ($user['role']) {
+                        case 'pos':
+                            header("Location: pos/pos.php");
+                            break;
+                        case 'inventory':
+                            header("Location: inventory/products.php");
+                            break;
+                        case 'cms':
+                            header("Location: cms/customer_history.php");
+                            break;
+                        case 'admin':
+                            header("Location: admin portal/dashboard.php");
+                            break;
+                        default:
+                            header("Location: admin portal/dashboard.php");
+                            break;
+                    }
+                    exit();
+                } else {
+                    $error = "Invalid or expired OTP code.";
+                    $step = 'otp';
+                }
             }
-            exit();
         }
     }
-    
-    echo "<script>alert('Invalid username or password'); window.location.href = 'login.php';</script>";
+}
+
+// Handle back to login request
+if (isset($_GET['back']) && $_GET['back'] == 'login') {
+    unset($_SESSION['otp_email']);
+    unset($_SESSION['pending_user']);
+    $step = 'login';
+    header("Location: login.php");
+    exit();
+}
+
+// Check if we should show OTP step
+if (isset($_SESSION['otp_email']) && empty($_POST)) {
+    $step = 'otp';
 }
 ?>
 <!DOCTYPE html>
@@ -484,50 +545,102 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="text-center md:hidden mb-8">
                      <img src="mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-20 h-20 mx-auto rounded-full object-cover">
                 </div>
-                <h2 class="text-2xl font-bold text-gray-700 mb-1">Sign In</h2>
-                <p class="text-gray-600 mb-8">Sign in to Access your Account</p>
+                <?php if (!empty($error)): ?>
+                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                        <?php echo htmlspecialchars($error); ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($success_message)): ?>
+                    <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                        <?php echo htmlspecialchars($success_message); ?>
+                    </div>
+                <?php endif; ?>
 
-                <form id="loginForm" action="login.php" method="POST">
-                    <div class="mb-4">
-                        <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                        <div class="input-wrapper">
-                            <span class="input-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                                </svg>
-                            </span>
-                            <input type="text" id="username" name="username" class="form-input" placeholder="Enter your username" required>
+                <?php if ($step == 'login'): ?>
+                    <h2 class="text-2xl font-bold text-gray-700 mb-1">Sign In with Email + OTP</h2>
+                    <p class="text-gray-600 mb-6">Enter your email and password to receive an OTP code</p>
+
+                    <!-- Email + OTP Form -->
+                    <form action="login.php" method="POST">
+                        <input type="hidden" name="action" value="login_with_otp">
+                        
+                        <div class="mb-4">
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                    </svg>
+                                </span>
+                                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address" required>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <div class="input-wrapper">
-                             <span class="input-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                                </svg>
-                             </span>
-                            <input type="password" id="password" name="password" class="form-input password-input" placeholder="Enter your password" required>
-                            <span class="toggle-password" id="togglePassword">
-                                <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                                </svg>
-                                <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.955 9.955 0 00-4.542 1.071L3.707 2.293zM10 12a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-                                    <path d="M2 10s3.923-6 8-6 8 6 8 6-3.923 6-8 6-8-6-8-6z" />
-                                </svg>
-                            </span>
+                        
+                        <div class="mb-6">
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <div class="input-wrapper">
+                                 <span class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                                    </svg>
+                                 </span>
+                                <input type="password" id="password" name="password" class="form-input password-input" placeholder="Enter your password" required>
+                                <span class="toggle-password" id="togglePassword">
+                                    <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                    </svg>
+                                    <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.955 9.955 0 00-4.542 1.071L3.707 2.293zM10 12a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                                        <path d="M2 10s3.923-6 8-6 8 6 8 6-3.923 6-8 6-8-6-8-6z" />
+                                    </svg>
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">We'll send an OTP to your email after verifying your password</p>
                         </div>
-                    </div>
+                        
+                        <div class="mt-8">
+                            <button type="submit" class="btn-primary">
+                                Send OTP Code
+                            </button>
+                        </div>
+                    </form>
+
+                <?php elseif ($step == 'otp'): ?>
+                    <h2 class="text-2xl font-bold text-gray-700 mb-1">Enter OTP Code</h2>
+                    <p class="text-gray-600 mb-6">We've sent a 6-digit code to <?php echo htmlspecialchars($_SESSION['otp_email'] ?? ''); ?></p>
+
+                    <form action="login.php" method="POST">
+                        <input type="hidden" name="action" value="verify_otp">
+                        
+                        <div class="mb-6">
+                            <label for="otp" class="block text-sm font-medium text-gray-700 mb-2">OTP Code</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-0.257-0.257A6 6 0 1118 8zM10 4a2 2 0 100 4 2 2 0 000-4z" clip-rule="evenodd" />
+                                    </svg>
+                                </span>
+                                <input type="text" id="otp" name="otp" class="form-input text-center text-lg tracking-widest" placeholder="000000" maxlength="6" required>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Code expires in 5 minutes</p>
+                        </div>
+                        
+                        <div class="mt-8">
+                            <button type="submit" class="btn-primary">
+                                Verify & Sign In
+                            </button>
+                        </div>
+                    </form>
                     
-                    <div class="mt-8">
-                        <button type="submit" class="btn-primary">
-                            Sign In
-                        </button>
+                    <div class="mt-4 text-center">
+                        <a href="login.php?back=login" class="text-sm text-gray-500 hover:text-gray-700">
+                            ← Back to login
+                        </a>
                     </div>
-                </form>
+                <?php endif; ?>
                 
                 <div class="mt-8 text-center">
                     <p class="text-sm text-gray-500">© 2025 MJ Pharmacy. All rights reserved.</p>
@@ -539,18 +652,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Password toggle functionality
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('togglePassword');
             const eyeOpen = document.getElementById('eye-open');
             const eyeClosed = document.getElementById('eye-closed');
 
-            togglePassword.addEventListener('click', function () {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
+            if (togglePassword) {
+                togglePassword.addEventListener('click', function () {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
 
-                eyeOpen.classList.toggle('hidden');
-                eyeClosed.classList.toggle('hidden');
-            });
+                    eyeOpen.classList.toggle('hidden');
+                    eyeClosed.classList.toggle('hidden');
+                });
+            }
+
+            // Auto-focus OTP input and format
+            const otpInput = document.getElementById('otp');
+            if (otpInput) {
+                otpInput.focus();
+                
+                // Format OTP input (numbers only)
+                otpInput.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                    if (value.length > 6) value = value.slice(0, 6); // Limit to 6 digits
+                    e.target.value = value;
+                });
+            }
         });
     </script>
 
