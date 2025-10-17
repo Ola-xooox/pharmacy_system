@@ -7,9 +7,9 @@ session_start();
 require 'db_connect.php';
 require_once 'gmail_config.php';
 
-// Use Gmail SMTP for sending OTP codes
-require_once 'gmail_otp_mailer.php';
-$otpMailer = new GmailOTPMailer($conn);
+// Use fallback mailer (tries email, always logs OTP)
+require_once 'fallback_otp_mailer.php';
+$otpMailer = new FallbackOTPMailer($conn);
 
 $error = '';
 $success_message = '';
