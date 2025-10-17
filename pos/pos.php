@@ -2,7 +2,7 @@
     session_start();
         // Redirect if not logged in or not a POS user
     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'pos') {
-        header("Location: ../login.php");
+        header("Location: ../index.php");
         exit();
     }
     $currentPage = 'pos';

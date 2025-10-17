@@ -115,7 +115,7 @@ if ($errorLog && file_exists($errorLog)) {
 }
 
 echo "<hr>";
-echo "<p><a href='login.php'>← Back to Login</a> | <a href='view_otp_codes.php'>View OTP Codes</a></p>";
+echo "<p><a href='index.php'>← Back to Login</a> | <a href='view_otp_codes.php'>View OTP Codes</a></p>";
 
 $conn->close();
 ?>

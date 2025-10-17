@@ -26,7 +26,7 @@ The system uses PHP's built-in `mail()` function. For production use, you may wa
 ## 📧 How OTP Login Works
 
 ### For Admin (Existing Account)
-1. Go to `otp_login.php`
+1. Go to `index.php`
 2. Enter email: `lhandelpamisa0@gmail.com`
 3. Click "Send OTP Code"
 4. Check email for 6-digit code
@@ -49,8 +49,8 @@ The system uses PHP's built-in `mail()` function. For production use, you may wa
 - ✅ Rate limiting (one OTP per email at a time)
 
 ### Login Options
-- **Traditional Login**: Username + Password (`login.php`)
-- **OTP Login**: Email + OTP Code (`otp_login.php`)
+- **Traditional Login**: Username + Password (`index.php`)
+- **OTP Login**: Email + OTP Code (`index.php`)
 - Both methods redirect to appropriate dashboards based on user role
 
 ### Employee Management
@@ -62,7 +62,7 @@ The system uses PHP's built-in `mail()` function. For production use, you may wa
 
 1. **`otp_setup.sql`** - Database schema changes
 2. **`otp_mailer.php`** - OTP generation and email functionality
-3. **`otp_login.php`** - OTP login interface
+3. **`index.php`** - OTP login interface
 4. **`OTP_SETUP_README.md`** - This documentation
 
 ## 🔒 Security Features
@@ -77,7 +77,7 @@ The system uses PHP's built-in `mail()` function. For production use, you may wa
 
 After successful login (both traditional and OTP), users are redirected based on their role:
 
-- **Admin** → `admin portal/dashboard.php`
+- **Admin** → `admin_portal/dashboard.php`
 - **POS** → `pos/pos.php`
 - **Inventory** → `inventory/products.php`
 - **CMS** → `cms/customer_history.php`

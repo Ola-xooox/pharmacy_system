@@ -47,10 +47,10 @@ echo "<ul>";
 echo "<li><strong>Mailtrap configured</strong>: All OTP emails go to your Mailtrap inbox</li>";
 echo "<li><strong>Admin email</strong>: lhandelpamisa0@gmail.com</li>";
 echo "<li><strong>OTP expiration</strong>: 5 minutes</li>";
-echo "<li><strong>Login page</strong>: <a href='login.php'>login.php</a> (Email + OTP tab)</li>";
+echo "<li><strong>Login page</strong>: <a href='index.php'>index.php</a> (Email + OTP tab)</li>";
 echo "</ul>";
 
-echo "<p><a href='login.php'>← Back to Login</a></p>";
+echo "<p><a href='index.php'>← Back to Login</a></p>";
 
 $conn->close();
 ?>

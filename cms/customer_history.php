@@ -2,7 +2,7 @@
 session_start();
 // Redirect if not logged in or not a CMS user
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
-    header("Location: ../login.php");
+    header("Location: ../index.php");
     exit();
 }
 ?>

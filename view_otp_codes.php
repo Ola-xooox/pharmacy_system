@@ -79,7 +79,7 @@ if (isset($_GET['clear_log'])) {
 }
 
 echo "<hr>";
-echo "<p><a href='login.php'>← Back to Login</a></p>";
+echo "<p><a href='index.php'>← Back to Login</a></p>";
 echo "<p><em>Refresh this page to see new OTP codes</em></p>";
 
 $conn->close();

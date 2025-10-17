@@ -101,10 +101,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             header("Location: cms/customer_history.php");
                             break;
                         case 'admin':
-                            header("Location: admin portal/dashboard.php");
+                            header("Location: admin_portal/dashboard.php");
                             break;
                         default:
-                            header("Location: admin portal/dashboard.php");
+                            header("Location: admin_portal/dashboard.php");
                             break;
                     }
                     exit();
@@ -122,7 +122,7 @@ if (isset($_GET['back']) && $_GET['back'] == 'login') {
     unset($_SESSION['otp_email']);
     unset($_SESSION['pending_user']);
     $step = 'login';
-    header("Location: login.php");
+    header("Location: index.php");
     exit();
 }
 
@@ -562,7 +562,7 @@ if (isset($_SESSION['otp_email']) && empty($_POST)) {
                     <p class="text-gray-600 mb-6">Enter your email and password to receive an OTP code</p>
 
                     <!-- Email + OTP Form -->
-                    <form action="login.php" method="POST">
+                    <form action="index.php" method="POST">
                         <input type="hidden" name="action" value="login_with_otp">
                         
                         <div class="mb-4">
@@ -612,7 +612,7 @@ if (isset($_SESSION['otp_email']) && empty($_POST)) {
                     <h2 class="text-2xl font-bold text-gray-700 mb-1">Enter OTP Code</h2>
                     <p class="text-gray-600 mb-6">We've sent a 6-digit code to <?php echo htmlspecialchars($_SESSION['otp_email'] ?? ''); ?></p>
 
-                    <form action="login.php" method="POST">
+                    <form action="index.php" method="POST">
                         <input type="hidden" name="action" value="verify_otp">
                         
                         <div class="mb-6">
@@ -636,7 +636,7 @@ if (isset($_SESSION['otp_email']) && empty($_POST)) {
                     </form>
                     
                     <div class="mt-4 text-center">
-                        <a href="login.php?back=login" class="text-sm text-gray-500 hover:text-gray-700">
+                        <a href="index.php?back=login" class="text-sm text-gray-500 hover:text-gray-700">
                             ← Back to login
                         </a>
                     </div>
