@@ -34,3 +34,11 @@
    Status: ✅ Email sent to Mailtrap inbox!
    Code: 792747 (expires in 5 minutes)
 
+[2025-10-17 11:01:17] 📧 Mailtrap OTP for lhandelpamisa0@gmail.com: 647718
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 647718 (expires in 5 minutes)
+
+[2025-10-17 11:16:21] 📧 Mailtrap OTP for markjamesp11770@gmail.com: 893562
+   Status: ✅ Email sent to Mailtrap inbox!
+   Code: 893562 (expires in 5 minutes)
+
