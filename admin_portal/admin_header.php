@@ -185,7 +185,6 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit',
                     hour12: true
                 };
                 const now = new Date();
@@ -193,9 +192,9 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
             }
         }
         
-        // Update the time immediately on page load, then every second
+        // Update the time immediately on page load, then every minute
         updateDateTime();
-        setInterval(updateDateTime, 1000);
+        setInterval(updateDateTime, 60000);
         // --- END: ADD THIS NEW CODE FOR THE DATE AND TIME ---
 
 

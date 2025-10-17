@@ -20,13 +20,17 @@ if ($conn->connect_error) {
 // 3. If all else fails, it falls back to the username.
 $activityLogStmt = $conn->prepare("
     SELECT 
-        COALESCE(username, CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name), u.username) as name, 
+        CASE 
+            WHEN u.first_name IS NOT NULL AND u.first_name != '' THEN CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name)
+            ELSE u.username 
+        END as name,
         u.role,
         a.action_description, 
-        a.timestamp 
+        a.timestamp,
+        a.id
     FROM user_activity_log a
     JOIN users u ON a.user_id = u.id
-    ORDER BY a.timestamp DESC
+    ORDER BY a.id DESC, a.timestamp DESC
 ");
 // --- END: SIMPLIFIED AND MORE RELIABLE QUERY ---
 
@@ -81,12 +85,29 @@ $conn->close();
                                 </thead>
                                 <tbody>
                                     <?php if (!empty($activityLog)): ?>
-                                        <?php foreach ($activityLog as $log): ?>
-                                            <tr class="border-b border-gray-200">
-                                                <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-300 text-green-800 capitalize"><?php echo htmlspecialchars(trim($log['name'])); // Use trim to clean up any extra spaces ?></td>
+                                        <?php foreach ($activityLog as $index => $log): ?>
+                                            <?php 
+                                            // Check if activity is recent (within last hour)
+                                            $isRecent = (time() - strtotime($log['timestamp'])) < 3600;
+                                            $rowClass = $index < 3 ? 'border-b border-gray-200 bg-green-50' : 'border-b border-gray-200';
+                                            ?>
+                                            <tr class="<?php echo $rowClass; ?>">
+                                                <td class="py-3 px-4">
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-300 text-green-800 capitalize">
+                                                        <?php echo htmlspecialchars(trim($log['name'])); ?>
+                                                    </span>
+                                                    <?php if ($index < 3): ?>
+                                                        <span class="ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">LATEST</span>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize"><?php echo htmlspecialchars($log['role']); ?></span></td>
                                                 <td class="py-3 px-4"><?php echo htmlspecialchars($log['action_description']); ?></td>
-                                                <td class="py-3 px-4"><?php echo htmlspecialchars(date('F j, Y, g:i a', strtotime($log['timestamp']))); ?></td>
+                                                <td class="py-3 px-4">
+                                                    <?php echo htmlspecialchars(date('F j, Y, g:i a', strtotime($log['timestamp']))); ?>
+                                                    <?php if ($isRecent): ?>
+                                                        <span class="ml-2 text-xs text-green-600 font-semibold">• Just now</span>
+                                                    <?php endif; ?>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
