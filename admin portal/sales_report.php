@@ -44,12 +44,25 @@ $netProfitStmt->execute();
 $netProfit = $netProfitStmt->get_result()->fetch_assoc()['net_profit'] ?? 0;
 $netProfitStmt->close();
 
-// Fetch Today's Transactions for the table
-$transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
+// --- START: MODIFIED QUERY TO PREVENT DUPLICATE ROWS ---
+// This query now groups transactions by product and exact timestamp, summing the quantities and prices.
+// This combines entries that were likely created by accident (e.g., a double-click).
+$transactionsStmt = $conn->prepare("
+    SELECT 
+        product_name, 
+        SUM(quantity) as quantity, 
+        SUM(total_price) as total_price, 
+        transaction_date 
+    FROM purchase_history 
+    WHERE DATE(transaction_date) = ? 
+    GROUP BY product_name, transaction_date 
+    ORDER BY transaction_date DESC
+");
 $transactionsStmt->bind_param("s", $today);
 $transactionsStmt->execute();
 $transactionsList = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $transactionsStmt->close();
+// --- END: MODIFIED QUERY ---
 
 // Fetch Sales Data for the Chart (daily sales for the last 7 days)
 $chartDataStmt = $conn->prepare("
@@ -231,4 +244,3 @@ foreach ($period as $date) {
     </script>
 </body>
 </html>
-
