@@ -5,15 +5,31 @@
         header("Location: ../index.php");
         exit();
     }
+    
+    // Include dark mode functionality
+    require_once 'darkmode.php';
+    
     $currentPage = 'pos';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="<?php echo $posDarkMode['is_dark'] ? 'dark' : ''; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pharmacy POS System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-green': '#01A74F',
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root { 
@@ -218,9 +234,9 @@
             }
         }
     </script>
+    <?php echo $posDarkMode['styles']; ?>
 </head>
 <body class="bg-gray-100">
-
     <?php include 'pos_header.php'; ?>
 
     <main class="p-4 sm:p-6 max-w-screen-2xl mx-auto">
@@ -739,7 +755,7 @@
                 regularPaymentForm.reset();
             });
             
-            // NEW UNIFIED FUNCTION TO PROCESS SALE AND LOG CUSTOMER DATA
+            // UNIFIED FUNCTION TO PROCESS SALE AND LOG CUSTOMER DATA
             async function completePurchase(customerData) {
                 const saleData = {
                     ...customerData,
@@ -747,40 +763,22 @@
                     total_amount: parseFloat(totalElement.textContent.replace('₱', ''))
                 };
 
-                // First, process the inventory reduction
+                // Process the complete sale (inventory + customer history) in one API call
                 try {
-                    const stockResponse = await fetch('../api.php?action=process_sale', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(orderItems)
-                    });
-                    const stockResult = await stockResponse.json();
-                    if (!stockResponse.ok) {
-                        alert(`Error processing sale: ${stockResult.message || 'Server error'}`);
-                        return false;
-                    }
-                } catch (error) {
-                    console.error('Stock update error:', error);
-                    alert('An error occurred while connecting to the server for stock update.');
-                    return false;
-                }
-
-                // Second, log the complete sale with customer history
-                try {
-                    const historyResponse = await fetch('../api/customer_api.php?action=complete_sale', {
+                    const response = await fetch('../api/customer_api.php?action=complete_sale&v=' + Date.now(), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(saleData)
                     });
-                    const historyResult = await historyResponse.json();
-                     if (!historyResponse.ok) {
-                        alert(`Error logging customer history: ${historyResult.message || 'Server error'}`);
+                    const result = await response.json();
+                    if (!response.ok) {
+                        alert(`Error processing sale: ${result.message || 'Server error'}`);
                         return false;
                     }
                     return true;
                 } catch (error) {
-                    console.error('Customer history logging error:', error);
-                    alert('An error occurred while logging the sale.');
+                    console.error('Sale processing error:', error);
+                    alert('An error occurred while processing the sale.');
                     return false;
                 }
             }
@@ -926,5 +924,6 @@
             fetchCategories();
         });
     </script>
+    <?php echo $posDarkMode['script']; ?>
 </body>
 </html>

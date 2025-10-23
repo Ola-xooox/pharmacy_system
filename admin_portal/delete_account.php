@@ -76,6 +76,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delete Account - MJ Pharmacy</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <?php include 'assets/admin_darkmode.php'; ?>
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--light-gray); color: #1f2937; }
@@ -93,13 +94,13 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <div class="flex-1 flex flex-col overflow-hidden">
         <?php include 'admin_header.php'; ?>
             
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
-                <div class="max-w-6xl mx-auto">
-                    <div class="bg-white rounded-lg shadow-md p-6">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto p-8">
+                <div class="w-full">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold text-gray-800">Delete User Account</h2>
-                            <div class="bg-red-50 border border-red-200 rounded-lg p-3">
-                                <p class="text-red-700 text-sm font-medium">⚠️ Warning: This action cannot be undone</p>
+                            <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                                <p class="text-red-700 dark:text-red-300 text-sm font-medium">⚠️ Warning: This action cannot be undone</p>
                             </div>
                         </div>
                         
@@ -139,7 +140,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="py-3 px-4">
-                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize">
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 capitalize">
                                                         <?php echo htmlspecialchars($user['role']); ?>
                                                     </span>
                                                 </td>

@@ -106,6 +106,7 @@ foreach ($period as $date) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal - Sales Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <?php include 'assets/admin_darkmode.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">

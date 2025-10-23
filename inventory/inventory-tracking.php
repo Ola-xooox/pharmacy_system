@@ -6,6 +6,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     exit();
 }
     require '../db_connect.php';
+    
+    // Include dark mode functionality
+    require_once 'darkmode.php';
 
     // --- Fetch Grouped Data for JavaScript ---
     $products_result = $conn->query("SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC");
@@ -99,12 +102,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     $conn->close();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="<?php echo $inventoryDarkMode['is_dark'] ? 'dark' : ''; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory System - Tracking</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--light-gray); color: #1f2937; }
@@ -117,18 +125,19 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         .category-btn { white-space: nowrap; padding: 0.5rem 1rem; border-radius: 9999px; background-color: #e5e7eb; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; } .category-btn:hover { background-color: #d1d5db; } .category-btn.active { background-color: #374151; color: white; }
         .table-header { background-color: #f9fafb; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; }
     </style>
+    <?php echo $inventoryDarkMode['styles']; ?>
 </head>
 <body class="bg-gray-100">
     <div class="flex h-screen overflow-hidden">
 
         <?php
             $currentPage = 'inventory';
-            include '../partials/sidebar.php';
+            include 'partials/sidebar.php';
         ?>
 
         <div class="flex-1 flex flex-col overflow-hidden">
 
-            <?php include '../partials/header.php'; ?>
+            <?php include 'partials/header.php'; ?>
 
             <main class="flex-1 overflow-y-auto p-6">
                 <h2 class="text-3xl font-bold mb-6">Inventory Tracking</h2>
@@ -575,5 +584,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             updateTableView();
         });
     </script>
+    <?php echo $inventoryDarkMode['script']; ?>
 </body>
 </html>

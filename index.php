@@ -7,9 +7,9 @@ session_start();
 require 'db_connect.php';
 require_once 'gmail_config.php';
 
-// Use improved Gmail mailer with multiple methods
-require_once 'gmail_curl_mailer.php';
-$otpMailer = new GmailCurlMailer($conn);
+// Use Optimized mailer for best email delivery
+require_once 'optimized_mailer.php';
+$otpMailer = new OptimizedMailer($conn);
 
 $error = '';
 $success_message = '';
@@ -41,20 +41,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
                     
                     if ($passwordValid) {
-                        // Generate and send OTP
-                        $otp = $otpMailer->generateOTP();
-                        if ($otpMailer->storeOTP($email, $otp)) {
-                            // Try to send email (may fail on InfinityFree)
-                            $emailSent = $otpMailer->sendOTP($email, $otp);
-                            
+                        // Send OTP (the method will generate and store the OTP automatically)
+                        $otpResult = $otpMailer->sendOTP($email);
+                        
+                        if ($otpResult !== false) {
                             // Always proceed to OTP step if OTP is stored
                             $_SESSION['otp_email'] = $email;
                             $_SESSION['pending_user'] = $user;
                             
-                            if ($emailSent) {
-                                $success_message = "OTP sent to your email. Please check your inbox.";
+                            if ($otpResult === true) {
+                                $success_message = "OTP sent to your email successfully! Please check your inbox.";
                             } else {
-                                $success_message = "OTP generated! Email failed - check <a href='get_otp.php' target='_blank'>get_otp.php</a> for your code.";
+                                $success_message = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
                             }
                             $step = 'otp';
                         } else {
@@ -647,6 +645,33 @@ if (isset($_SESSION['otp_email']) && empty($_POST)) {
                             </button>
                         </div>
                     </form>
+                    
+                    <!-- Backup OTP Codes Section -->
+                    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="text-sm font-medium text-blue-800 mb-2">📋 Backup OTP Codes</h3>
+                        <p class="text-xs text-blue-600 mb-3">If you don't receive the email, you can use these backup codes:</p>
+                        
+                        <?php
+                        $email = $_SESSION['otp_email'] ?? '';
+                        if (!empty($email)) {
+                            $stmt = $conn->prepare("SELECT otp_code, created_at FROM otp_verification WHERE email = ? AND expires_at > NOW() ORDER BY created_at DESC LIMIT 3");
+                            $stmt->bind_param("s", $email);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+                            
+                            if ($result->num_rows > 0) {
+                                while ($row = $result->fetch_assoc()) {
+                                    echo "<div class='bg-white p-3 mb-2 border border-blue-300 rounded text-center'>";
+                                    echo "<span class='font-mono text-lg font-bold text-green-600 tracking-wider'>" . $row['otp_code'] . "</span>";
+                                    echo "<div class='text-xs text-gray-500 mt-1'>Generated: " . date('H:i:s', strtotime($row['created_at'])) . "</div>";
+                                    echo "</div>";
+                                }
+                            } else {
+                                echo "<p class='text-xs text-blue-600'>No backup codes available.</p>";
+                            }
+                        }
+                        ?>
+                    </div>
                     
                     <div class="mt-4 text-center">
                         <a href="index.php?back=login" class="text-sm text-gray-500 hover:text-gray-700">

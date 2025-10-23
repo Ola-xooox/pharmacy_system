@@ -9,35 +9,36 @@ $notifications_json = file_get_contents('http://' . $_SERVER['HTTP_HOST'] . dirn
 $notifications_data = json_decode($notifications_json, true);
 $total_notifications = $notifications_data['total_notifications'] ?? 0;
 ?>
-<header class="bg-white shadow-sm border-b border-gray-200 relative z-30">
+<header class="bg-white border-b border-gray-200 relative z-30">
      <div class="flex items-center p-4">
         <button id="sidebar-toggle-btn" class="p-2 rounded-full hover:bg-gray-100">
             <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
         <div class="flex items-center gap-4 ml-auto">
-            <div class="hidden md:flex items-center gap-2 text-sm bg-gray-100 px-3 py-1.5 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <span id="date-time"></span>
+            <div class="hidden md:flex items-center gap-2 text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span id="date-time" class="dark:text-gray-200"></span>
             </div>
+            <?php echo $inventoryDarkMode['toggle']; ?>
             <!-- Notification Bell -->
             <div class="relative">
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100">
                     <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
                     <?php if ($total_notifications > 0): ?>
-                        <span class="absolute top-1 right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white"><?php echo $total_notifications; ?></span>
+                        <span class="absolute top-1 right-1 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
                     <?php endif; ?>
                 </button>
                 <!-- Notification Dropdown -->
                 <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-40">
                     <div class="flex justify-between items-center p-3 sm:p-4 border-b">
                         <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
-                        <a href="../inventory/inventory-tracking.php" class="text-sm font-medium text-green-600 hover:text-green-800">View All</a>
+                        <a href="inventory-tracking.php" class="text-sm font-medium text-green-600 hover:text-green-800">View All</a>
                     </div>
                     <div class="py-1 max-h-80 overflow-y-auto">
                         <?php if ($total_notifications > 0): ?>
                             <?php if (!empty($notifications_data['expiring_soon'])): ?>
                                 <?php foreach ($notifications_data['expiring_soon'] as $item): ?>
-                                    <a href="/pharmacy_system/inventory/inventory-tracking.php?view=expiration-alert" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                    <div class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-default">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         </div>
@@ -45,12 +46,12 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name']); ?></p>
                                             <p class="text-xs text-gray-500">Lot: <?php echo htmlspecialchars($item['lot_number']); ?> is expiring on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                             <?php if (!empty($notifications_data['expired'])): ?>
                                 <?php foreach ($notifications_data['expired'] as $item): ?>
-                                    <a href="/pharmacy_system/inventory/inventory-tracking.php?view=expired" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t">
+                                    <div class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t cursor-default">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
                                         </div>
@@ -58,7 +59,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name']); ?></p>
                                             <p class="text-xs text-red-600 font-medium">Lot: <?php echo htmlspecialchars($item['lot_number']); ?> expired on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         <?php else: ?>

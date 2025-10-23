@@ -24,7 +24,7 @@
 
 // Gmail SMTP Configuration
 define('GMAIL_USERNAME', 'lhandelpamisa0@gmail.com'); // Your Gmail address
-define('GMAIL_APP_PASSWORD', 'tepyysjnvbxzmsgx'); // Your Gmail App Password (16 characters)
+define('GMAIL_APP_PASSWORD', 'ueduogeppfybkceb'); // Your Gmail App Password (16 characters)
 
 // SMTP Settings
 define('SMTP_HOST', 'smtp.gmail.com');

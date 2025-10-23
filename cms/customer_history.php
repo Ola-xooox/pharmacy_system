@@ -1,24 +1,34 @@
 <?php
-session_start();
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Redirect if not logged in or not a CMS user
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
     header("Location: ../index.php");
     exit();
 }
+
+// Include dark mode functionality
+require_once 'darkmode.php';
+$darkMode = getDarkModeAssets();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="<?php echo $darkMode['is_dark'] ? 'dark' : ''; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Management - MJ Pharmacy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -27,9 +37,20 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                             'green-light': '#E6F6EC',
                             'gray': '#F3F4F6',
                         },
-                    }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
                 }
-            }
+            },
+            variants: {
+                extend: {
+                    backgroundColor: ['dark'],
+                    textColor: ['dark'],
+                    borderColor: ['dark'],
+                    ringColor: ['dark'],
+                },
+            },
         }
     </script>
     <style>
@@ -38,36 +59,74 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
             background-color: #f3f4f6;
         }
         .modal-overlay {
-            position: fixed; inset: 0; background-color: rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 50; opacity: 0; transition: opacity 0.2s ease-in-out;
+            position: fixed; 
+            inset: 0; 
+            background-color: rgba(0,0,0,0.5);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            z-index: 50; 
+            opacity: 0; 
+            transition: opacity 0.2s ease-in-out;
             pointer-events: none;
         }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .modal-content {
-            background-color: white; border-radius: 0.75rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 100%; transform: scale(0.95); transition: transform 0.2s ease-in-out;
-            max-height: 90vh; overflow-y: auto;
+        .modal-overlay.active { 
+            opacity: 1; 
+            pointer-events: auto; 
         }
-        .modal-overlay.active .modal-content { transform: scale(1); }
-        @media print {
-            body * { visibility: hidden; }
-            #receipt-modal-content, #receipt-modal-content * { visibility: visible; }
-            #receipt-modal-content { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border-radius: 0; }
-            .no-print { display: none; }
+        .modal-content {
+            background-color: white; 
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%; 
+            transform: scale(0.95); 
+            transition: transform 0.2s ease-in-out;
+            max-height: 90vh; 
+            overflow-y: auto;
+        }
+        .modal-overlay.active .modal-content { 
+            transform: scale(1); 
+        }
+        .pagination-button {
+            padding: 0.5rem 1rem;
+            margin: 0 0.25rem;
+            border: 1px solid #E5E7EB;
+            border-radius: 0.375rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pagination-button:hover {
+            background: #F3F4F6;
+        }
+        .pagination-button.active {
+            background: #01A74F;
+            color: white;
+            border-color: #01A74F;
+        }
+        .pagination-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .dark .pagination-button {
+            background-color: #374151;
+            border-color: #4B5563;
+            color: #E5E7EB;
+        }
+        .dark .pagination-button:hover {
+            background-color: #4B5563;
         }
     </style>
-  <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
+    <?php echo $darkMode['styles']; ?>
 </head>
-<body class="bg-brand-gray">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
     <div class="flex flex-col min-h-screen">
         <?php include 'cms_header.php'; ?>
 
         <main class="flex-1 p-4 sm:p-6 lg:p-8">
             <div class="max-w-7xl mx-auto">
 
-                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
                     <div class="p-6 bg-brand-green text-white">
                         <div class="flex items-center gap-3">
                             <h1 class="text-2xl font-bold">Customer Relations</h1>
@@ -77,16 +136,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                         </div>
                     </div>
 
-                    <div class="p-4 bg-gray-50 border-y border-gray-200">
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 border-y border-gray-200 dark:border-gray-600">
                         <div class="relative w-full">
-                             <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"></i>
-                             <input type="text" id="customer-search" placeholder="Search by name or ID..." class="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green">
+                             <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300 pointer-events-none"></i>
+                             <input type="text" id="customer-search" placeholder="Search by name or ID..." class="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green">
                         </div>
                     </div>
 
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="bg-gray-50/75 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            <thead class="bg-gray-50/75 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                                 <tr>
                                     <th class="px-6 py-4 text-left">Customer</th>
                                     <th class="px-6 py-4 text-left">ID No.</th>
@@ -96,11 +155,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                                     <th class="px-6 py-4 text-center">Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="customer-table-body" class="text-gray-700 divide-y divide-gray-200">
+                            <tbody id="customer-table-body" class="text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-gray-700">
                             </tbody>
                         </table>
                     </div>
-                    <div id="customer-pagination" class="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div id="customer-pagination" class="p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row justify-between items-center gap-4">
                     </div>
                 </div>
             </div>
@@ -108,17 +167,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
     </div>
 
     <div id="transaction-history-modal" class="modal-overlay">
-        <div class="modal-content max-w-3xl">
-            <div class="flex justify-between items-center p-4 border-b">
+        <div class="modal-content max-w-3xl bg-white dark:bg-gray-800">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-800">Transaction History</h3>
-                    <p id="history-customer-name" class="text-sm text-gray-500"></p>
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Transaction History</h3>
+                    <p id="history-customer-name" class="text-sm text-gray-500 dark:text-gray-400"></p>
                 </div>
-                <button id="close-history-modal" class="p-2 rounded-full hover:bg-gray-100 text-2xl leading-none font-bold">&times;</button>
+                <button id="close-history-modal" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-2xl leading-none font-bold text-gray-600 dark:text-gray-300">&times;</button>
             </div>
             <div class="p-4 overflow-y-auto">
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-xs font-semibold text-gray-600 uppercase">
+                    <thead class="bg-gray-50 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
                         <tr>
                             <th class="px-4 py-3 text-left w-2/5">Product(s)</th>
                             <th class="px-4 py-3 text-left">Receipt #</th>
@@ -126,7 +185,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
                             <th class="px-4 py-3 text-right">Total Amount</th>
                         </tr>
                     </thead>
-                    <tbody id="transaction-list-body" class="divide-y divide-gray-200">
+                    <tbody id="transaction-list-body" class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
                     </tbody>
                 </table>
             </div>
@@ -134,14 +193,14 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
     </div>
 
     <div id="receipt-modal" class="modal-overlay">
-        <div id="receipt-modal-content" class="modal-content !max-w-sm">
+        <div id="receipt-modal-content" class="modal-content !max-w-sm bg-white dark:bg-gray-800">
              <div class="p-6">
                 <div class="text-center">
                     <img src="../mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="w-16 h-16 mx-auto mb-2 rounded-full">
-                    <h2 class="text-xl font-bold mt-2">MJ PHARMACY</h2>
+                    <h2 class="text-xl font-bold mt-2 text-gray-900 dark:text-gray-100">MJ PHARMACY</h2>
                 </div>
-                <div class="my-6 border-t border-dashed"></div>
-                <div class="text-sm space-y-2 text-gray-600">
+                <div class="my-6 border-t border-dashed border-gray-300 dark:border-gray-600"></div>
+                <div class="text-sm space-y-2 text-gray-600 dark:text-gray-300">
                     <div class="flex justify-between"><span class="font-medium">Date:</span><span id="receipt-date"></span></div>
                     <div class="flex justify-between"><span class="font-medium">Receipt #:</span><span id="receipt-no"></span></div>
                     <div class="flex justify-between"><span class="font-medium">Customer:</span><span id="receipt-customer"></span></div>
@@ -382,5 +441,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cms') {
             fetchCustomerHistory();
         });
     </script>
+    <?php echo $darkMode['script']; ?>
 </body>
 </html>

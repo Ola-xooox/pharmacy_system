@@ -122,14 +122,71 @@ function handleCompleteSale($conn) {
             throw new Exception("Failed to create transaction record.");
         }
 
-        // Step 3: Insert each purchased item into purchase_history, linking it to the transaction ID
+        // Step 3: Update inventory for each item
+        $updateStmt = $conn->prepare("UPDATE products SET stock = ?, item_total = ? WHERE id = ?");
+        foreach ($items as $item) {
+            $product_name = $item['name'];
+            $quantity_to_sell = (int)$item['quantity'];
+
+            // Fetch lots for this product (FIFO - First In, First Out)
+            $fetchLotsStmt = $conn->prepare(
+                "SELECT id, item_total, items_per_stock FROM products 
+                 WHERE name = ? AND item_total > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
+                 ORDER BY expiration_date ASC"
+            );
+            $fetchLotsStmt->bind_param("s", $product_name);
+            $fetchLotsStmt->execute();
+            $lots = $fetchLotsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $fetchLotsStmt->close();
+
+            $total_available_items = array_sum(array_column($lots, 'item_total'));
+            if ($quantity_to_sell > $total_available_items) {
+                throw new Exception("Insufficient stock for product: " . htmlspecialchars($product_name) . ". Requested: " . $quantity_to_sell);
+            }
+
+            $quantity_remaining_to_sell = $quantity_to_sell;
+            foreach ($lots as $lot) {
+                if ($quantity_remaining_to_sell <= 0) break;
+
+                $items_in_this_lot = (int)$lot['item_total'];
+                $items_to_take_from_lot = min($quantity_remaining_to_sell, $items_in_this_lot);
+                
+                $new_item_total = $items_in_this_lot - $items_to_take_from_lot;
+                $items_per_stock = (int)$lot['items_per_stock'];
+
+                if ($items_per_stock <= 0) {
+                    throw new Exception("Product configuration error: 'items_per_stock' is not set for product ID: " . $lot['id']);
+                }
+                
+                $new_stock = ceil($new_item_total / $items_per_stock);
+                if ($new_item_total <= 0) $new_stock = 0;
+
+                $updateStmt->bind_param("iii", $new_stock, $new_item_total, $lot['id']);
+                $updateStmt->execute();
+
+                $quantity_remaining_to_sell -= $items_to_take_from_lot;
+            }
+        }
+        $updateStmt->close();
+
+        // Step 4: Insert each purchased item into purchase_history, linking it to the transaction ID
         $purchaseStmt = $conn->prepare("INSERT INTO purchase_history (transaction_id, product_name, quantity, total_price, transaction_date) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
         foreach ($items as $item) {
             $product_name = $item['name'];
             $quantity = (int)$item['quantity'];
             $item_total_price = (float)$item['price'] * $quantity;
-            $purchaseStmt->bind_param("isid", $transactionId, $product_name, $quantity, $item_total_price);
-            $purchaseStmt->execute();
+            
+            // Check for recent duplicates (within last 30 seconds) to prevent double insertion
+            $checkStmt = $conn->prepare("SELECT COUNT(*) as count FROM purchase_history WHERE product_name = ? AND quantity = ? AND total_price = ? AND transaction_date > DATE_SUB(NOW(), INTERVAL 30 SECOND)");
+            $checkStmt->bind_param("sid", $product_name, $quantity, $item_total_price);
+            $checkStmt->execute();
+            $duplicateCount = $checkStmt->get_result()->fetch_assoc()['count'];
+            $checkStmt->close();
+            
+            if ($duplicateCount == 0) {
+                $purchaseStmt->bind_param("isid", $transactionId, $product_name, $quantity, $item_total_price);
+                $purchaseStmt->execute();
+            }
         }
         $purchaseStmt->close();
 

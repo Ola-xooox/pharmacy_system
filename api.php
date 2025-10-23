@@ -273,7 +273,9 @@ switch ($action) {
         handleProductDeletion($conn);
         break;
     case 'process_sale':
-        handleSaleProcessing($conn);
+        // DEPRECATED: This action has been moved to customer_api.php to prevent duplicate entries
+        http_response_code(410); // Gone
+        echo json_encode(['success' => false, 'message' => 'This endpoint has been deprecated. Use customer_api.php?action=complete_sale instead.']);
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid action specified.']);

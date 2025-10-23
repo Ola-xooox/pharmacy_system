@@ -192,6 +192,7 @@ $currentPage = 'setup_account';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal - Set Up Account</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <?php include 'assets/admin_darkmode.php'; ?>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
     <style>
@@ -209,13 +210,13 @@ $currentPage = 'setup_account';
     <div class="flex-1 flex flex-col overflow-hidden">
         <?php include 'admin_header.php'; ?>
 
-        <main class="flex-1 overflow-y-auto p-6">
-            <div id="page-content">
-                <div id="setup-account-page">
-                    <div class="bg-white p-8 rounded-2xl shadow-lg max-w-4xl mx-auto">
-                        <div class="mb-8 pb-4 border-b border-gray-200">
-                            <h2 class="text-2xl font-bold text-gray-800">Create New User Account</h2>
-                            <p class="text-sm text-gray-500 mt-1">Fill in the details below to set up a new user and assign their roles.</p>
+        <main class="flex-1 overflow-y-auto p-8">
+            <div id="page-content" class="w-full">
+                <div id="setup-account-page" class="w-full">
+                    <div class="bg-white p-10 rounded-2xl shadow-lg w-full">
+                        <div class="mb-10 pb-6 border-b border-gray-200">
+                            <h2 class="text-3xl font-bold text-gray-800">Create New User Account</h2>
+                            <p class="text-sm text-gray-500 mt-2">Fill in the details below to set up a new user and assign their roles.</p>
                         </div>
 
                         <form id="setup-account-form" class="space-y-10">

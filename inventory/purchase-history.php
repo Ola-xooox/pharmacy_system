@@ -5,24 +5,30 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     header("Location: ../index.php");
     exit();
 }
-    require '../db_connect.php';
-    $currentPage = 'history';
+require '../db_connect.php';
+require_once 'darkmode.php';
+$currentPage = 'history';
 
-    // Fetch all purchase history records, ordered by the most recent transaction
-    $history_result = $conn->query("SELECT * FROM purchase_history ORDER BY transaction_date DESC");
-    $purchase_history = [];
-    while($row = $history_result->fetch_assoc()) {
-        $purchase_history[] = $row;
-    }
-    $conn->close();
+// Fetch all purchase history records, ordered by the most recent transaction
+$history_result = $conn->query("SELECT * FROM purchase_history ORDER BY transaction_date DESC");
+$purchase_history = [];
+while($row = $history_result->fetch_assoc()) {
+    $purchase_history[] = $row;
+}
+$conn->close();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="<?php echo $inventoryDarkMode['is_dark'] ? 'dark' : ''; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory System - Purchase History</title>
+    <title>Purchase History - Inventory</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--light-gray); color: #1f2937; }
@@ -32,15 +38,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         .nav-link { color: rgba(255, 255, 255, 0.8); } .nav-link svg { color: white; } .nav-link:hover { color: white; background-color: rgba(255, 255, 255, 0.2); } .nav-link.active { background-color: white; color: var(--primary-green); font-weight: 600; } .nav-link.active svg { color: var(--primary-green); }
         .table-header { background-color: #f9fafb; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; }
     </style>
+    <?php echo $inventoryDarkMode['styles']; ?>
 </head>
 <body class="bg-gray-100">
     <div class="flex h-screen overflow-hidden">
         
-        <?php include '../partials/sidebar.php'; ?>
+        <?php include 'partials/sidebar.php'; ?>
 
         <div class="flex-1 flex flex-col overflow-hidden">
             
-            <?php include '../partials/header.php'; ?>
+            <?php include 'partials/header.php'; ?>
 
             <main class="flex-1 overflow-y-auto p-6">
                 <h2 class="text-3xl font-bold mb-6">Purchase History</h2>
@@ -197,6 +204,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             updateHistoryView();
         });
     </script>
+    <?php echo $inventoryDarkMode['script']; ?>
 </body>
 </html>
 

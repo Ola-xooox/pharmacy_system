@@ -6,6 +6,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     exit();
 }
     require '../db_connect.php';
+    
+    // Include dark mode functionality
+    require_once 'darkmode.php';
 
     // This query correctly groups products by name and sums their totals.
     $products_result = $conn->query("
@@ -45,12 +48,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     $conn->close();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="<?php echo $inventoryDarkMode['is_dark'] ? 'dark' : ''; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory System - Products</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--light-gray); color: #1f2937; }
@@ -76,18 +84,19 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         .close-btn { background: none; border: none; cursor: pointer; font-size: 1.5rem; color: #6b7280; }
         .form-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; background-color: #f9fafb; transition: all 0.2s; } .form-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(1, 167, 79, 0.2); border-color: #01A74F; background-color: white;}
     </style>
+    <?php echo $inventoryDarkMode['styles']; ?>
 </head>
 <body class="bg-gray-100">
     <div class="flex h-screen overflow-hidden">
         
         <?php 
             $currentPage = 'products';
-            include '../partials/sidebar.php'; 
+            include 'partials/sidebar.php'; 
         ?>
 
         <div class="flex-1 flex flex-col overflow-hidden">
             
-            <?php include '../partials/header.php'; ?>
+            <?php include 'partials/header.php'; ?>
 
             <main class="flex-1 overflow-y-auto p-6">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -399,5 +408,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             renderCategories();
         });
     </script>
+    <?php echo $inventoryDarkMode['script']; ?>
 </body>
 </html>

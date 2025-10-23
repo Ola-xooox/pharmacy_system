@@ -2,42 +2,48 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
+// Include dark mode functionality
+require_once 'darkmode.php';
+$darkMode = getDarkModeAssets();
+
 // Fetch notifications
 $notifications_json = file_get_contents('http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/../api/get_notifications.php');
 $notifications_data = json_decode($notifications_json, true);
 $total_notifications = $notifications_data['total_notifications'] ?? 0;
 ?>
-<header class="bg-white border-b border-gray-200 sticky top-0 z-30">
-     <div class="flex items-center justify-between p-4 max-w-screen-2xl mx-auto">
+
+<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+    <div class="flex items-center justify-between p-4 max-w-screen-2xl mx-auto">
         <div class="flex items-center gap-3">
             <img src="../mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="h-10 w-10 rounded-full object-cover">
-            <h1 class="text-xl font-semibold text-gray-800 hidden sm:block tracking-tight">MJ Pharmacy</h1>
+            <h1 class="text-xl font-semibold text-gray-800 dark:text-white hidden sm:block tracking-tight">MJ Pharmacy</h1>
         </div>
 
         <div class="flex items-center gap-2 sm:gap-4">
-            <div class="hidden md:flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
+            <?php echo $darkMode['toggle']; ?>
+            <div class="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-full">
                 <i data-lucide="calendar-days" class="w-4 h-4 text-gray-400"></i>
                 <span id="date-time"></span>
             </div>
             <!-- Notification Bell -->
             <div class="relative">
-                <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+                <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors">
                     <i data-lucide="bell" class="w-5 h-5"></i>
                     <?php if ($total_notifications > 0): ?>
-                        <span class="absolute top-1.5 right-1.5 block h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-2 ring-white"><?php echo $total_notifications; ?></span>
+                        <span class="absolute top-1.5 right-1.5 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white dark:ring-gray-800" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
                     <?php endif; ?>
                 </button>
                 <!-- Notification Dropdown -->
-                <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-40">
-                    <div class="flex justify-between items-center p-3 sm:p-4 border-b">
-                        <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
-                        <a href="" class="text-sm font-medium text-green-600 hover:text-green-800"></a>
+                <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-700 hidden z-40">
+                    <div class="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Notifications</h3>
+                        <a href="" class="text-sm font-medium text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"></a>
                     </div>
                     <div class="py-1 max-h-80 overflow-y-auto">
                         <?php if ($total_notifications > 0): ?>
                             <?php if (!empty($notifications_data['expiring_soon'])): ?>
                                 <?php foreach ($notifications_data['expiring_soon'] as $item): ?>
-                                    <a href="" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                    <div class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-default">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         </div>
@@ -45,12 +51,12 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name']); ?></p>
                                             <p class="text-xs text-gray-500">Lot: <?php echo htmlspecialchars($item['lot_number']); ?> is expiring on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                             <?php if (!empty($notifications_data['expired'])): ?>
                                 <?php foreach ($notifications_data['expired'] as $item): ?>
-                                    <a href="" class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t">
+                                    <div class="flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t cursor-default">
                                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                                             <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
                                         </div>
@@ -58,7 +64,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name']); ?></p>
                                             <p class="text-xs text-red-600 font-medium">Lot: <?php echo htmlspecialchars($item['lot_number']); ?> expired on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         <?php else: ?>
