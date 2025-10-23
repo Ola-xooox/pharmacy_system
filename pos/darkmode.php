@@ -34,7 +34,7 @@ function getPOSDarkModeAssets() {
     global $isDarkMode;
     
     // Dark mode toggle button
-    $darkModeToggle = '<button class="pos-dark-mode-toggle p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" role="switch" aria-label="Toggle dark mode" title="Toggle dark mode">
+    $darkModeToggle = '<button class="pos-dark-mode-toggle flex items-center justify-center p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" role="switch" aria-label="Toggle dark mode" title="Toggle dark mode">
         ' . ($isDarkMode ? 
             '<svg class="w-5 h-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"/>
@@ -398,26 +398,165 @@ function getPOSDarkModeAssets() {
         box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.6), 0 4px 8px -2px rgba(0, 0, 0, 0.4) !important;
     }
     
-    /* Header specific color */
+    /* Header - only change background and border, preserve all layout */
     .dark header,
     html.dark header {
-        background-color: #374151 !important;
-        background: #374151 !important;
-        border-bottom: 1px solid #4b5563 !important;
-        color: #ffffff !important;
+        background-color: #1f2937 !important;
+        background: #1f2937 !important;
+        border-bottom: 1px solid #374151 !important;
     }
     
-    /* Header date/time display */
+    /* Preserve header layout and spacing - override global dark mode rules */
+    .dark header .flex,
+    .dark header .items-center,
+    .dark header .justify-between,
+    .dark header .gap-3,
+    .dark header .gap-2,
+    .dark header .gap-4 {
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    .dark header .justify-between {
+        justify-content: space-between !important;
+    }
+    
+    .dark header .gap-3 {
+        gap: 0.75rem !important;
+    }
+    
+    .dark header .gap-2 {
+        gap: 0.5rem !important;
+    }
+    
+    .dark header .gap-4 {
+        gap: 1rem !important;
+    }
+    
+    /* Header logo - preserve size and shape */
+    .dark header img {
+        height: 2.5rem !important;
+        width: 2.5rem !important;
+        border-radius: 9999px !important;
+        object-fit: cover !important;
+    }
+    
+    /* Header title - only change text color, preserve font and spacing */
+    .dark header h1 {
+        color: #ffffff !important;
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.025em !important;
+    }
+    
+    /* Header date/time display - preserve exact styling */
     .dark header .bg-gray-100 {
-        background-color: #4b5563 !important;
+        background-color: #374151 !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 9999px !important;
+        font-size: 0.875rem !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
     }
     
     .dark header .text-gray-500 {
-        color: #e5e7eb !important;
+        color: #d1d5db !important;
     }
     
     .dark header .text-gray-400 {
         color: #9ca3af !important;
+    }
+    
+    /* Header buttons - preserve exact size and spacing */
+    .dark header button {
+        padding: 0.5rem !important;
+        border-radius: 9999px !important;
+        transition: background-color 0.2s !important;
+        position: relative !important;
+    }
+    
+    .dark header button:hover {
+        background-color: rgba(55, 65, 81, 0.5) !important;
+    }
+    
+    /* Dark mode toggle - preserve exact alignment */
+    .dark header .pos-dark-mode-toggle {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0.5rem !important;
+        border-radius: 9999px !important;
+    }
+    
+    /* Notification button - preserve exact styling */
+    .dark header #notification-bell-btn {
+        position: relative !important;
+        padding: 0.5rem !important;
+        border-radius: 9999px !important;
+    }
+    
+    /* Notification badge - preserve exact position and color */
+    .dark header .bg-red-500 {
+        background-color: #ef4444 !important;
+        position: absolute !important;
+        top: 0.375rem !important;
+        right: 0.375rem !important;
+        height: 0.75rem !important;
+        width: 0.75rem !important;
+        border-radius: 9999px !important;
+        font-size: 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: white !important;
+        border: 1px solid white !important;
+    }
+    
+    /* User profile - preserve exact styling */
+    .dark header #user-menu-button {
+        display: flex !important;
+        align-items: center !important;
+        border-radius: 9999px !important;
+    }
+    
+    /* User profile circle - preserve exact size and color */
+    .dark header .bg-green-500 {
+        background-color: #10b981 !important;
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+        border-radius: 9999px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Hidden elements - preserve responsive behavior */
+    .dark header .hidden {
+        display: none !important;
+    }
+    
+    .dark header .sm\\:block {
+        display: none !important;
+    }
+    
+    @media (min-width: 640px) {
+        .dark header .sm\\:block {
+            display: block !important;
+        }
+    }
+    
+    .dark header .md\\:flex {
+        display: none !important;
+    }
+    
+    @media (min-width: 768px) {
+        .dark header .md\\:flex {
+            display: flex !important;
+        }
     }
     
     /* Main content area specific color */

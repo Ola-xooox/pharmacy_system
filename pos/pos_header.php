@@ -12,19 +12,24 @@ $notifications_data = json_decode($notifications_json, true);
 $total_notifications = $notifications_data['total_notifications'] ?? 0;
 ?>
 <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
-     <div class="flex items-center justify-between p-4 max-w-screen-2xl mx-auto">
+     <div class="flex items-center justify-between p-4 max-w-full mx-auto">
+        <!-- Left Side: Logo + MJ Pharmacy Text -->
         <div class="flex items-center gap-3">
             <img src="../mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="h-10 w-10 rounded-full object-cover">
-            <h1 class="text-xl font-semibold text-gray-800 hidden sm:block tracking-tight">MJ Pharmacy</h1>
+            <h1 class="text-xl font-semibold text-gray-800 tracking-tight">MJ Pharmacy</h1>
         </div>
 
-        <div class="flex items-center gap-2 sm:gap-4">
-            <div class="hidden md:flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
+        <!-- Right Side: Date/Time + Dark Mode Toggle + Notifications + Profile -->
+        <div class="flex items-center gap-3">
+            <!-- Date and Time -->
+            <div class="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-full">
                 <i data-lucide="calendar-days" class="w-4 h-4 text-gray-400"></i>
                 <span id="date-time"></span>
             </div>
+            
             <!-- Dark Mode Toggle -->
             <?php echo $posDarkMode['toggle']; ?>
+            
             <!-- Notification Bell -->
             <div class="relative">
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
@@ -77,7 +82,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                     </div>
                 </div>
             </div>
-            <!-- User Menu -->
+            
+            <!-- User Profile -->
             <div class="relative z-40">
                 <button id="user-menu-button" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     <span class="sr-only">Open user menu</span>
@@ -192,6 +198,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 profileModal.classList.add('hidden');
             });
         }
+        
+        // Notification bell functionality
         if (notificationBellBtn) {
             notificationBellBtn.addEventListener('click', () => {
                 notificationDropdown.classList.toggle('hidden');

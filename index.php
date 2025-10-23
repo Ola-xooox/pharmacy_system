@@ -29,37 +29,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bind_param("s", $email);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                $user = $result->fetch_assoc();
                 
-                if ($user) {
-                    // Verify password
-                    $passwordValid = false;
-                    if (password_get_info($user['password'])['algo'] !== null) {
-                        $passwordValid = password_verify($password, $user['password']);
+                $user = null;
+                $passwordValid = false;
+                
+                // Check all users with this email to find the one with matching password
+                while ($row = $result->fetch_assoc()) {
+                    if (password_get_info($row['password'])['algo'] !== null) {
+                        $valid = password_verify($password, $row['password']);
                     } else {
-                        $passwordValid = ($password === $user['password']);
+                        $valid = ($password === $row['password']);
                     }
                     
-                    if ($passwordValid) {
-                        // Send OTP (the method will generate and store the OTP automatically)
-                        $otpResult = $otpMailer->sendOTP($email);
+                    if ($valid) {
+                        $user = $row;
+                        $passwordValid = true;
+                        break;
+                    }
+                }
+                
+                if ($user && $passwordValid) {
+                    // Send OTP (the method will generate and store the OTP automatically)
+                    $otpResult = $otpMailer->sendOTP($email);
+                    
+                    if ($otpResult !== false) {
+                        // Always proceed to OTP step if OTP is stored
+                        $_SESSION['otp_email'] = $email;
+                        $_SESSION['pending_user'] = $user;
                         
-                        if ($otpResult !== false) {
-                            // Always proceed to OTP step if OTP is stored
-                            $_SESSION['otp_email'] = $email;
-                            $_SESSION['pending_user'] = $user;
-                            
-                            if ($otpResult === true) {
-                                $success_message = "OTP sent to your email successfully! Please check your inbox.";
-                            } else {
-                                $success_message = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
-                            }
-                            $step = 'otp';
+                        if ($otpResult === true) {
+                            $success_message = "OTP sent to your email successfully! Please check your inbox.";
                         } else {
-                            $error = "Failed to generate OTP. Please try again.";
+                            $success_message = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
                         }
+                        $step = 'otp';
                     } else {
-                        $error = "Invalid email or password.";
+                        $error = "Failed to generate OTP. Please try again.";
                     }
                 } else {
                     $error = "Invalid email or password.";

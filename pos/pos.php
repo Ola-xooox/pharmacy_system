@@ -61,7 +61,7 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); 
         }
         .product-image-container { 
-            height: 130px; 
+            height: 100px; 
             background-color: #f9fafb; 
             display: flex; 
             align-items: center; 
@@ -93,7 +93,7 @@
         .low-stock { background-color: #fef3c7; color: #b45309; } 
         .out-of-stock { background-color: #fee2e2; color: #b91c1c; }
         .product-info { 
-            padding: 1rem; 
+            padding: 0.75rem; 
             flex-grow: 1; 
             display: flex; 
             flex-direction: column; 
@@ -221,6 +221,59 @@
                 display: none;
             }
         }
+        
+        /* Hide scrollbar for category filter container */
+        #category-filter-container {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* Internet Explorer 10+ */
+            scroll-behavior: smooth; /* Smooth scrolling */
+        }
+        
+        #category-filter-container::-webkit-scrollbar {
+            display: none; /* WebKit browsers (Chrome, Safari, Edge) */
+        }
+        
+        /* Enhanced category container styling */
+        #category-filter-container {
+            position: relative;
+        }
+        
+        /* Add subtle gradient indicators for scrollable content */
+        #category-filter-container::before,
+        #category-filter-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            pointer-events: none;
+            z-index: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        #category-filter-container::before {
+            left: 0;
+            background: linear-gradient(to right, rgba(247, 250, 252, 0.8), transparent);
+        }
+        
+        #category-filter-container::after {
+            right: 0;
+            background: linear-gradient(to left, rgba(247, 250, 252, 0.8), transparent);
+        }
+        
+        /* Dark mode gradient indicators */
+        .dark #category-filter-container::before {
+            background: linear-gradient(to right, rgba(31, 41, 55, 0.8), transparent);
+        }
+        
+        .dark #category-filter-container::after {
+            background: linear-gradient(to left, rgba(31, 41, 55, 0.8), transparent);
+        }
+        
+        /* Improve touch scrolling on mobile */
+        #category-filter-container {
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
     <script>
         // Add brand color to Tailwind config
@@ -239,9 +292,9 @@
 <body class="bg-gray-100">
     <?php include 'pos_header.php'; ?>
 
-    <main class="p-4 sm:p-6 max-w-screen-2xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            <div class="lg:col-span-2 xl:col-span-3">
+    <main class="p-2 sm:p-4 max-w-full mx-auto h-[calc(100vh-80px)]">
+        <div class="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-7 gap-4 h-full">
+            <div class="lg:col-span-3 xl:col-span-5">
                 <div class="mb-6">
                     <h1 class="text-2xl font-bold text-gray-800">Point of Sale</h1>
                     <p class="text-gray-500 mt-1">Select products to add them to the order.</p>
@@ -253,25 +306,25 @@
                 </div>
 
                 <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-                    <div id="stock-status-filter" class="flex items-center gap-2">
+                    <div id="stock-status-filter" class="flex items-center gap-2 flex-shrink-0">
                         <button class="category-btn active" data-stock-status="available">Available Products</button>
                         <button class="category-btn" data-stock-status="outOfStock">Out of Stock</button>
                     </div>
-                    <div class="border-l border-gray-300 h-6 mx-2"></div>
-                    <div id="category-filter-container" class="flex items-center gap-2 overflow-x-auto">
+                    <div class="border-l border-gray-300 h-6 mx-2 flex-shrink-0"></div>
+                    <div id="category-filter-container" class="flex items-center gap-2 overflow-x-auto flex-1 min-w-0">
                         </div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6" id="product-grid"></div>
+                <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4" id="product-grid"></div>
             </div>
             
-            <div class="lg:col-span-1 xl:col-span-2 mt-8 lg:mt-0">
-                <div class="order-summary-wrapper">
-                    <div class="order-summary">
-                        <div class="p-5 border-b border-gray-200">
+            <div class="lg:col-span-1 xl:col-span-2 mt-4 lg:mt-0">
+                <div class="order-summary-wrapper max-h-[calc(100vh-120px)] lg:max-h-full">
+                    <div class="order-summary max-h-[80vh] lg:max-h-full flex flex-col">
+                        <div class="p-4 border-b border-gray-200 flex-shrink-0">
                            <h2 class="text-lg font-semibold">Order Summary</h2>
                         </div>
-                        <div id="order-items" class="p-2 max-h-[45vh] overflow-y-auto">
-                            <div class="text-center text-gray-400 py-16 px-4">
+                        <div id="order-items" class="p-2 flex-1 overflow-y-auto min-h-[200px] max-h-[50vh]">
+                            <div class="text-center text-gray-400 py-8 px-4">
                                 <i data-lucide="shopping-cart" class="mx-auto h-12 w-12"></i>
                                 <p class="mt-4 text-sm">Your cart is empty</p>
                             </div>
