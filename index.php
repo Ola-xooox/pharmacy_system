@@ -7,9 +7,9 @@ session_start();
 require 'db_connect.php';
 require_once 'gmail_config.php';
 
-// Use Optimized mailer for best email delivery
-require_once 'optimized_mailer.php';
-$otpMailer = new OptimizedMailer($conn);
+// Use PHPMailer for professional email delivery
+require_once 'phpmailer_otp.php';
+$otpMailer = new PHPMailerOTP($conn);
 
 $error = '';
 $success_message = '';
