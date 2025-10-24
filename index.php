@@ -49,6 +49,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
                 
                 if ($user && $passwordValid) {
+                    // Check if OTP was recently sent (within last 30 seconds) to prevent spam
+                    $recentOtp = false;
+                    if (isset($_SESSION['last_otp_time']) && isset($_SESSION['last_otp_email'])) {
+                        if ($_SESSION['last_otp_email'] === $email && (time() - $_SESSION['last_otp_time']) < 30) {
+                            $recentOtp = true;
+                        }
+                    }
+                    
+                    if ($recentOtp) {
+                        // OTP was sent recently, just show the existing one
+                        $_SESSION['otp_email'] = $email;
+                        $_SESSION['pending_user'] = $user;
+                        $_SESSION['otp_success'] = "An OTP was recently sent to your email. Please check your inbox or use the backup codes below.";
+                        header("Location: index.php");
+                        exit();
+                    }
+                    
                     // Send OTP (the method will generate and store the OTP automatically)
                     $otpResult = $otpMailer->sendOTP($email);
                     
@@ -56,13 +73,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         // Always proceed to OTP step if OTP is stored
                         $_SESSION['otp_email'] = $email;
                         $_SESSION['pending_user'] = $user;
+                        $_SESSION['last_otp_time'] = time();
+                        $_SESSION['last_otp_email'] = $email;
                         
                         if ($otpResult === true) {
-                            $success_message = "OTP sent to your email successfully! Please check your inbox.";
+                            $_SESSION['otp_success'] = "OTP sent to your email successfully! Please check your inbox.";
                         } else {
-                            $success_message = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
+                            $_SESSION['otp_success'] = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
                         }
-                        $step = 'otp';
+                        
+                        // Redirect to prevent form resubmission on refresh (Post/Redirect/Get pattern)
+                        header("Location: index.php");
+                        exit();
                     } else {
                         $error = "Failed to generate OTP. Please try again.";
                     }
@@ -104,6 +126,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Clean up temporary session data
                     unset($_SESSION['otp_email']);
                     unset($_SESSION['pending_user']);
+                    unset($_SESSION['last_otp_time']);
+                    unset($_SESSION['last_otp_email']);
                     
                     // Redirect based on role
                     switch ($user['role']) {
@@ -137,14 +161,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 if (isset($_GET['back']) && $_GET['back'] == 'login') {
     unset($_SESSION['otp_email']);
     unset($_SESSION['pending_user']);
+    unset($_SESSION['last_otp_time']);
+    unset($_SESSION['last_otp_email']);
     $step = 'login';
     header("Location: index.php");
     exit();
 }
 
-// Check if we should show OTP step
-if (isset($_SESSION['otp_email']) && empty($_POST)) {
+// Check if we should show OTP step (only if explicitly set via login)
+if (isset($_SESSION['otp_email']) && isset($_SESSION['pending_user'])) {
     $step = 'otp';
+    // Display success message from session if available
+    if (isset($_SESSION['otp_success'])) {
+        $success_message = $_SESSION['otp_success'];
+        unset($_SESSION['otp_success']); // Clear it after displaying
+    }
 }
 ?>
 <!DOCTYPE html>
