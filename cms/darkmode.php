@@ -37,8 +37,8 @@ function getDarkModeAssets() {
     
     $darkModeToggle = '<button id="dark-mode-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="' . ($isDarkMode ? 'Light Mode' : 'Dark Mode') . '">
         ' . ($isDarkMode ? 
-            '<i data-lucide="sun" class="w-5 h-5 text-yellow-500"></i>' : 
-            '<i data-lucide="moon" class="w-5 h-5 text-gray-600"></i>') . '
+            '<i class="fas fa-sun w-5 h-5 text-yellow-500"></i>' : 
+            '<i class="fas fa-moon w-5 h-5 text-gray-600"></i>') . '
     </button>';
     
     $darkModeScript = '<script>
@@ -79,19 +79,11 @@ function getDarkModeAssets() {
             const icon = darkModeToggle.querySelector("i");
             if (icon) {
                 if (isDark) {
-                    icon.setAttribute("data-lucide", "sun");
-                    icon.classList.add("text-yellow-500");
-                    icon.classList.remove("text-gray-600");
+                    icon.className = "fas fa-sun w-5 h-5 text-yellow-500";
                     darkModeToggle.title = "Switch to Light Mode";
                 } else {
-                    icon.setAttribute("data-lucide", "moon");
-                    icon.classList.add("text-gray-600");
-                    icon.classList.remove("text-yellow-500");
+                    icon.className = "fas fa-moon w-5 h-5 text-gray-600";
                     darkModeToggle.title = "Switch to Dark Mode";
-                }
-                // Recreate icons
-                if (typeof lucide !== "undefined" && lucide.createIcons) {
-                    lucide.createIcons();
                 }
             }
             
@@ -124,11 +116,7 @@ function getDarkModeAssets() {
         color: var(--color-text-primary) !important;
     }
     
-    /* Make all text white in dark mode */
-    .dark,
-    .dark * {
-        color: white !important;
-    }
+    /* Text colors in dark mode - removed aggressive rule that was hiding icons */
     
     /* Override specific grays */
     .dark .text-gray-800,

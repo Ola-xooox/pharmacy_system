@@ -402,61 +402,18 @@ function getPOSDarkModeAssets() {
         border-bottom: 1px solid #374151 !important;
     }
     
-    /* Preserve header layout and spacing - override global dark mode rules */
-    .dark header .flex,
-    .dark header .items-center,
-    .dark header .justify-between,
-    .dark header .gap-3,
-    .dark header .gap-2,
-    .dark header .gap-4 {
-        display: flex !important;
-        align-items: center !important;
-    }
-    
-    .dark header .justify-between {
-        justify-content: space-between !important;
-    }
-    
-    .dark header .gap-3 {
-        gap: 0.75rem !important;
-    }
-    
-    .dark header .gap-2 {
-        gap: 0.5rem !important;
-    }
-    
-    .dark header .gap-4 {
-        gap: 1rem !important;
-    }
-    
-    /* Header logo - preserve size and shape */
-    .dark header img {
-        height: 2.5rem !important;
-        width: 2.5rem !important;
-        border-radius: 9999px !important;
-        object-fit: cover !important;
-    }
-    
-    /* Header title - only change text color, preserve font and spacing */
+    /* Header title - only change text color */
     .dark header h1 {
         color: #ffffff !important;
-        font-size: 1.25rem !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.025em !important;
     }
     
-    /* Header date/time display - preserve exact styling */
+    /* Header date/time display - only change colors */
     .dark header .bg-gray-100 {
         background-color: #374151 !important;
-        padding: 0.5rem 1rem !important;
-        border-radius: 9999px !important;
-        font-size: 0.875rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
     }
     
-    .dark header .text-gray-500 {
+    .dark header .text-gray-500,
+    .dark header #date-time {
         color: #d1d5db !important;
     }
     
@@ -464,95 +421,64 @@ function getPOSDarkModeAssets() {
         color: #9ca3af !important;
     }
     
-    /* Header buttons - preserve exact size and spacing */
-    .dark header button {
-        padding: 0.5rem !important;
-        border-radius: 9999px !important;
-        transition: background-color 0.2s !important;
-        position: relative !important;
+    /* Force all header icons to be visible in dark mode */
+    html.dark header i,
+    html.dark header svg,
+    html.dark header img,
+    .dark header i,
+    .dark header svg,
+    .dark header img {
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: inline-block !important;
     }
     
+    /* Force specific FontAwesome icon colors */
+    html.dark header i.fa-calendar-alt,
+    .dark header i.fa-calendar-alt {
+        color: #9ca3af !important;
+    }
+    
+    html.dark header i.fa-bell,
+    .dark header i.fa-bell {
+        color: #9ca3af !important;
+    }
+    
+    html.dark header i.fa-sun,
+    .dark header i.fa-sun {
+        color: #eab308 !important;
+    }
+    
+    html.dark header i.fa-moon,
+    .dark header i.fa-moon {
+        color: #9ca3af !important;
+    }
+    
+    html.dark header i.text-yellow-500,
+    .dark header i.text-yellow-500 {
+        color: #eab308 !important;
+    }
+    
+    html.dark header i.text-gray-400,
+    .dark header i.text-gray-400 {
+        color: #9ca3af !important;
+    }
+    
+    /* Header buttons - only change hover color */
     .dark header button:hover {
         background-color: rgba(55, 65, 81, 0.5) !important;
     }
     
-    /* Dark mode toggle - preserve exact alignment */
-    .dark header .pos-dark-mode-toggle {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0.5rem !important;
-        border-radius: 9999px !important;
-    }
-    
-    /* Notification button - preserve exact styling */
-    .dark header #notification-bell-btn {
-        position: relative !important;
-        padding: 0.5rem !important;
-        border-radius: 9999px !important;
-    }
-    
-    /* Notification badge - preserve exact position and color */
+    /* Notification badge - only change color */
     .dark header .bg-red-500 {
         background-color: #ef4444 !important;
-        position: absolute !important;
-        top: 0.375rem !important;
-        right: 0.375rem !important;
-        height: 0.75rem !important;
-        width: 0.75rem !important;
-        border-radius: 9999px !important;
-        font-size: 10px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
         color: white !important;
-        border: 1px solid white !important;
     }
     
-    /* User profile - preserve exact styling */
-    .dark header #user-menu-button {
-        display: flex !important;
-        align-items: center !important;
-        border-radius: 9999px !important;
-    }
-    
-    /* User profile circle - preserve exact size and color */
+    /* User profile circle - only change color */
     .dark header .bg-green-500 {
         background-color: #10b981 !important;
-        width: 2.25rem !important;
-        height: 2.25rem !important;
-        border-radius: 9999px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
         color: white !important;
-        font-weight: 700 !important;
-        font-size: 0.875rem !important;
-    }
-    
-    /* Hidden elements - preserve responsive behavior */
-    .dark header .hidden {
-        display: none !important;
-    }
-    
-    .dark header .sm\\:block {
-        display: none !important;
-    }
-    
-    @media (min-width: 640px) {
-        .dark header .sm\\:block {
-            display: block !important;
-        }
-    }
-    
-    .dark header .md\\:flex {
-        display: none !important;
-    }
-    
-    @media (min-width: 768px) {
-        .dark header .md\\:flex {
-            display: flex !important;
-        }
     }
     
     /* Main content area specific color */
@@ -633,6 +559,23 @@ function getPOSDarkModeAssets() {
     .dark textarea:focus {
         border-color: var(--primary-green) !important;
         box-shadow: 0 0 0 3px rgba(1, 167, 79, 0.2) !important;
+    }
+    
+    /* Hide scrollbars and disable scrolling in dark mode */
+    .dark ::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .dark * {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    /* Disable scrolling completely when dark mode is on */
+    html.dark,
+    html.dark body {
+        overflow: hidden !important;
+        height: 100vh !important;
     }
 </style>';
     

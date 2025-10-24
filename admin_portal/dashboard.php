@@ -644,10 +644,57 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                 });
             }
 
-            // Sales Overview Chart
+            // Sales Overview Chart (Bar Chart)
             const salesOverviewChartCanvas = document.getElementById('salesOverviewChart');
             if (salesOverviewChartCanvas) {
                 const ctx = salesOverviewChartCanvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: <?php echo json_encode($chartLabels); ?>,
+                        datasets: [{
+                            label: 'Total Sales (₱)',
+                            data: <?php echo json_encode($chartSalesData); ?>,
+                            backgroundColor: '#01A74F',
+                            borderColor: '#018d43',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Sales: ₱' + context.parsed.y.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₱' + value.toLocaleString('en-PH');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Inventory Stock Chart (Line Chart)
+            const inventoryStockChartCanvas = document.getElementById('inventoryStockChart');
+            if (inventoryStockChartCanvas) {
+                const ctx = inventoryStockChartCanvas.getContext('2d');
                 const gradient = ctx.createLinearGradient(0, 0, 0, 300);
                 gradient.addColorStop(0, 'rgba(1, 167, 79, 0.5)');
                 gradient.addColorStop(1, 'rgba(1, 167, 79, 0)');
@@ -655,10 +702,10 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                 new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: <?php echo json_encode($chartLabels); ?>,
+                        labels: <?php echo json_encode($inventoryChartLabels); ?>,
                         datasets: [{
-                            label: 'Total Sales (₱)',
-                            data: <?php echo json_encode($chartSalesData); ?>,
+                            label: 'Total Stock',
+                            data: <?php echo json_encode($inventoryChartData); ?>,
                             borderColor: '#01A74F',
                             backgroundColor: gradient,
                             tension: 0.4,
@@ -668,38 +715,18 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                             pointHoverRadius: 7,
                             pointHoverBackgroundColor: '#01A74F',
                             pointHoverBorderColor: '#fff',
+                            borderWidth: 3
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
-                });
-            }
-            
-            // Inventory Stock Chart
-            const inventoryStockChartCanvas = document.getElementById('inventoryStockChart');
-            if (inventoryStockChartCanvas) {
-                const ctx = inventoryStockChartCanvas.getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?php echo json_encode($inventoryChartLabels); ?>,
-                        datasets: [{
-                            label: 'Total Stock',
-                            data: <?php echo json_encode($inventoryChartData); ?>,
-                            backgroundColor: '#01A74F',
-                            borderColor: '#018d43',
-                            borderWidth: 1,
-                            borderRadius: 5,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
                         scales: {
                             y: { beginAtZero: true }
                         }

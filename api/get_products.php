@@ -28,7 +28,7 @@ $products_result = $conn->query("
     JOIN
         categories c ON p.category_id = c.id
     WHERE
-        (p.expiration_date >= CURDATE() OR p.expiration_date IS NULL)
+        (p.expiration_date > CURDATE() OR p.expiration_date IS NULL)
     GROUP BY
         p.name, c.name
     {$having_clause} -- The dynamic part of the query

@@ -105,6 +105,7 @@ $roleIcons = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delete Account - MJ Pharmacy</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <?php include 'assets/admin_darkmode.php'; ?>
     <style>
         :root { --primary-green: #01A74F; --light-gray: #f3f4f6; }
@@ -128,11 +129,20 @@ $roleIcons = [
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full">
                         <div class="flex justify-between items-center mb-6">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Delete User Account</h2>
-                                <p class="text-sm text-gray-600 mt-1">Manage user accounts organized by roles</p>
+                                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
+                                    <i class="ph ph-user-minus text-red-600 dark:text-red-400"></i>
+                                    Delete User Account
+                                </h2>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                    <i class="ph ph-shield-checkered text-gray-500 dark:text-gray-400"></i>
+                                    Manage user accounts organized by roles
+                                </p>
                             </div>
                             <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                                <p class="text-red-700 dark:text-red-300 text-sm font-medium">⚠️ Warning: This action cannot be undone</p>
+                                <p class="text-red-700 dark:text-red-300 text-sm font-medium flex items-center gap-2">
+                                    <i class="ph ph-warning text-lg"></i>
+                                    Warning: This action cannot be undone
+                                </p>
                             </div>
                         </div>
                         
@@ -143,9 +153,9 @@ $roleIcons = [
                                     <i class="ph ph-magnifying-glass text-gray-400"></i>
                                 </div>
                                 <input type="text" id="user-search" placeholder="Search users by name, username, email, or role..." 
-                                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500">
                             </div>
-                            <div class="mt-2 text-sm text-gray-500">
+                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 <span id="search-results-count">Showing all users</span>
                             </div>
                         </div>
@@ -154,10 +164,14 @@ $roleIcons = [
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="role-summary-cards">
                             <?php foreach ($roleOrder as $role): ?>
                                 <?php if (isset($roleCounts[$role]) && $roleCounts[$role] > 0): ?>
-                                    <div class="<?php echo $roleColors[$role]; ?> border rounded-lg p-4 text-center">
-                                        <i class="<?php echo $roleIcons[$role]; ?> text-2xl mb-2"></i>
-                                        <div class="text-lg font-bold"><?php echo $roleCounts[$role]; ?></div>
-                                        <div class="text-sm font-medium capitalize"><?php echo $role; ?> Users</div>
+                                    <div class="<?php echo $roleColors[$role]; ?> dark:bg-opacity-20 dark:border-opacity-30 border-2 rounded-xl p-5 text-center shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="flex justify-center mb-3">
+                                            <div class="p-3 rounded-full bg-white dark:bg-gray-700 bg-opacity-50 dark:bg-opacity-70">
+                                                <i class="ph <?php echo $roleIcons[$role]; ?> text-3xl"></i>
+                                            </div>
+                                        </div>
+                                        <div class="text-2xl font-bold mb-1"><?php echo $roleCounts[$role]; ?></div>
+                                        <div class="text-sm font-semibold capitalize"><?php echo $role; ?> Users</div>
                                     </div>
                                 <?php endif; ?>
                             <?php endforeach; ?>
@@ -169,26 +183,46 @@ $roleIcons = [
                                 <?php if (isset($usersByRole[$role]) && !empty($usersByRole[$role])): ?>
                                     <div class="mb-8 role-section" data-role="<?php echo $role; ?>">
                                         <div class="flex items-center mb-4">
-                                            <i class="<?php echo $roleIcons[$role]; ?> text-xl mr-2 text-gray-600"></i>
-                                            <h3 class="text-lg font-semibold text-gray-800 capitalize"><?php echo $role; ?> Users</h3>
-                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full <?php echo $roleColors[$role]; ?> role-count" data-role="<?php echo $role; ?>">
+                                            <i class="ph <?php echo $roleIcons[$role]; ?> text-xl mr-2 text-gray-600 dark:text-gray-300"></i>
+                                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 capitalize"><?php echo $role; ?> Users</h3>
+                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full <?php echo $roleColors[$role]; ?> dark:bg-opacity-30 dark:border-opacity-50 role-count" data-role="<?php echo $role; ?>">
                                                 <?php echo count($usersByRole[$role]); ?> users
                                             </span>
                                         </div>
                                         
-                                        <div class="overflow-x-auto bg-gray-50 rounded-lg">
-                                            <table class="w-full text-left">
+                                        <div class="overflow-x-auto bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                            <table class="w-full text-left table-fixed">
                                                 <thead>
-                                                    <tr class="bg-gray-100 border-b border-gray-200">
-                                                        <th class="py-3 px-4 font-semibold text-gray-600">User</th>
-                                                        <th class="py-3 px-4 font-semibold text-gray-600">Username</th>
-                                                        <th class="py-3 px-4 font-semibold text-gray-600">Email</th>
-                                                        <th class="py-3 px-4 font-semibold text-gray-600">Actions</th>
+                                                    <tr class="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600">
+                                                        <th class="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 w-1/4">
+                                                            <div class="flex items-center gap-2">
+                                                                <i class="ph ph-user-circle"></i>
+                                                                User
+                                                            </div>
+                                                        </th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 w-1/5">
+                                                            <div class="flex items-center gap-2">
+                                                                <i class="ph ph-identification-badge"></i>
+                                                                Username
+                                                            </div>
+                                                        </th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 w-2/5">
+                                                            <div class="flex items-center gap-2">
+                                                                <i class="ph ph-envelope"></i>
+                                                                Email
+                                                            </div>
+                                                        </th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 w-1/6">
+                                                            <div class="flex items-center gap-2">
+                                                                <i class="ph ph-gear"></i>
+                                                                Actions
+                                                            </div>
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <?php foreach ($usersByRole[$role] as $user): ?>
-                                                        <tr class="border-b border-gray-200 hover:bg-white transition-colors user-row" 
+                                                        <tr class="border-b border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-600 transition-colors user-row" 
                                                             data-username="<?php echo strtolower(htmlspecialchars($user['username'])); ?>"
                                                             data-email="<?php echo strtolower(htmlspecialchars($user['email'] ?? '')); ?>"
                                                             data-role="<?php echo strtolower($role); ?>"
@@ -203,24 +237,23 @@ $roleIcons = [
                                                                         </div>
                                                                     <?php endif; ?>
                                                                     <div>
-                                                                        <span class="font-medium text-gray-900"><?php echo htmlspecialchars($user['username']); ?></span>
-                                                                        <div class="text-xs text-gray-500 capitalize"><?php echo $role; ?></div>
+                                                                        <span class="font-medium text-gray-900 dark:text-gray-100"><?php echo htmlspecialchars($user['username']); ?></span>
+                                                                        <div class="text-xs text-gray-500 dark:text-gray-400 capitalize"><?php echo $role; ?></div>
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td class="py-3 px-4 text-gray-700"><?php echo htmlspecialchars($user['username']); ?></td>
+                                                            <td class="py-3 px-4 text-gray-700 dark:text-gray-300"><?php echo htmlspecialchars($user['username']); ?></td>
                                                             <td class="py-3 px-4">
                                                                 <?php if (!empty($user['email'])): ?>
-                                                                    <span class="text-gray-700"><?php echo htmlspecialchars($user['email']); ?></span>
+                                                                    <span class="text-gray-700 dark:text-gray-300"><?php echo htmlspecialchars($user['email']); ?></span>
                                                                 <?php else: ?>
-                                                                    <span class="text-gray-400 italic">No email</span>
+                                                                    <span class="text-gray-400 dark:text-gray-500 italic">No email</span>
                                                                 <?php endif; ?>
                                                             </td>
                                                             <td class="py-3 px-4">
                                                                 <button onclick="confirmDelete(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>', '<?php echo $role; ?>')" 
-                                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                                                                    <i class="ph ph-trash text-sm"></i>
-                                                                    Delete
+                                                                        class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-2" title="Remove user">
+                                                                    <i class="ph ph-trash text-xl"></i>
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -233,17 +266,23 @@ $roleIcons = [
                             <?php endforeach; ?>
                         <?php else: ?>
                             <div class="text-center py-12" id="no-users-message">
-                                <i class="ph ph-users text-6xl text-gray-300 mb-4"></i>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
-                                <p class="text-gray-500">There are no users to display at this time.</p>
+                                <i class="ph ph-users text-6xl text-gray-300 dark:text-gray-600 mb-4 block"></i>
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200 mb-2 flex items-center justify-center gap-2">
+                                    <i class="ph ph-info"></i>
+                                    No Users Found
+                                </h3>
+                                <p class="text-gray-500 dark:text-gray-400">There are no users to display at this time.</p>
                             </div>
                         <?php endif; ?>
                         
                         <!-- No Search Results Message -->
                         <div class="text-center py-12 hidden" id="no-search-results">
-                            <i class="ph ph-magnifying-glass text-6xl text-gray-300 mb-4"></i>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
-                            <p class="text-gray-500">No users match your search criteria. Try adjusting your search terms.</p>
+                            <i class="ph ph-magnifying-glass text-6xl text-gray-300 dark:text-gray-600 mb-4 block"></i>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200 mb-2 flex items-center justify-center gap-2">
+                                <i class="ph ph-x-circle"></i>
+                                No Users Found
+                            </h3>
+                            <p class="text-gray-500 dark:text-gray-400">No users match your search criteria. Try adjusting your search terms.</p>
                         </div>
                     </div>
                 </div>
@@ -276,8 +315,9 @@ $roleIcons = [
                     </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" id="confirm-delete-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
-                        Delete Account
+                    <button type="button" id="confirm-delete-btn" class="w-full inline-flex justify-center items-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        <i class="ph ph-trash"></i>
+                        Remove Account
                     </button>
                     <button type="button" id="cancel-delete-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancel

@@ -106,6 +106,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory System - Tracking</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -121,7 +122,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         .summary-card { background-color: white; border: 1px solid #e5e7eb; color: #4b5563; transition: all 0.2s ease-in-out; }
         .summary-card.active { background-color: var(--primary-green); color: white; transform: translateY(-4px); box-shadow: 0 4px 12px rgba(1, 167, 79, 0.2); border-color: var(--primary-green); }
         .category-btn { white-space: nowrap; padding: 0.5rem 1rem; border-radius: 9999px; background-color: #e5e7eb; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; } .category-btn:hover { background-color: #d1d5db; } .category-btn.active { background-color: #374151; color: white; }
-        .table-header { background-color: #f9fafb; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; }
+        .table-header { background-color: #f3f4f6; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .dark .table-header { background-color: #374151; color: #e5e7eb; }
+        table tbody tr { transition: background-color 0.15s ease; }
+        table tbody tr:hover { background-color: #f9fafb; }
+        .dark table tbody tr:hover { background-color: #374151; }
     </style>
     <?php echo $inventoryDarkMode['styles']; ?>
 </head>
@@ -138,31 +143,52 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             <?php include 'partials/header.php'; ?>
 
             <main class="flex-1 overflow-y-auto p-6">
-                <h2 class="text-3xl font-bold mb-6">Inventory Tracking</h2>
+                <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+                    <i class="ph ph-package text-green-600"></i>
+                    Inventory Tracking
+                </h2>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                     <button class="summary-card active p-4 rounded-lg text-left" data-view="available">
-                        <p class="text-sm">Available Products</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Available Products</p>
+                            <i class="ph-fill ph-check-circle text-2xl"></i>
+                        </div>
                         <p id="count-available" class="text-2xl font-bold">0</p>
                     </button>
                     <button class="summary-card p-4 rounded-lg text-left" data-view="low-stock">
-                        <p class="text-sm">Low Stock</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Low Stock</p>
+                            <i class="ph-fill ph-warning text-2xl text-orange-500"></i>
+                        </div>
                         <p id="count-low-stock" class="text-2xl font-bold">0</p>
                     </button>
                     <button class="summary-card p-4 rounded-lg text-left" data-view="out-of-stock">
-                        <p class="text-sm">Out of Stock</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Out of Stock</p>
+                            <i class="ph-fill ph-x-circle text-2xl text-red-500"></i>
+                        </div>
                         <p id="count-out-of-stock" class="text-2xl font-bold">0</p>
                     </button>
                     <button class="summary-card p-4 rounded-lg text-left" data-view="expiration-alert">
-                        <p class="text-sm">Expiration Alert</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Expiration Alert</p>
+                            <i class="ph-fill ph-clock-countdown text-2xl text-yellow-500"></i>
+                        </div>
                         <p id="count-exp-alert" class="text-2xl font-bold">0</p>
                     </button>
                     <button class="summary-card p-4 rounded-lg text-left" data-view="expired">
-                        <p class="text-sm">Expired Products</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Expired Products</p>
+                            <i class="ph-fill ph-warning-octagon text-2xl text-red-600"></i>
+                        </div>
                         <p id="count-expired" class="text-2xl font-bold">0</p>
                     </button>
                      <button class="summary-card p-4 rounded-lg text-left" data-view="history">
-                        <p class="text-sm">Product History</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm">Product History</p>
+                            <i class="ph-fill ph-clock-counter-clockwise text-2xl text-gray-500"></i>
+                        </div>
                         <p id="count-history" class="text-2xl font-bold">0</p>
                     </button>
                 </div>
@@ -457,7 +483,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${new Date(p.deleted_at).toLocaleString()}</td>`;
                             break;
                     }
-                    return `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 font-medium text-gray-900">${index + 1}</td>${rowContent}</tr>`;
+                    return `<tr class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"><td class="py-4 px-6 font-medium text-gray-900 dark:text-gray-100">${index + 1}</td>${rowContent}</tr>`;
                 }).join('');
             }
 

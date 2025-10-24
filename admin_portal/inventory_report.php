@@ -215,36 +215,45 @@ $conn->close();
                             </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="total-products-card">
-                            <div>
-                                <p class="text-sm text-gray-500">Total products</p>
-                                <p class="text-2xl font-bold text-[#236B3D]"><?php echo htmlspecialchars($totalProducts); ?></p>
-                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
+                    
+                    <!-- Cards and Chart Layout -->
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <!-- Left Column: Vertical Cards -->
+                        <div class="lg:col-span-1 flex flex-col gap-4">
+                            <div class="bg-white p-8 rounded-2xl shadow-md flex-1 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="total-products-card">
+                                <div>
+                                    <p class="text-sm text-gray-500 mb-2">Total products</p>
+                                    <p class="text-3xl font-bold text-[#236B3D] mb-2"><?php echo htmlspecialchars($totalProducts); ?></p>
+                                    <p class="text-xs text-gray-400">Click to view details</p>
+                                </div>
+                                <i class="ph-fill ph-package text-5xl text-gray-400"></i>
                             </div>
-                            <i class="ph-fill ph-package text-4xl text-gray-400"></i>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="expiring-alert-card">
-                            <div>
-                                <p class="text-sm text-gray-500">Expiration Alert</p>
-                                <p class="text-2xl font-bold text-orange-500"><?php echo htmlspecialchars($expiringSoon); ?></p>
-                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
+                            <div class="bg-white p-8 rounded-2xl shadow-md flex-1 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="expiring-alert-card">
+                                <div>
+                                    <p class="text-sm text-gray-500 mb-2">Expiration Alert</p>
+                                    <p class="text-3xl font-bold text-orange-500 mb-2"><?php echo htmlspecialchars($expiringSoon); ?></p>
+                                    <p class="text-xs text-gray-400">Click to view details</p>
+                                </div>
+                                <i class="ph-fill ph-clock-countdown text-5xl text-gray-400"></i>
                             </div>
-                            <i class="ph-fill ph-clock-countdown text-4xl text-gray-400"></i>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="expired-products-card">
-                            <div>
-                                <p class="text-sm text-gray-500">Expired Products</p>
-                                <p class="text-2xl font-bold text-red-500"><?php echo htmlspecialchars($expiredCount); ?></p>
-                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
+                            <div class="bg-white p-8 rounded-2xl shadow-md flex-1 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="expired-products-card">
+                                <div>
+                                    <p class="text-sm text-gray-500 mb-2">Expired Products</p>
+                                    <p class="text-3xl font-bold text-red-500 mb-2"><?php echo htmlspecialchars($expiredCount); ?></p>
+                                    <p class="text-xs text-gray-400">Click to view details</p>
+                                </div>
+                                <i class="ph-fill ph-warning-circle text-5xl text-gray-400"></i>
                             </div>
-                            <i class="ph-fill ph-warning-circle text-4xl text-gray-400"></i>
                         </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h2 class="text-xl font-bold mb-4 text-gray-800">Inventory Status (Top 10)</h2>
-                        <div style="position: relative; height:300px;">
-                            <canvas id="inventoryStatusChart"></canvas>
+                        
+                        <!-- Right Column: Chart -->
+                        <div class="lg:col-span-3">
+                            <div class="bg-white p-6 rounded-2xl shadow-md h-full">
+                                <h2 class="text-xl font-bold mb-4 text-gray-800">Inventory Status (Top 10)</h2>
+                                <div style="position: relative; height:400px;">
+                                    <canvas id="inventoryStatusChart"></canvas>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-md">

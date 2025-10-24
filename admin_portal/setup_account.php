@@ -202,6 +202,20 @@ $currentPage = 'setup_account';
         @media (max-width: 767px) { .sidebar { width: 16rem; transform: translateX(-100%); position: fixed; height: 100%; z-index: 50; } .sidebar.open-mobile { transform: translateX(0); } .overlay { transition: opacity 0.3s ease-in-out; } }
         @media (min-width: 768px) { .sidebar { width: 5rem; } .sidebar.open-desktop { width: 16rem; } .sidebar .nav-text { opacity: 0; visibility: hidden; width: 0; transition: opacity 0.1s ease, visibility 0.1s ease, width 0.1s ease; white-space: nowrap; overflow: hidden; } .sidebar.open-desktop .nav-text { opacity: 1; visibility: visible; width: auto; transition: opacity 0.2s ease 0.1s; } .sidebar .nav-link { justify-content: center; gap: 0; } .sidebar.open-desktop .nav-link { justify-content: flex-start; gap: 1rem; } }
         .nav-link { color: rgba(255, 255, 255, 0.8); } .nav-link svg { color: white; } .nav-link:hover { color: white; background-color: rgba(255, 255, 255, 0.2); } .nav-link.active { background-color: white; color: var(--primary-green); font-weight: 600; } .nav-link.active svg { color: var(--primary-green); }
+        
+        /* Dark mode icon colors */
+        .dark svg {
+            color: white !important;
+        }
+        .dark .text-gray-400 {
+            color: #d1d5db !important;
+        }
+        .dark .text-gray-500 {
+            color: #9ca3af !important;
+        }
+        .dark i {
+            color: white !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex">
@@ -281,7 +295,7 @@ $currentPage = 'setup_account';
                             
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Assign Roles</h3>
-                                <p class="text-sm text-gray-500 mb-4">Note: If multiple roles are selected, the first one will be assigned as the primary role.</p>
+                                <p class="text-sm text-gray-500 mb-4">Note: Only one role will be assigned as the primary role.</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <label class="border rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 hover:bg-gray-50 peer-checked:bg-green-50 peer-checked:border-green-500 peer-checked:ring-2 peer-checked:ring-green-200"><input type="checkbox" name="roles[]" value="pos" class="sr-only peer"><svg class="h-8 w-8 text-gray-500 peer-checked:text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg><span class="font-semibold text-gray-700 mt-2 text-center text-sm">POS Access</span></label>
                                     <label class="border rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 hover:bg-gray-50 peer-checked:bg-green-50 peer-checked:border-green-500 peer-checked:ring-2 peer-checked:ring-green-200"><input type="checkbox" name="roles[]" value="inventory" class="sr-only peer"><svg class="h-8 w-8 text-gray-500 peer-checked:text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4" /></svg><span class="font-semibold text-gray-700 mt-2 text-center text-sm">Inventory Access</span></label>

@@ -19,6 +19,7 @@
     <title>Pharmacy POS System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -220,6 +221,209 @@
              .no-print {
                 display: none;
             }
+        }
+        
+        /* Custom Calendar Dropdown for Purchase History */
+        .calendar-dropdown-history {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: white;
+            border: 2px solid #01A74F;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            width: 320px;
+            padding: 1rem;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .dark .calendar-dropdown-history {
+            background: #1f2937;
+            border-color: #01A74F;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+        .calendar-dropdown-history.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+        .calendar-header-history {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .dark .calendar-header-history {
+            border-bottom-color: #374151;
+        }
+        .calendar-grid-history {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+        .calendar-day-name-history {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            padding: 0.5rem 0;
+        }
+        .dark .calendar-day-name-history {
+            color: #9ca3af;
+        }
+        .calendar-day-history {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            color: #374151;
+        }
+        .dark .calendar-day-history {
+            color: #d1d5db;
+        }
+        .calendar-day-history:hover {
+            background-color: #e0f2e9;
+            color: #01A74F;
+            transform: scale(1.05);
+        }
+        .dark .calendar-day-history:hover {
+            background-color: #065f46;
+            color: white;
+        }
+        .calendar-day-history.today {
+            border: 2px solid #01A74F;
+            font-weight: 600;
+        }
+        .calendar-day-history.selected {
+            background-color: #01A74F;
+            color: white;
+            font-weight: 600;
+        }
+        .calendar-day-history.other-month {
+            color: #d1d5db;
+        }
+        .dark .calendar-day-history.other-month {
+            color: #4b5563;
+        }
+        .nav-btn-history {
+            background: #f3f4f6;
+            border: none;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #374151;
+        }
+        .dark .nav-btn-history {
+            background: #374151;
+            color: #d1d5db;
+        }
+        .nav-btn-history:hover {
+            background: #01A74F;
+            color: white;
+            transform: scale(1.1);
+        }
+        .dark .nav-btn-history:hover {
+            background: #01A74F;
+            color: white;
+        }
+        #history-month-select,
+        #history-year-select {
+            color: #374151;
+        }
+        .dark #history-month-select,
+        .dark #history-year-select {
+            background: #374151;
+            color: #e5e7eb;
+            border-color: #4b5563;
+        }
+        #history-today-btn {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .dark #history-today-btn {
+            background: #065f46;
+            color: #d1fae5;
+        }
+        #history-today-btn:hover {
+            background: #bbf7d0;
+        }
+        .dark #history-today-btn:hover {
+            background: #047857;
+        }
+        #history-clear-calendar-btn {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .dark #history-clear-calendar-btn {
+            background: #374151;
+            color: #d1d5db;
+        }
+        #history-clear-calendar-btn:hover {
+            background: #e5e7eb;
+        }
+        .dark #history-clear-calendar-btn:hover {
+            background: #4b5563;
+        }
+        /* Calendar footer border */
+        .calendar-dropdown-history .border-t {
+            border-color: #e5e7eb;
+        }
+        .dark .calendar-dropdown-history .border-t {
+            border-color: #374151;
+        }
+        #history-date-display {
+            transition: all 0.3s ease;
+        }
+        .dark #history-date-display {
+            background: #374151;
+            border-color: #4b5563;
+            color: #e5e7eb;
+        }
+        .dark #history-date-display:hover {
+            border-color: #01A74F;
+        }
+        .dark #history-date-display::placeholder {
+            color: #9ca3af;
+        }
+        .dark .fa-calendar-alt {
+            color: #9ca3af !important;
+        }
+        
+        /* Custom scrollbar for modal */
+        #purchase-history-modal .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        #purchase-history-modal .modal-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        #purchase-history-modal .modal-content::-webkit-scrollbar-thumb {
+            background: #01A74F;
+            border-radius: 4px;
+        }
+        #purchase-history-modal .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #018d43;
+        }
+        .dark #purchase-history-modal .modal-content::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .dark #purchase-history-modal .modal-content::-webkit-scrollbar-thumb {
+            background: #01A74F;
         }
         
         /* Hide scrollbar for category filter container */
@@ -533,6 +737,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== POS JavaScript Starting ===');
             
+            // Initialize Lucide icons on page load
+            lucide.createIcons();
+            
             let allProducts = [];
             let allCategories = [];
             let orderItems = [];
@@ -713,8 +920,11 @@
                     orderItemsContainer.innerHTML = `<div class="text-center text-gray-400 py-16 px-4"><i class="fas fa-shopping-cart mx-auto h-12 w-12"></i><p class="mt-4 text-sm">Your cart is empty</p></div>`;
                 } else {
                     orderItemsContainer.innerHTML = orderItems.map((item, index) =>
-                        `<div class="flex items-center gap-4 p-3"><img src="${item.image_path ? `../${item.image_path}` : ''}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover bg-gray-100"><div class="flex-grow"><p class="font-semibold text-sm">${item.name}</p><p class="text-xs text-gray-500">₱${Number(item.price).toFixed(2)}</p></div><div class="flex items-center gap-2 text-sm"><div class="quantity-selector flex items-center border border-gray-200 rounded-md"><button class="minus p-1.5 transition" data-index="${index}"><i data-lucide="minus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button><input type="text" class="w-8 text-center font-medium bg-transparent" value="${item.quantity}" readonly><button class="plus p-1.5 transition" data-index="${index}"><i data-lucide="plus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button></div></div><button class="remove-item-btn p-1.5 rounded-md text-gray-400 transition" data-index="${index}"><i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button></div>`
+                        `<div class="flex items-center gap-4 p-3"><img src="${item.image_path ? `../${item.image_path}` : ''}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover bg-gray-100"><div class="flex-grow"><p class="font-semibold text-sm">${item.name}</p><p class="text-xs text-gray-500">₱${Number(item.price).toFixed(2)}</p></div><div class="flex items-center gap-2 text-sm"><div class="quantity-selector flex items-center border border-gray-200 rounded-md"><button class="minus p-1.5 transition hover:bg-gray-100" data-index="${index}"><i data-lucide="minus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button><input type="text" class="w-8 text-center font-medium bg-transparent" value="${item.quantity}" readonly><button class="plus p-1.5 transition hover:bg-gray-100" data-index="${index}"><i data-lucide="plus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button></div></div><button class="remove-item-btn p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition" data-index="${index}"><i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button></div>`
                     ).join('');
+                    
+                    // Re-initialize Lucide icons for dynamically added content
+                    lucide.createIcons();
                 }
                 
                 const subtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -987,6 +1197,363 @@
             fetchCategories();
         });
     </script>
+    
+    <!-- Purchase History Modal -->
+    <div id="purchase-history-modal" class="modal-overlay">
+        <div class="modal-content !max-w-[85vw] !w-[65vw] !h-[55vh] !max-h-[95vh] overflow-y-auto">
+            <div class="p-10">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-4xl font-bold text-gray-800">Purchase History</h3>
+                    <button id="close-purchase-history-btn" class="p-3 rounded-full hover:bg-gray-100 text-3xl leading-none font-bold text-gray-600">&times;</button>
+                </div>
+                
+                <div class="mb-6 flex gap-4">
+                    <div class="flex-1 relative">
+                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input type="text" id="history-search" placeholder="Search by product name..." class="w-full pl-12 pr-4 py-3.5 text-lg rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-brand-green">
+                    </div>
+                    <div class="relative">
+                        <div class="flex gap-2">
+                            <div class="relative">
+                                <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"></i>
+                                <input type="text" readonly id="history-date-display" placeholder="Select date" class="px-4 pl-12 py-3.5 text-lg border-2 border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-green cursor-pointer hover:border-brand-green transition-colors" style="min-width: 250px;">
+                                <input type="hidden" id="history-date-filter">
+                                
+                                <!-- Custom Calendar Dropdown -->
+                                <div id="calendar-dropdown-history" class="calendar-dropdown-history">
+                                    <div class="calendar-header-history">
+                                        <button type="button" class="nav-btn-history" id="history-prev-month">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                        <div class="flex items-center gap-2">
+                                            <select id="history-month-select" class="px-2 py-1 rounded bg-gray-100 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green">
+                                                <option value="0">January</option>
+                                                <option value="1">February</option>
+                                                <option value="2">March</option>
+                                                <option value="3">April</option>
+                                                <option value="4">May</option>
+                                                <option value="5">June</option>
+                                                <option value="6">July</option>
+                                                <option value="7">August</option>
+                                                <option value="8">September</option>
+                                                <option value="9">October</option>
+                                                <option value="10">November</option>
+                                                <option value="11">December</option>
+                                            </select>
+                                            <select id="history-year-select" class="px-2 py-1 rounded bg-gray-100 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"></select>
+                                        </div>
+                                        <button type="button" class="nav-btn-history" id="history-next-month">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                    <div class="calendar-grid-history" id="history-calendar-days-header">
+                                        <div class="calendar-day-name-history">Su</div>
+                                        <div class="calendar-day-name-history">Mo</div>
+                                        <div class="calendar-day-name-history">Tu</div>
+                                        <div class="calendar-day-name-history">We</div>
+                                        <div class="calendar-day-name-history">Th</div>
+                                        <div class="calendar-day-name-history">Fr</div>
+                                        <div class="calendar-day-name-history">Sa</div>
+                                    </div>
+                                    <div class="calendar-grid-history" id="history-calendar-days"></div>
+                                    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                                        <button type="button" id="history-today-btn" class="flex-1 px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-medium transition-colors">
+                                            Today
+                                        </button>
+                                        <button type="button" id="history-clear-calendar-btn" class="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg border overflow-hidden">
+                    <div class="overflow-x-auto max-h-[75vh]">
+                        <table class="w-full text-lg">
+                            <thead class="bg-gray-50 text-base font-semibold text-gray-600 uppercase tracking-wider sticky top-0">
+                                <tr>
+                                    <th class="px-8 py-4 text-left">#</th>
+                                    <th class="px-8 py-4 text-left">Product Name</th>
+                                    <th class="px-8 py-4 text-left">Items</th>
+                                    <th class="px-8 py-4 text-right">Total Price</th>
+                                    <th class="px-8 py-4 text-left">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchase-history-table" class="divide-y divide-gray-200 text-gray-700">
+                                <!-- Data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-6 bg-gray-50 border-t flex justify-end gap-8 font-semibold text-xl">
+                        <div>
+                            <span class="text-gray-600">Total Sales:</span>
+                            <span id="history-total-sales" class="text-brand-green ml-2">₱0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Purchase History Modal Functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const purchaseHistoryBtn = document.getElementById('purchase-history-btn');
+            const purchaseHistoryModal = document.getElementById('purchase-history-modal');
+            const closePurchaseHistoryBtn = document.getElementById('close-purchase-history-btn');
+            const historySearch = document.getElementById('history-search');
+            const historyDateFilter = document.getElementById('history-date-filter');
+            const historyDateDisplay = document.getElementById('history-date-display');
+            const calendarDropdownHistory = document.getElementById('calendar-dropdown-history');
+            const historyPrevMonthBtn = document.getElementById('history-prev-month');
+            const historyNextMonthBtn = document.getElementById('history-next-month');
+            const historyMonthSelect = document.getElementById('history-month-select');
+            const historyYearSelect = document.getElementById('history-year-select');
+            const historyCalendarDays = document.getElementById('history-calendar-days');
+            const historyTodayBtn = document.getElementById('history-today-btn');
+            const historyClearCalendarBtn = document.getElementById('history-clear-calendar-btn');
+            const purchaseHistoryTable = document.getElementById('purchase-history-table');
+            const historyTotalSales = document.getElementById('history-total-sales');
+            
+            let purchaseHistoryData = [];
+            let currentDateHistory = new Date();
+            let selectedDateHistory = null;
+            
+            // Open modal and fetch data
+            if (purchaseHistoryBtn) {
+                purchaseHistoryBtn.addEventListener('click', () => {
+                    purchaseHistoryModal.classList.add('active');
+                    fetchPurchaseHistory();
+                });
+            }
+            
+            // Close modal
+            if (closePurchaseHistoryBtn) {
+                closePurchaseHistoryBtn.addEventListener('click', () => {
+                    purchaseHistoryModal.classList.remove('active');
+                });
+            }
+            
+            // Close on outside click
+            purchaseHistoryModal.addEventListener('click', (e) => {
+                if (e.target === purchaseHistoryModal) {
+                    purchaseHistoryModal.classList.remove('active');
+                }
+            });
+            
+            // === CUSTOM CALENDAR FUNCTIONALITY ===
+            
+            // Initialize year select
+            function initHistoryYearSelect() {
+                const currentYear = new Date().getFullYear();
+                for (let year = currentYear - 10; year <= currentYear + 10; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    historyYearSelect.appendChild(option);
+                }
+            }
+            initHistoryYearSelect();
+            
+            // Render calendar
+            function renderHistoryCalendar() {
+                const year = currentDateHistory.getFullYear();
+                const month = currentDateHistory.getMonth();
+                
+                historyMonthSelect.value = month;
+                historyYearSelect.value = year;
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const prevMonthDays = new Date(year, month, 0).getDate();
+                
+                let days = '';
+                
+                // Previous month days
+                for (let i = firstDay - 1; i >= 0; i--) {
+                    days += `<div class="calendar-day-history other-month">${prevMonthDays - i}</div>`;
+                }
+                
+                // Current month days
+                const today = new Date();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    // Format date as YYYY-MM-DD without timezone conversion
+                    const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isSelected = selectedDateHistory === dateString;
+                    
+                    let classes = 'calendar-day-history';
+                    if (isToday) classes += ' today';
+                    if (isSelected) classes += ' selected';
+                    
+                    days += `<div class="${classes}" data-date="${dateString}">${day}</div>`;
+                }
+                
+                // Next month days
+                const totalCells = firstDay + daysInMonth;
+                const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+                for (let i = 1; i <= remainingCells; i++) {
+                    days += `<div class="calendar-day-history other-month">${i}</div>`;
+                }
+                
+                historyCalendarDays.innerHTML = days;
+                
+                // Add click event to date cells
+                document.querySelectorAll('.calendar-day-history:not(.other-month)').forEach(day => {
+                    day.addEventListener('click', () => selectHistoryDate(day.dataset.date));
+                });
+            }
+            
+            // Select date
+            function selectHistoryDate(dateString) {
+                selectedDateHistory = dateString;
+                // Parse date string manually to avoid timezone issues
+                const [year, month, day] = dateString.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                historyDateDisplay.value = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                historyDateFilter.value = dateString;
+                calendarDropdownHistory.classList.remove('show');
+                filterPurchaseHistory();
+            }
+            
+            // Toggle calendar
+            historyDateDisplay.addEventListener('click', () => {
+                calendarDropdownHistory.classList.toggle('show');
+                if (calendarDropdownHistory.classList.contains('show')) {
+                    renderHistoryCalendar();
+                }
+            });
+            
+            // Close calendar when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!historyDateDisplay.contains(e.target) && !calendarDropdownHistory.contains(e.target)) {
+                    calendarDropdownHistory.classList.remove('show');
+                }
+            });
+            
+            // Navigation buttons
+            historyPrevMonthBtn.addEventListener('click', () => {
+                currentDateHistory.setMonth(currentDateHistory.getMonth() - 1);
+                renderHistoryCalendar();
+            });
+            
+            historyNextMonthBtn.addEventListener('click', () => {
+                currentDateHistory.setMonth(currentDateHistory.getMonth() + 1);
+                renderHistoryCalendar();
+            });
+            
+            historyMonthSelect.addEventListener('change', (e) => {
+                currentDateHistory.setMonth(parseInt(e.target.value));
+                renderHistoryCalendar();
+            });
+            
+            historyYearSelect.addEventListener('change', (e) => {
+                currentDateHistory.setFullYear(parseInt(e.target.value));
+                renderHistoryCalendar();
+            });
+            
+            // Today button
+            historyTodayBtn.addEventListener('click', () => {
+                const today = new Date();
+                selectHistoryDate(today.toISOString().split('T')[0]);
+            });
+            
+            // Clear calendar button
+            historyClearCalendarBtn.addEventListener('click', () => {
+                selectedDateHistory = null;
+                historyDateDisplay.value = '';
+                historyDateFilter.value = '';
+                calendarDropdownHistory.classList.remove('show');
+                renderHistoryCalendar();
+                filterPurchaseHistory();
+            });
+            
+            // === END CUSTOM CALENDAR FUNCTIONALITY ===
+            
+            // Fetch purchase history from database
+            async function fetchPurchaseHistory() {
+                try {
+                    const response = await fetch('../api/get_purchase_history.php');
+                    purchaseHistoryData = await response.json();
+                    renderPurchaseHistory(purchaseHistoryData);
+                } catch (error) {
+                    console.error('Error fetching purchase history:', error);
+                    purchaseHistoryTable.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-red-500">Error loading purchase history</td></tr>';
+                }
+            }
+            
+            // Render purchase history table
+            function renderPurchaseHistory(data) {
+                if (data.length === 0) {
+                    purchaseHistoryTable.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">No purchase history found</td></tr>';
+                    historyTotalSales.textContent = '₱0.00';
+                    return;
+                }
+                
+                let html = '';
+                let totalSales = 0;
+                
+                data.forEach((item, index) => {
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-3">${index + 1}</td>
+                            <td class="px-6 py-3 font-medium">${item.product_name}</td>
+                            <td class="px-6 py-3">${item.quantity}</td>
+                            <td class="px-6 py-3 text-right font-semibold">₱${parseFloat(item.total_price).toFixed(2)}</td>
+                            <td class="px-6 py-3">${formatDate(item.transaction_date)}</td>
+                        </tr>
+                    `;
+                    totalSales += parseFloat(item.total_price);
+                });
+                
+                purchaseHistoryTable.innerHTML = html;
+                historyTotalSales.textContent = `₱${totalSales.toFixed(2)}`;
+            }
+            
+            // Combined filter functionality
+            function filterPurchaseHistory() {
+                const searchTerm = historySearch.value.toLowerCase();
+                const selectedDate = historyDateFilter.value;
+                
+                let filtered = purchaseHistoryData;
+                
+                // Apply search filter
+                if (searchTerm) {
+                    filtered = filtered.filter(item => 
+                        item.product_name.toLowerCase().includes(searchTerm)
+                    );
+                }
+                
+                // Apply date filter
+                if (selectedDate) {
+                    filtered = filtered.filter(item => {
+                        const itemDate = item.transaction_date.split(' ')[0];
+                        return itemDate === selectedDate;
+                    });
+                }
+                
+                renderPurchaseHistory(filtered);
+            }
+            
+            // Search functionality
+            historySearch.addEventListener('input', filterPurchaseHistory);
+            
+            // Format date helper
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+        });
+    </script>
+    
     <?php echo $posDarkMode['script']; ?>
 </body>
 </html>

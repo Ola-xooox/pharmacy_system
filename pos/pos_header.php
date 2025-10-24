@@ -21,9 +21,15 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
 
         <!-- Right Side: Date/Time + Dark Mode Toggle + Notifications + Profile -->
         <div class="flex items-center gap-3">
+            <!-- Purchase History Button -->
+            <button id="purchase-history-btn" class="flex items-center gap-2 px-3 py-2 text-sm bg-brand-green text-white rounded-full hover:bg-opacity-90 transition-colors" title="Purchase History">
+                <i class="fas fa-history w-4 h-4"></i>
+                <span class="hidden sm:inline">History</span>
+            </button>
+            
             <!-- Date and Time -->
             <div class="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-full">
-                <i data-lucide="calendar-days" class="w-4 h-4 text-gray-400"></i>
+                <i class="fas fa-calendar-alt w-4 h-4 text-gray-400"></i>
                 <span id="date-time"></span>
             </div>
             
@@ -33,7 +39,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
             <!-- Notification Bell -->
             <div class="relative">
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
-                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <i class="fas fa-bell w-5 h-5"></i>
                     <?php if ($total_notifications > 0): ?>
                         <span class="absolute top-1.5 right-1.5 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
                     <?php endif; ?>

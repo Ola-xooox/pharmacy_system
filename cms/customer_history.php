@@ -145,14 +145,14 @@ $darkMode = getDarkModeAssets();
 
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="bg-gray-50/75 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            <thead class="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-200 dark:border-gray-600">
                                 <tr>
-                                    <th class="px-6 py-4 text-left">Customer</th>
-                                    <th class="px-6 py-4 text-left">ID No.</th>
-                                    <th class="px-6 py-4 text-center">Total Visits</th>
-                                    <th class="px-6 py-4 text-left">Total Spent</th>
-                                    <th class="px-6 py-4 text-left">Last Visit</th>
-                                    <th class="px-6 py-4 text-center">Action</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-left">Customer</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-left">ID No.</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-center">Total Visits</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-left">Total Spent</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-left">Last Visit</th>
+                                    <th class="py-4 px-6 font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wider text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="customer-table-body" class="text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-gray-700">
