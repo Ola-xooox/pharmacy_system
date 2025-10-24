@@ -22,13 +22,13 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
         <div class="flex items-center gap-2 sm:gap-4">
             <?php echo $darkMode['toggle']; ?>
             <div class="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-full">
-                <i data-lucide="calendar-days" class="w-4 h-4 text-gray-400"></i>
+                <i class="fas fa-calendar-alt w-4 h-4 text-gray-400"></i>
                 <span id="date-time"></span>
             </div>
             <!-- Notification Bell -->
             <div class="relative">
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors">
-                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <i class="fas fa-bell w-5 h-5"></i>
                     <?php if ($total_notifications > 0): ?>
                         <span class="absolute top-1.5 right-1.5 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white dark:ring-gray-800" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
                     <?php endif; ?>
@@ -150,7 +150,6 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        lucide.createIcons();
         
         const profileModalBtn = document.getElementById('profile-modal-btn');
         const profileModal = document.getElementById('profile-modal');

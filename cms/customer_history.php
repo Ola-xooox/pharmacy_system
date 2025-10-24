@@ -21,7 +21,7 @@ $darkMode = getDarkModeAssets();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Management - MJ Pharmacy</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -138,7 +138,7 @@ $darkMode = getDarkModeAssets();
 
                     <div class="p-4 bg-gray-50 dark:bg-gray-700 border-y border-gray-200 dark:border-gray-600">
                         <div class="relative w-full">
-                             <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300 pointer-events-none"></i>
+                             <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300 pointer-events-none"></i>
                              <input type="text" id="customer-search" placeholder="Search by name or ID..." class="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green">
                         </div>
                     </div>
@@ -224,7 +224,7 @@ $darkMode = getDarkModeAssets();
                     <p>Thank you for your purchase!</p>
                  </div>
                  <div class="mt-8 flex gap-3 no-print">
-                    <button id="print-receipt-btn" class="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all duration-200"><i data-lucide="printer" class="w-4 h-4"></i><span>Print</span></button>
+                    <button id="print-receipt-btn" class="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all duration-200"><i class="fas fa-print w-4 h-4"></i><span>Print</span></button>
                     <button id="close-receipt-modal" class="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-white bg-brand-green hover:bg-opacity-90 px-4 py-2 rounded-lg transition-all duration-200">Close</button>
                  </div>
              </div>
@@ -233,7 +233,6 @@ $darkMode = getDarkModeAssets();
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
             const searchInput = document.getElementById('customer-search');
             const tableBody = document.getElementById('customer-table-body');
             const paginationContainer = document.getElementById('customer-pagination');
@@ -278,7 +277,7 @@ $darkMode = getDarkModeAssets();
 
             function renderTable(customers) {
                 if (!customers || customers.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-500"><div class="flex flex-col items-center gap-4"><i data-lucide="user-x" class="w-16 h-16 text-gray-300"></i><div><p class="font-semibold text-lg">No Customers Found</p><p class="text-sm mt-1">Try adjusting your search.</p></div></div></td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-500"><div class="flex flex-col items-center gap-4"><i class="fas fa-user-slash w-16 h-16 text-gray-300" style="font-size: 4rem;"></i><div><p class="font-semibold text-lg">No Customers Found</p><p class="text-sm mt-1">Try adjusting your search.</p></div></div></td></tr>`;
                 } else {
                     tableBody.innerHTML = customers.map(customer => `
                         <tr class="hover:bg-gray-50 transition-colors duration-200">
@@ -294,13 +293,12 @@ $darkMode = getDarkModeAssets();
                             <td class="px-6 py-4 text-gray-500">${formatDate(customer.last_visit)}</td>
                             <td class="px-6 py-4 text-center">
                                 <button data-customer-id="${customer.id}" class="view-history-btn flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-brand-green bg-gray-100 hover:bg-brand-green-light px-4 py-2 rounded-lg transition-all duration-200">
-                                    <i data-lucide="history" class="w-4 h-4"></i><span>History</span>
+                                    <i class="fas fa-history w-4 h-4"></i><span>History</span>
                                 </button>
                             </td>
                         </tr>
                     `).join('');
                 }
-                lucide.createIcons();
             }
             
             function renderPagination({ totalPages, currentPage, totalResults, limit }) {
@@ -311,14 +309,13 @@ $darkMode = getDarkModeAssets();
                 const endItem = Math.min(startItem + limit - 1, totalResults);
                 
                 let paginationHTML = `<div class="text-sm text-gray-600">Showing <b>${startItem}</b> to <b>${endItem}</b> of <b>${totalResults}</b></div><div class="flex items-center gap-1">`;
-                paginationHTML += `<button class="prev-btn p-2 rounded-lg ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-200'}" ${currentPage === 1 ? 'disabled' : ''}><i data-lucide="chevron-left" class="w-5 h-5"></i></button>`;
+                paginationHTML += `<button class="prev-btn p-2 rounded-lg ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-200'}" ${currentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left w-5 h-5"></i></button>`;
                 for (let i = 1; i <= totalPages; i++) {
                      paginationHTML += `<button class="page-btn w-9 h-9 rounded-lg text-sm font-semibold ${i === currentPage ? 'bg-brand-green text-white' : 'hover:bg-gray-200'}" data-page="${i}">${i}</button>`;
                 }
-                paginationHTML += `<button class="next-btn p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-200'}" ${currentPage === totalPages ? 'disabled' : ''}><i data-lucide="chevron-right" class="w-5 h-5"></i></button>`;
+                paginationHTML += `<button class="next-btn p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-200'}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right w-5 h-5"></i></button>`;
                 paginationHTML += `</div>`;
                 paginationContainer.innerHTML = paginationHTML;
-                lucide.createIcons();
             }
 
             function changePage(newPage) {
@@ -390,8 +387,7 @@ $darkMode = getDarkModeAssets();
                     console.error("Failed to fetch receipt details:", error);
                     document.getElementById('receipt-items').innerHTML = `<div class="text-center p-4 text-red-500">${error.message}</div>`;
                 }
-                 lucide.createIcons();
-            }
+             }
 
             tableBody.addEventListener('click', e => {
                 const historyBtn = e.target.closest('.view-history-btn');
