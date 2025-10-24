@@ -9,7 +9,7 @@ $oneMonthFromNow = date('Y-m-d', strtotime('+1 month'));
 $expiring_soon_stmt = $conn->prepare(
     "SELECT name, lot_number, expiration_date 
      FROM products 
-     WHERE expiration_date > ? AND expiration_date <= ? AND item_total > 0
+     WHERE expiration_date > ? AND expiration_date <= ? AND stock > 0
      ORDER BY expiration_date ASC"
 );
 $expiring_soon_stmt->bind_param("ss", $today, $oneMonthFromNow);
@@ -22,7 +22,7 @@ $expiring_soon_stmt->close();
 $expired_stmt = $conn->prepare(
     "SELECT name, lot_number, expiration_date 
      FROM products 
-     WHERE expiration_date <= ? AND item_total > 0
+     WHERE expiration_date <= ? AND stock > 0
      ORDER BY expiration_date DESC"
 );
 $expired_stmt->bind_param("s", $today);

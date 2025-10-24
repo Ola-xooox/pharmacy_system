@@ -15,19 +15,33 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Fetch user activity logs (you can modify this query based on your actual activity log table structure)
-// For now, I'll create a basic structure - you may need to adjust based on your actual database schema
+// Set the timezone
+date_default_timezone_set('Asia/Manila');
+
+// Get selected date from URL parameter, default to today
+$selectedDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+
+// Validate the date format
+if (!DateTime::createFromFormat('Y-m-d', $selectedDate)) {
+    $selectedDate = date('Y-m-d');
+}
+
+// Fetch user activity logs from the actual user_activity_log table for selected date
 $activityLogsStmt = $conn->prepare("
     SELECT 
-        'Login' as activity_type,
-        username as user_name,
-        'admin' as user_role,
-        NOW() as activity_date,
-        'User logged into the system' as description
-    FROM users 
-    WHERE role = 'admin'
-    LIMIT 10
+        ual.action_description,
+        ual.timestamp,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.role
+    FROM user_activity_log ual
+    JOIN users u ON ual.user_id = u.id
+    WHERE DATE(ual.timestamp) = ?
+    ORDER BY ual.timestamp DESC
+    LIMIT 200
 ");
+$activityLogsStmt->bind_param("s", $selectedDate);
 $activityLogsStmt->execute();
 $activityLogs = $activityLogsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $activityLogsStmt->close();
@@ -63,57 +77,50 @@ $conn->close();
         <main class="flex-1 overflow-y-auto p-6">
             <div id="page-content">
                 <div id="user-activity-log-page" class="space-y-8">
-                    <!-- Header Section -->
+                    <!-- Date Filter Section -->
                     <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h1 class="text-2xl font-bold text-gray-800 mb-2">User Activity Log</h1>
-                        <p class="text-gray-600">Monitor and track user activities within the system</p>
-                    </div>
-
-                    <!-- Activity Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <p class="text-sm text-gray-500">Total Activities</p>
-                                <p class="text-2xl font-bold text-[#236B3D]"><?php echo count($activityLogs); ?></p>
+                                <h1 class="text-2xl font-bold text-gray-800">User Activity Log</h1>
+                                <p class="text-sm text-gray-600 mt-1">Monitor and track user activities within the system</p>
                             </div>
-                            <i class="ph-fill ph-activity text-4xl text-gray-400"></i>
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Date:</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="date" id="date-filter" value="<?php echo $selectedDate; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                    <button id="apply-date-filter" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors">
+                                        Apply
+                                    </button>
+                                    <button id="today-btn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors">
+                                        Today
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Active Users</p>
-                                <p class="text-2xl font-bold text-blue-500">1</p>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">Showing activities for:</span>
+                                <span class="font-semibold text-gray-800"><?php echo date('l, F j, Y', strtotime($selectedDate)); ?></span>
                             </div>
-                            <i class="ph-fill ph-users text-4xl text-gray-400"></i>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Today's Logins</p>
-                                <p class="text-2xl font-bold text-green-500">1</p>
+                            <div class="flex items-center justify-between text-sm mt-1">
+                                <span class="text-gray-600">Total activities found:</span>
+                                <span class="font-semibold text-blue-600"><?php echo count($activityLogs); ?> activities</span>
                             </div>
-                            <i class="ph-fill ph-sign-in text-4xl text-gray-400"></i>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">System Alerts</p>
-                                <p class="text-2xl font-bold text-orange-500">0</p>
-                            </div>
-                            <i class="ph-fill ph-warning text-4xl text-gray-400"></i>
                         </div>
                     </div>
 
                     <!-- Activity Log Table -->
                     <div class="bg-white p-6 rounded-2xl shadow-md">
                         <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">Recent Activities</h2>
+                            <h2 class="text-xl font-bold text-gray-800"><?php echo $selectedDate === date('Y-m-d') ? "Today's Activities" : "Activities for " . date('M j, Y', strtotime($selectedDate)); ?></h2>
                             <div class="flex gap-4">
                                 <input type="text" id="activity-search" placeholder="Search activities..." class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <select id="activity-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                    <option value="">All Activities</option>
-                                    <option value="login">Login</option>
-                                    <option value="logout">Logout</option>
-                                    <option value="create">Create</option>
-                                    <option value="update">Update</option>
-                                    <option value="delete">Delete</option>
+                                <select id="role-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <option value="">All Roles</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="inventory">Inventory</option>
+                                    <option value="pos">POS</option>
+                                    <option value="cms">CMS</option>
                                 </select>
                             </div>
                         </div>
@@ -122,10 +129,9 @@ $conn->close();
                             <table class="w-full text-left" id="activity-table">
                                 <thead>
                                     <tr class="bg-gray-50 border-b-2 border-gray-200">
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Activity Type</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">User</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Role</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Description</th>
+                                        <th class="py-3 px-4 font-semibold text-gray-600">Activity Description</th>
                                         <th class="py-3 px-4 font-semibold text-gray-600">Date & Time</th>
                                     </tr>
                                 </thead>
@@ -133,24 +139,22 @@ $conn->close();
                                     <?php if (!empty($activityLogs)): ?>
                                         <?php foreach ($activityLogs as $log): ?>
                                         <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                            <td class="py-3 px-4 dark:text-white">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200">
-                                                    <?php echo htmlspecialchars($log['activity_type']); ?>
-                                                </span>
+                                            <td class="py-3 px-4 font-medium dark:text-white">
+                                                <?php echo htmlspecialchars($log['first_name'] . ' ' . $log['last_name']); ?>
+                                                <div class="text-xs text-gray-500">@<?php echo htmlspecialchars($log['username']); ?></div>
                                             </td>
-                                            <td class="py-3 px-4 font-medium dark:text-white"><?php echo htmlspecialchars($log['user_name']); ?></td>
                                             <td class="py-3 px-4">
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 capitalize">
-                                                    <?php echo htmlspecialchars($log['user_role']); ?>
+                                                    <?php echo htmlspecialchars($log['role']); ?>
                                                 </span>
                                             </td>
-                                            <td class="py-3 px-4 text-gray-600 dark:text-gray-300"><?php echo htmlspecialchars($log['description']); ?></td>
-                                            <td class="py-3 px-4 text-gray-500 dark:text-gray-400"><?php echo date('M d, Y g:i A', strtotime($log['activity_date'])); ?></td>
+                                            <td class="py-3 px-4 text-gray-600 dark:text-gray-300"><?php echo htmlspecialchars($log['action_description']); ?></td>
+                                            <td class="py-3 px-4 text-gray-500 dark:text-gray-400"><?php echo date('M d, Y g:i A', strtotime($log['timestamp'])); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="5" class="text-center py-8 text-gray-500">No activity logs found.</td>
+                                            <td colspan="4" class="text-center py-8 text-gray-500">No activity logs found.</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -172,7 +176,7 @@ $conn->close();
             const userMenuButton = document.getElementById('user-menu-button');
             const userMenu = document.getElementById('user-menu');
             const searchInput = document.getElementById('activity-search');
-            const filterSelect = document.getElementById('activity-filter');
+            const roleFilter = document.getElementById('role-filter');
             const table = document.getElementById('activity-table').getElementsByTagName('tbody')[0];
 
             // Sidebar functionality
@@ -207,21 +211,20 @@ $conn->close();
             // Search and filter functionality
             function filterTable() {
                 const searchTerm = searchInput.value.toLowerCase();
-                const filterValue = filterSelect.value.toLowerCase();
+                const roleValue = roleFilter.value.toLowerCase();
                 const rows = table.getElementsByTagName('tr');
 
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
-                    const activityType = row.getElementsByTagName('td')[0]?.textContent.toLowerCase() || '';
-                    const userName = row.getElementsByTagName('td')[1]?.textContent.toLowerCase() || '';
-                    const description = row.getElementsByTagName('td')[3]?.textContent.toLowerCase() || '';
+                    const userName = row.getElementsByTagName('td')[0]?.textContent.toLowerCase() || '';
+                    const userRole = row.getElementsByTagName('td')[1]?.textContent.toLowerCase() || '';
+                    const description = row.getElementsByTagName('td')[2]?.textContent.toLowerCase() || '';
 
-                    const matchesSearch = activityType.includes(searchTerm) || 
-                                        userName.includes(searchTerm) || 
+                    const matchesSearch = userName.includes(searchTerm) || 
                                         description.includes(searchTerm);
-                    const matchesFilter = filterValue === '' || activityType.includes(filterValue);
+                    const matchesRole = roleValue === '' || userRole.includes(roleValue);
 
-                    if (matchesSearch && matchesFilter) {
+                    if (matchesSearch && matchesRole) {
                         row.style.display = '';
                     } else {
                         row.style.display = 'none';
@@ -233,8 +236,40 @@ $conn->close();
                 searchInput.addEventListener('keyup', filterTable);
             }
 
-            if (filterSelect) {
-                filterSelect.addEventListener('change', filterTable);
+            if (roleFilter) {
+                roleFilter.addEventListener('change', filterTable);
+            }
+
+            // Date Filter functionality
+            const dateFilter = document.getElementById('date-filter');
+            const applyDateFilter = document.getElementById('apply-date-filter');
+            const todayBtn = document.getElementById('today-btn');
+
+            if (applyDateFilter) {
+                applyDateFilter.addEventListener('click', () => {
+                    const selectedDate = dateFilter.value;
+                    if (selectedDate) {
+                        window.location.href = `user_activity_log.php?date=${selectedDate}`;
+                    }
+                });
+            }
+
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    window.location.href = 'user_activity_log.php';
+                });
+            }
+
+            // Allow Enter key to apply filter
+            if (dateFilter) {
+                dateFilter.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const selectedDate = dateFilter.value;
+                        if (selectedDate) {
+                            window.location.href = `user_activity_log.php?date=${selectedDate}`;
+                        }
+                    }
+                });
             }
         });
     </script>

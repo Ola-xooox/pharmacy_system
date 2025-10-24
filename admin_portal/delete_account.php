@@ -62,11 +62,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_user_id'])) {
     exit();
 }
 
-// Fetch all users except current admin
-$usersStmt = $conn->prepare("SELECT id, username, email, role, profile_image FROM users WHERE id != ? ORDER BY username ASC");
+// Fetch all users except current admin, grouped by role
+$usersStmt = $conn->prepare("SELECT id, username, email, role, profile_image FROM users WHERE id != ? ORDER BY role ASC, username ASC");
 $usersStmt->bind_param("i", $_SESSION['user_id']);
 $usersStmt->execute();
-$users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$allUsers = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Group users by role
+$usersByRole = [];
+$roleCounts = [];
+foreach ($allUsers as $user) {
+    $role = $user['role'];
+    if (!isset($usersByRole[$role])) {
+        $usersByRole[$role] = [];
+        $roleCounts[$role] = 0;
+    }
+    $usersByRole[$role][] = $user;
+    $roleCounts[$role]++;
+}
+
+// Define role order and colors
+$roleOrder = ['admin', 'inventory', 'pos', 'cms'];
+$roleColors = [
+    'admin' => 'bg-red-100 text-red-800 border-red-200',
+    'inventory' => 'bg-blue-100 text-blue-800 border-blue-200',
+    'pos' => 'bg-green-100 text-green-800 border-green-200',
+    'cms' => 'bg-purple-100 text-purple-800 border-purple-200'
+];
+
+$roleIcons = [
+    'admin' => 'ph-crown',
+    'inventory' => 'ph-package',
+    'pos' => 'ph-cash-register',
+    'cms' => 'ph-article'
+];
 ?>
 
 <!DOCTYPE html>
@@ -98,67 +127,123 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 <div class="w-full">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full">
                         <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-2xl font-bold text-gray-800">Delete User Account</h2>
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800">Delete User Account</h2>
+                                <p class="text-sm text-gray-600 mt-1">Manage user accounts organized by roles</p>
+                            </div>
                             <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
                                 <p class="text-red-700 dark:text-red-300 text-sm font-medium">⚠️ Warning: This action cannot be undone</p>
                             </div>
                         </div>
                         
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left" id="users-table">
-                                <thead>
-                                    <tr class="bg-gray-50 border-b-2 border-gray-200">
-                                        <th class="py-3 px-4 font-semibold text-gray-600">User</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Username</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Email</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Role</th>
-                                        <th class="py-3 px-4 font-semibold text-gray-600">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (!empty($users)): ?>
-                                        <?php foreach ($users as $user): ?>
-                                            <tr class="border-b border-gray-200">
-                                                <td class="py-3 px-4">
-                                                    <div class="flex items-center">
-                                                        <?php if ($user['profile_image']): ?>
-                                                            <img class="w-10 h-10 rounded-full object-cover mr-3" src="../<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile">
-                                                        <?php else: ?>
-                                                            <div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold mr-3">
-                                                                <?php echo strtoupper(substr($user['username'], 0, 1)); ?>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                        <span class="font-medium"><?php echo htmlspecialchars($user['username']); ?></span>
-                                                    </div>
-                                                </td>
-                                                <td class="py-3 px-4"><?php echo htmlspecialchars($user['username']); ?></td>
-                                                <td class="py-3 px-4">
-                                                    <?php if (!empty($user['email'])): ?>
-                                                        <span class="text-gray-700"><?php echo htmlspecialchars($user['email']); ?></span>
-                                                    <?php else: ?>
-                                                        <span class="text-gray-400 italic">No email</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="py-3 px-4">
-                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 capitalize">
-                                                        <?php echo htmlspecialchars($user['role']); ?>
-                                                    </span>
-                                                </td>
-                                                <td class="py-3 px-4">
-                                                    <button onclick="confirmDelete(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>')" 
-                                                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                                        Delete Account
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="5" class="text-center py-8 text-gray-500">No users to display.</td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+                        <!-- Search Bar -->
+                        <div class="mb-6">
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="ph ph-magnifying-glass text-gray-400"></i>
+                                </div>
+                                <input type="text" id="user-search" placeholder="Search users by name, username, email, or role..." 
+                                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                            </div>
+                            <div class="mt-2 text-sm text-gray-500">
+                                <span id="search-results-count">Showing all users</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Role Summary Cards -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="role-summary-cards">
+                            <?php foreach ($roleOrder as $role): ?>
+                                <?php if (isset($roleCounts[$role]) && $roleCounts[$role] > 0): ?>
+                                    <div class="<?php echo $roleColors[$role]; ?> border rounded-lg p-4 text-center">
+                                        <i class="<?php echo $roleIcons[$role]; ?> text-2xl mb-2"></i>
+                                        <div class="text-lg font-bold"><?php echo $roleCounts[$role]; ?></div>
+                                        <div class="text-sm font-medium capitalize"><?php echo $role; ?> Users</div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <!-- Users by Role -->
+                        <?php if (!empty($usersByRole)): ?>
+                            <?php foreach ($roleOrder as $role): ?>
+                                <?php if (isset($usersByRole[$role]) && !empty($usersByRole[$role])): ?>
+                                    <div class="mb-8 role-section" data-role="<?php echo $role; ?>">
+                                        <div class="flex items-center mb-4">
+                                            <i class="<?php echo $roleIcons[$role]; ?> text-xl mr-2 text-gray-600"></i>
+                                            <h3 class="text-lg font-semibold text-gray-800 capitalize"><?php echo $role; ?> Users</h3>
+                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full <?php echo $roleColors[$role]; ?> role-count" data-role="<?php echo $role; ?>">
+                                                <?php echo count($usersByRole[$role]); ?> users
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="overflow-x-auto bg-gray-50 rounded-lg">
+                                            <table class="w-full text-left">
+                                                <thead>
+                                                    <tr class="bg-gray-100 border-b border-gray-200">
+                                                        <th class="py-3 px-4 font-semibold text-gray-600">User</th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600">Username</th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600">Email</th>
+                                                        <th class="py-3 px-4 font-semibold text-gray-600">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php foreach ($usersByRole[$role] as $user): ?>
+                                                        <tr class="border-b border-gray-200 hover:bg-white transition-colors user-row" 
+                                                            data-username="<?php echo strtolower(htmlspecialchars($user['username'])); ?>"
+                                                            data-email="<?php echo strtolower(htmlspecialchars($user['email'] ?? '')); ?>"
+                                                            data-role="<?php echo strtolower($role); ?>"
+                                                            data-fullname="<?php echo strtolower(htmlspecialchars($user['username'])); ?>">
+                                                            <td class="py-3 px-4">
+                                                                <div class="flex items-center">
+                                                                    <?php if ($user['profile_image']): ?>
+                                                                        <img class="w-10 h-10 rounded-full object-cover mr-3" src="../<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile">
+                                                                    <?php else: ?>
+                                                                        <div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold mr-3">
+                                                                            <?php echo strtoupper(substr($user['username'], 0, 1)); ?>
+                                                                        </div>
+                                                                    <?php endif; ?>
+                                                                    <div>
+                                                                        <span class="font-medium text-gray-900"><?php echo htmlspecialchars($user['username']); ?></span>
+                                                                        <div class="text-xs text-gray-500 capitalize"><?php echo $role; ?></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="py-3 px-4 text-gray-700"><?php echo htmlspecialchars($user['username']); ?></td>
+                                                            <td class="py-3 px-4">
+                                                                <?php if (!empty($user['email'])): ?>
+                                                                    <span class="text-gray-700"><?php echo htmlspecialchars($user['email']); ?></span>
+                                                                <?php else: ?>
+                                                                    <span class="text-gray-400 italic">No email</span>
+                                                                <?php endif; ?>
+                                                            </td>
+                                                            <td class="py-3 px-4">
+                                                                <button onclick="confirmDelete(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>', '<?php echo $role; ?>')" 
+                                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                                                                    <i class="ph ph-trash text-sm"></i>
+                                                                    Delete
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center py-12" id="no-users-message">
+                                <i class="ph ph-users text-6xl text-gray-300 mb-4"></i>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+                                <p class="text-gray-500">There are no users to display at this time.</p>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- No Search Results Message -->
+                        <div class="text-center py-12 hidden" id="no-search-results">
+                            <i class="ph ph-magnifying-glass text-6xl text-gray-300 mb-4"></i>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+                            <p class="text-gray-500">No users match your search criteria. Try adjusting your search terms.</p>
                         </div>
                     </div>
                 </div>
@@ -184,7 +269,7 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </h3>
                             <div class="mt-2">
                                 <p class="text-sm text-gray-500">
-                                    Are you sure you want to delete the account for <strong id="delete-username"></strong>? This action cannot be undone.
+                                    Are you sure you want to delete the <span id="delete-role" class="font-medium"></span> account for <strong id="delete-username"></strong>? This action cannot be undone.
                                 </p>
                             </div>
                         </div>
@@ -306,13 +391,110 @@ $users = $usersStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 errorModal.classList.add('hidden');
             });
         }
+        
+        // Search functionality
+        const searchInput = document.getElementById('user-search');
+        const searchResultsCount = document.getElementById('search-results-count');
+        const noSearchResults = document.getElementById('no-search-results');
+        const roleSections = document.querySelectorAll('.role-section');
+        const userRows = document.querySelectorAll('.user-row');
+        const roleSummaryCards = document.getElementById('role-summary-cards');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if (searchTerm === '') {
+                    // Show all users and role sections
+                    userRows.forEach(row => {
+                        row.style.display = '';
+                    });
+                    roleSections.forEach(section => {
+                        section.style.display = '';
+                    });
+                    roleSummaryCards.style.display = '';
+                    noSearchResults.classList.add('hidden');
+                    searchResultsCount.textContent = 'Showing all users';
+                    updateRoleCounts();
+                    return;
+                }
+                
+                let visibleCount = 0;
+                const visibleRoles = new Set();
+                
+                // Filter user rows
+                userRows.forEach(row => {
+                    const username = row.dataset.username || '';
+                    const email = row.dataset.email || '';
+                    const role = row.dataset.role || '';
+                    const fullname = row.dataset.fullname || '';
+                    
+                    const matches = username.includes(searchTerm) || 
+                                  email.includes(searchTerm) || 
+                                  role.includes(searchTerm) || 
+                                  fullname.includes(searchTerm);
+                    
+                    if (matches) {
+                        row.style.display = '';
+                        visibleCount++;
+                        visibleRoles.add(role);
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Show/hide role sections based on visible users
+                roleSections.forEach(section => {
+                    const sectionRole = section.dataset.role.toLowerCase();
+                    if (visibleRoles.has(sectionRole)) {
+                        section.style.display = '';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+                
+                // Hide role summary cards during search
+                roleSummaryCards.style.display = 'none';
+                
+                // Update search results count
+                if (visibleCount === 0) {
+                    noSearchResults.classList.remove('hidden');
+                    searchResultsCount.textContent = 'No users found';
+                } else {
+                    noSearchResults.classList.add('hidden');
+                    searchResultsCount.textContent = `Found ${visibleCount} user${visibleCount !== 1 ? 's' : ''}`;
+                }
+                
+                updateRoleCounts(searchTerm);
+            });
+        }
+        
+        function updateRoleCounts(searchTerm = '') {
+            const roleCounts = document.querySelectorAll('.role-count');
+            roleCounts.forEach(countElement => {
+                const role = countElement.dataset.role;
+                const roleSection = document.querySelector(`[data-role="${role}"]`);
+                if (roleSection) {
+                    const visibleRows = roleSection.querySelectorAll('.user-row:not([style*="display: none"])');
+                    const count = visibleRows.length;
+                    if (searchTerm) {
+                        countElement.textContent = `${count} user${count !== 1 ? 's' : ''} found`;
+                    } else {
+                        // Get original count from PHP
+                        const originalCount = roleSection.querySelectorAll('.user-row').length;
+                        countElement.textContent = `${originalCount} user${originalCount !== 1 ? 's' : ''}`;
+                    }
+                }
+            });
+        }
     });
 
     let deleteUserId = null;
 
-    function confirmDelete(userId, username) {
+    function confirmDelete(userId, username, role) {
         deleteUserId = userId;
         document.getElementById('delete-username').textContent = username;
+        document.getElementById('delete-role').textContent = role;
         document.getElementById('delete-modal').classList.remove('hidden');
     }
 

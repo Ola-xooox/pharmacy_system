@@ -13,8 +13,19 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Fetch Today's Sales Data
-$today = date('Y-m-d');
+// Set the timezone
+date_default_timezone_set('Asia/Manila');
+
+// Get selected date from URL parameter, default to today
+$selectedDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+
+// Validate the date format
+if (!DateTime::createFromFormat('Y-m-d', $selectedDate)) {
+    $selectedDate = date('Y-m-d');
+}
+
+// Fetch Sales Data for selected date
+$today = $selectedDate;
 $salesStmt = $conn->prepare("SELECT SUM(total_price) AS total_sales_today FROM purchase_history WHERE DATE(transaction_date) = ?");
 $salesStmt->bind_param("s", $today);
 $salesStmt->execute();
@@ -22,42 +33,74 @@ $salesData = $salesStmt->get_result()->fetch_assoc();
 $totalSalesToday = $salesData['total_sales_today'] ?? 0;
 $salesStmt->close();
 
-// Fetch Total Products
-$productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products");
+// Fetch Total Products (up to selected date)
+$productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products WHERE DATE(date_added) <= ?");
+$productsStmt->bind_param("s", $selectedDate);
 $productsStmt->execute();
 $productsData = $productsStmt->get_result()->fetch_assoc();
 $totalProducts = $productsData['total_products'] ?? 0;
 $productsStmt->close();
 
-// Fetch Expiration Alert Count (within 1 month, excluding expired)
-$expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
+// Fetch Expiration Alert Count (within 1 month from selected date)
+$expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ?");
+$expAlertStmt->bind_param("sss", $selectedDate, $selectedDate, $selectedDate);
 $expAlertStmt->execute();
 $expAlertData = $expAlertStmt->get_result()->fetch_assoc();
 $expAlertCount = $expAlertData['exp_alert_count'] ?? 0;
 $expAlertStmt->close();
 
 
-// Fetch Low Stock Count (Sum of items per product name is <= 5)
+// Fetch Low Stock Count (Sum of stock per product name is <= 5, up to selected date)
 $lowStockStmt = $conn->prepare("
     SELECT COUNT(*) as low_stock_count FROM (
         SELECT name
         FROM products
-        WHERE (expiration_date > CURDATE() OR expiration_date IS NULL)
+        WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ?
         GROUP BY name
-        HAVING SUM(item_total) <= 5 AND SUM(item_total) > 0
+        HAVING SUM(stock) <= 5 AND SUM(stock) > 0
     ) AS low_stock_products
 ");
+$lowStockStmt->bind_param("ss", $selectedDate, $selectedDate);
 $lowStockStmt->execute();
 $lowStockData = $lowStockStmt->get_result()->fetch_assoc();
 $lowStockCount = $lowStockData['low_stock_count'] ?? 0;
 $lowStockStmt->close();
 
 
-// Fetch Recent Transactions
-$transactionsStmt = $conn->prepare("SELECT product_name, total_price, transaction_date FROM purchase_history ORDER BY transaction_date DESC LIMIT 5");
+// Fetch Recent Transactions for selected date
+$transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC LIMIT 10");
+$transactionsStmt->bind_param("s", $selectedDate);
 $transactionsStmt->execute();
 $recentTransactions = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $transactionsStmt->close();
+
+// Fetch detailed sales data for modal
+$allTransactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
+$allTransactionsStmt->bind_param("s", $selectedDate);
+$allTransactionsStmt->execute();
+$allTransactions = $allTransactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$allTransactionsStmt->close();
+
+// Fetch detailed products data for modal
+$allProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers, MAX(date_added) as last_added FROM products WHERE DATE(date_added) <= ? GROUP BY name ORDER BY total_stock DESC");
+$allProductsStmt->bind_param("s", $selectedDate);
+$allProductsStmt->execute();
+$allProducts = $allProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$allProductsStmt->close();
+
+// Fetch expiring products for modal
+$expiringProductsStmt = $conn->prepare("SELECT name, lot_number, batch_number, stock, expiration_date, supplier, DATEDIFF(expiration_date, ?) as days_until_expiry FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ? ORDER BY expiration_date ASC");
+$expiringProductsStmt->bind_param("ssss", $selectedDate, $selectedDate, $selectedDate, $selectedDate);
+$expiringProductsStmt->execute();
+$expiringProducts = $expiringProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$expiringProductsStmt->close();
+
+// Fetch low stock products for modal
+$lowStockProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers FROM products WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ? GROUP BY name HAVING SUM(stock) <= 5 AND SUM(stock) > 0 ORDER BY total_stock ASC");
+$lowStockProductsStmt->bind_param("ss", $selectedDate, $selectedDate);
+$lowStockProductsStmt->execute();
+$lowStockProducts = $lowStockProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$lowStockProductsStmt->close();
 
 // Fetch Sales Data for the Chart (daily sales for the last 7 days)
 $chartDataStmt = $conn->prepare("
@@ -72,14 +115,16 @@ $rawChartData = $chartDataStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $chartDataStmt->close();
 
 // --- FIXED QUERY ---
-// Fetch top 5 products for inventory chart using SUM(stock)
+// Fetch top 5 products for inventory chart using SUM(stock) up to selected date
 $inventoryChartStmt = $conn->prepare("
     SELECT name, SUM(stock) as total_stock 
     FROM products 
+    WHERE DATE(date_added) <= ?
     GROUP BY name 
     ORDER BY total_stock DESC 
     LIMIT 5
 ");
+$inventoryChartStmt->bind_param("s", $selectedDate);
 $inventoryChartStmt->execute();
 $inventoryChartResult = $inventoryChartStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $inventoryChartStmt->close();
@@ -141,33 +186,63 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
         <main class="flex-1 overflow-y-auto p-6">
             <div id="page-content">
                 <div id="dashboard-page" class="space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                    <!-- Date Filter Section -->
+                    <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <p class="text-sm text-gray-500" >Total sales today</p>
+                                <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                                <p class="text-sm text-gray-600 mt-1">Overview of your pharmacy operations and key metrics</p>
+                            </div>
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Date:</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="date" id="date-filter" value="<?php echo $selectedDate; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                    <button id="apply-date-filter" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors">
+                                        Apply
+                                    </button>
+                                    <button id="today-btn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors">
+                                        Today
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">Showing data for:</span>
+                                <span class="font-semibold text-gray-800"><?php echo date('l, F j, Y', strtotime($selectedDate)); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="sales-card">
+                            <div>
+                                <p class="text-sm text-gray-500" ><?php echo $selectedDate === date('Y-m-d') ? 'Total sales today' : 'Total sales'; ?></p>
                                 <p class="text-2xl font-bold text-[#236B3D]" id="total-sales-today">₱<?php echo htmlspecialchars(number_format($totalSalesToday, 2)); ?></p>
+                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
                             </div>
                             <i class="ph-fill ph-chart-line text-4xl text-gray-400"></i>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="products-card">
                             <div>
                                 <p class="text-sm text-gray-500">Total Products</p>
                                 <p class="text-2xl font-bold text-[#236B3D]"><?php echo htmlspecialchars($totalProducts); ?></p>
+                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
                             </div>
-                            <i class="ph-fill ph-user-list text-4xl text-gray-400"></i>
+                            <i class="ph-fill ph-package text-4xl text-gray-400"></i>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="expiration-card">
                             <div>
                                 <p class="text-sm text-gray-500">Expiration Alert</p>
                                 <p class="text-2xl font-bold text-orange-500" id="exp-alert-count"><?php echo htmlspecialchars($expAlertCount); ?></p>
+                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
                             </div>
                             <i class="ph-fill ph-clock-countdown text-4xl text-orange-500"></i>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="low-stock-card">
                             <div>
                                 <p class="text-sm text-gray-500">Low stock item</p>
                                 <p class="text-2xl font-bold text-red-500" id="low-stock-item"><?php echo htmlspecialchars($lowStockCount); ?></p>
-                                <span class="text-xs text-gray-400">needs attention</span>
+                                <p class="text-xs text-gray-400 mt-1">Click to view details</p>
                             </div>
                             <i class="ph-fill ph-warning text-4xl text-red-500"></i>
                         </div>
@@ -197,7 +272,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <p class="text-center text-gray-500 py-8">No recent transactions today.</p>
+                                    <p class="text-center text-gray-500 py-8"><?php echo $selectedDate === date('Y-m-d') ? 'No recent transactions today.' : 'No transactions found for ' . date('M j, Y', strtotime($selectedDate)) . '.'; ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -218,6 +293,278 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
     </div>
     
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
+
+    <!-- Sales Details Modal -->
+    <div id="sales-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">Sales Details</h3>
+                    <button id="close-sales-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">All transactions for <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="mb-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold text-gray-700">Total Sales:</span>
+                            <span class="text-2xl font-bold text-green-600">₱<?php echo number_format($totalSalesToday, 2); ?></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-sm text-gray-600">Total Transactions:</span>
+                            <span class="text-sm font-semibold text-gray-700"><?php echo count($allTransactions); ?> transactions</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                                <th class="py-3 px-4 font-semibold text-gray-600">#</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Quantity</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-right">Total Price</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($allTransactions)): ?>
+                                <?php foreach ($allTransactions as $index => $transaction): ?>
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                        <td class="py-3 px-4 text-sm text-gray-500"><?php echo $index + 1; ?></td>
+                                        <td class="py-3 px-4 font-medium"><?php echo htmlspecialchars($transaction['product_name']); ?></td>
+                                        <td class="py-3 px-4 text-center font-semibold text-blue-600"><?php echo $transaction['quantity']; ?></td>
+                                        <td class="py-3 px-4 text-right font-semibold text-green-600">₱<?php echo number_format($transaction['total_price'], 2); ?></td>
+                                        <td class="py-3 px-4 text-center text-sm text-gray-600"><?php echo date('g:i A', strtotime($transaction['transaction_date'])); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500">No transactions found.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <button id="close-sales-modal-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Details Modal -->
+    <div id="products-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">Products Details</h3>
+                    <button id="close-products-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">All products in inventory as of <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="mb-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold text-gray-700">Total Products:</span>
+                            <span class="text-2xl font-bold text-blue-600"><?php echo $totalProducts; ?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                                <th class="py-3 px-4 font-semibold text-gray-600">#</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Total Stock</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Earliest Expiry</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Suppliers</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($allProducts)): ?>
+                                <?php foreach ($allProducts as $index => $product): ?>
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                        <td class="py-3 px-4 text-sm text-gray-500"><?php echo $index + 1; ?></td>
+                                        <td class="py-3 px-4 font-medium"><?php echo htmlspecialchars($product['name']); ?></td>
+                                        <td class="py-3 px-4 text-center font-semibold text-blue-600"><?php echo number_format($product['total_stock']); ?></td>
+                                        <td class="py-3 px-4 text-center text-sm">
+                                            <?php if ($product['earliest_expiry']): ?>
+                                                <span class="text-gray-600"><?php echo date('M d, Y', strtotime($product['earliest_expiry'])); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-gray-400">No expiry</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="py-3 px-4 text-sm"><?php echo htmlspecialchars($product['suppliers']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500">No products found.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <button id="close-products-modal-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiration Alert Modal -->
+    <div id="expiration-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">Expiration Alert Details</h3>
+                    <button id="close-expiration-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Products expiring within 1 month from <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="mb-4">
+                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold text-gray-700">Products Expiring Soon:</span>
+                            <span class="text-2xl font-bold text-orange-600"><?php echo $expAlertCount; ?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                                <th class="py-3 px-4 font-semibold text-gray-600">#</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Lot #</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Stock</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Days Until Expiry</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Expiration Date</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($expiringProducts)): ?>
+                                <?php foreach ($expiringProducts as $index => $product): ?>
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                        <td class="py-3 px-4 text-sm text-gray-500"><?php echo $index + 1; ?></td>
+                                        <td class="py-3 px-4 font-medium"><?php echo htmlspecialchars($product['name']); ?></td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <?php echo htmlspecialchars($product['lot_number'] ?: 'N/A'); ?>
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center font-semibold"><?php echo number_format($product['stock']); ?></td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                <?php echo $product['days_until_expiry']; ?> days
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center text-sm text-orange-600 font-medium"><?php echo date('M d, Y', strtotime($product['expiration_date'])); ?></td>
+                                        <td class="py-3 px-4 text-sm"><?php echo htmlspecialchars($product['supplier']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center py-8 text-gray-500">No products expiring soon.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <button id="close-expiration-modal-btn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Modal -->
+    <div id="low-stock-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">Low Stock Alert Details</h3>
+                    <button id="close-low-stock-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Products with low stock (5 or fewer items) as of <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="mb-4">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold text-gray-700">Low Stock Items:</span>
+                            <span class="text-2xl font-bold text-red-600"><?php echo $lowStockCount; ?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                                <th class="py-3 px-4 font-semibold text-gray-600">#</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Product Name</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Current Stock</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Earliest Expiry</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600">Suppliers</th>
+                                <th class="py-3 px-4 font-semibold text-gray-600 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($lowStockProducts)): ?>
+                                <?php foreach ($lowStockProducts as $index => $product): ?>
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                        <td class="py-3 px-4 text-sm text-gray-500"><?php echo $index + 1; ?></td>
+                                        <td class="py-3 px-4 font-medium"><?php echo htmlspecialchars($product['name']); ?></td>
+                                        <td class="py-3 px-4 text-center font-semibold text-red-600"><?php echo number_format($product['total_stock']); ?></td>
+                                        <td class="py-3 px-4 text-center text-sm">
+                                            <?php if ($product['earliest_expiry']): ?>
+                                                <span class="text-gray-600"><?php echo date('M d, Y', strtotime($product['earliest_expiry'])); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-gray-400">No expiry</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="py-3 px-4 text-sm"><?php echo htmlspecialchars($product['suppliers']); ?></td>
+                                        <td class="py-3 px-4 text-center">
+                                            <?php if ($product['total_stock'] <= 2): ?>
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    Critical
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    Low
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-500">No low stock items found.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <button id="close-low-stock-modal-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -264,6 +611,38 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
             }
             updateDateTime();
             setInterval(updateDateTime, 60000);
+
+            // Date Filter functionality
+            const dateFilter = document.getElementById('date-filter');
+            const applyDateFilter = document.getElementById('apply-date-filter');
+            const todayBtn = document.getElementById('today-btn');
+
+            if (applyDateFilter) {
+                applyDateFilter.addEventListener('click', () => {
+                    const selectedDate = dateFilter.value;
+                    if (selectedDate) {
+                        window.location.href = `dashboard.php?date=${selectedDate}`;
+                    }
+                });
+            }
+
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    window.location.href = 'dashboard.php';
+                });
+            }
+
+            // Allow Enter key to apply filter
+            if (dateFilter) {
+                dateFilter.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const selectedDate = dateFilter.value;
+                        if (selectedDate) {
+                            window.location.href = `dashboard.php?date=${selectedDate}`;
+                        }
+                    }
+                });
+            }
 
             // Sales Overview Chart
             const salesOverviewChartCanvas = document.getElementById('salesOverviewChart');
@@ -324,6 +703,129 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                         scales: {
                             y: { beginAtZero: true }
                         }
+                    }
+                });
+            }
+
+            // Modal functionality for dashboard cards
+            const salesCard = document.getElementById('sales-card');
+            const productsCard = document.getElementById('products-card');
+            const expirationCard = document.getElementById('expiration-card');
+            const lowStockCard = document.getElementById('low-stock-card');
+
+            const salesModal = document.getElementById('sales-modal');
+            const productsModal = document.getElementById('products-modal');
+            const expirationModal = document.getElementById('expiration-modal');
+            const lowStockModal = document.getElementById('low-stock-modal');
+
+            // Sales Modal
+            if (salesCard && salesModal) {
+                salesCard.addEventListener('click', () => {
+                    salesModal.classList.remove('hidden');
+                });
+
+                const closeSalesModal = document.getElementById('close-sales-modal');
+                const closeSalesModalBtn = document.getElementById('close-sales-modal-btn');
+
+                if (closeSalesModal) {
+                    closeSalesModal.addEventListener('click', () => {
+                        salesModal.classList.add('hidden');
+                    });
+                }
+
+                if (closeSalesModalBtn) {
+                    closeSalesModalBtn.addEventListener('click', () => {
+                        salesModal.classList.add('hidden');
+                    });
+                }
+
+                salesModal.addEventListener('click', (e) => {
+                    if (e.target === salesModal) {
+                        salesModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Products Modal
+            if (productsCard && productsModal) {
+                productsCard.addEventListener('click', () => {
+                    productsModal.classList.remove('hidden');
+                });
+
+                const closeProductsModal = document.getElementById('close-products-modal');
+                const closeProductsModalBtn = document.getElementById('close-products-modal-btn');
+
+                if (closeProductsModal) {
+                    closeProductsModal.addEventListener('click', () => {
+                        productsModal.classList.add('hidden');
+                    });
+                }
+
+                if (closeProductsModalBtn) {
+                    closeProductsModalBtn.addEventListener('click', () => {
+                        productsModal.classList.add('hidden');
+                    });
+                }
+
+                productsModal.addEventListener('click', (e) => {
+                    if (e.target === productsModal) {
+                        productsModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Expiration Modal
+            if (expirationCard && expirationModal) {
+                expirationCard.addEventListener('click', () => {
+                    expirationModal.classList.remove('hidden');
+                });
+
+                const closeExpirationModal = document.getElementById('close-expiration-modal');
+                const closeExpirationModalBtn = document.getElementById('close-expiration-modal-btn');
+
+                if (closeExpirationModal) {
+                    closeExpirationModal.addEventListener('click', () => {
+                        expirationModal.classList.add('hidden');
+                    });
+                }
+
+                if (closeExpirationModalBtn) {
+                    closeExpirationModalBtn.addEventListener('click', () => {
+                        expirationModal.classList.add('hidden');
+                    });
+                }
+
+                expirationModal.addEventListener('click', (e) => {
+                    if (e.target === expirationModal) {
+                        expirationModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Low Stock Modal
+            if (lowStockCard && lowStockModal) {
+                lowStockCard.addEventListener('click', () => {
+                    lowStockModal.classList.remove('hidden');
+                });
+
+                const closeLowStockModal = document.getElementById('close-low-stock-modal');
+                const closeLowStockModalBtn = document.getElementById('close-low-stock-modal-btn');
+
+                if (closeLowStockModal) {
+                    closeLowStockModal.addEventListener('click', () => {
+                        lowStockModal.classList.add('hidden');
+                    });
+                }
+
+                if (closeLowStockModalBtn) {
+                    closeLowStockModalBtn.addEventListener('click', () => {
+                        lowStockModal.classList.add('hidden');
+                    });
+                }
+
+                lowStockModal.addEventListener('click', (e) => {
+                    if (e.target === lowStockModal) {
+                        lowStockModal.classList.add('hidden');
                     }
                 });
             }

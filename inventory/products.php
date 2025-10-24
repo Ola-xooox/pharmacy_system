@@ -53,6 +53,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory System - Products</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -278,7 +280,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
 
             function createProductCardHTML(product) {
                 const stockStatus = getStockStatus(product.stock);
-                const placeholderSVG = `<svg class="w-16 h-16 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor"><path d="M24 8h16v8H24z" opacity="0.3"/><path d="M40 6H24c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H24V8h16v8zm8 4H16c-2.2 0-4 1.8-4 4v32c0 2.2 1.8 4 4 4h32c2.2 0 4-1.8 4-4V24c0-2.2-1.8-4-4-4zm0 36H16V24h32v32z"/><path d="M32 28c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12-5.4-12-12-12zm0 20c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"/></svg>`;
+                const placeholderSVG = `<i class="fas fa-pills text-gray-400" style="font-size: 3rem;"></i>`;
                 const imageContent = product.image_path ? `<img src="../${product.image_path}" alt="${product.name}" class="product-image">` : placeholderSVG;
                 
                 return `
