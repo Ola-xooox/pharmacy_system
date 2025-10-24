@@ -168,11 +168,7 @@ function getPOSDarkModeAssets() {
         background-color: #1f2937 !important;
     }
     
-    /* Make all text white in dark mode */
-    .dark,
-    .dark * {
-        color: white !important;
-    }
+    /* Make text white in dark mode - removed aggressive rule that was hiding products */
     
     /* Background colors */
     .dark .bg-white {

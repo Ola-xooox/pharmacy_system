@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 24, 2025 at 11:19 AM
+-- Generation Time: Oct 24, 2025 at 01:39 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -65,7 +65,8 @@ CREATE TABLE `customer_history` (
 --
 
 INSERT INTO `customer_history` (`id`, `customer_name`, `customer_id_no`, `total_visits`, `total_spent`, `last_visit`) VALUES
-(17, 'Mr', '12345', 1, 40.00, '2025-10-24 09:09:32');
+(17, 'Mr', '12345', 1, 40.00, '2025-10-24 09:09:32'),
+(18, 'Mr', '1', 1, 40.00, '2025-10-24 09:35:10');
 
 -- --------------------------------------------------------
 
@@ -88,9 +89,7 @@ CREATE TABLE `otp_verification` (
 --
 
 INSERT INTO `otp_verification` (`id`, `email`, `otp_code`, `created_at`, `expires_at`, `is_used`, `attempts`) VALUES
-(125, 'markjamesp11770@gmail.com', '390826', '2025-10-24 09:06:11', '2025-10-24 09:11:11', 1, 0),
-(126, 'parkjihyoda@gmail.com', '987502', '2025-10-24 09:06:47', '2025-10-24 09:11:47', 1, 0),
-(127, 'markjamesp11770@gmail.com', '464148', '2025-10-24 09:09:58', '2025-10-24 09:14:58', 1, 0);
+(135, 'unstoppabegaming@gmail.com', '964169', '2025-10-24 11:35:51', '2025-10-24 11:40:51', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -121,7 +120,9 @@ CREATE TABLE `products` (
 
 INSERT INTO `products` (`id`, `name`, `lot_number`, `category_id`, `price`, `cost`, `stock`, `date_added`, `expiration_date`, `supplier`, `batch_number`, `image_path`, `image_data`, `image_type`) VALUES
 (42, 'Lagundi', '1', 5, 10.00, 100.00, 0, '2025-10-24 16:58:31', '2025-11-24', 'Mark', '1', NULL, NULL, NULL),
-(43, 'Solmux', '1', 5, 10.00, 100.00, 10, '2025-10-24 17:11:21', '2025-10-24', 'Mark', '1', NULL, NULL, NULL);
+(44, 'Solmux', '2', 5, 10.00, 100.00, 5, '2025-10-24 17:30:57', '2025-11-24', 'Mark', '2', NULL, NULL, NULL),
+(45, 'Paracetamol', '3', 5, 10.00, 100.00, 10, '2025-10-24 17:41:54', '2025-10-24', 'Mark', '1', NULL, NULL, NULL),
+(46, 'Lagundi', '3', 5, 100.00, 10.00, 10, '2025-10-24 17:44:46', '2025-11-24', 'Mark', '1', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -166,7 +167,8 @@ CREATE TABLE `purchase_history` (
 --
 
 INSERT INTO `purchase_history` (`id`, `transaction_id`, `product_name`, `quantity`, `total_price`, `transaction_date`) VALUES
-(66, 28, 'Lagundi', 5, 50.00, '2025-10-24 09:09:32');
+(66, 28, 'Lagundi', 5, 50.00, '2025-10-24 09:09:32'),
+(67, 29, 'Solmux', 5, 50.00, '2025-10-24 09:35:10');
 
 -- --------------------------------------------------------
 
@@ -186,7 +188,8 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`id`, `customer_history_id`, `total_amount`, `transaction_date`) VALUES
-(28, 17, 40.00, '2025-10-24 09:09:32');
+(28, 17, 40.00, '2025-10-24 09:09:32'),
+(29, 18, 40.00, '2025-10-24 09:35:10');
 
 -- --------------------------------------------------------
 
@@ -248,7 +251,10 @@ CREATE TABLE `user_activity_log` (
 
 INSERT INTO `user_activity_log` (`id`, `user_id`, `action_description`, `timestamp`) VALUES
 (67, 20, 'Inventory System: Added new product: \'Lagundi\' (Lot: 1).', '2025-10-24 16:58:31'),
-(68, 20, 'Inventory System: Added new product: \'Solmux\' (Lot: 1).', '2025-10-24 17:11:21');
+(68, 20, 'Inventory System: Added new product: \'Solmux\' (Lot: 1).', '2025-10-24 17:11:21'),
+(69, 20, 'Inventory System: Added new product: \'Solmux\' (Lot: 2).', '2025-10-24 17:30:57'),
+(70, 20, 'Inventory System: Added new product: \'Paracetamol\' (Lot: 3).', '2025-10-24 17:41:54'),
+(71, 20, 'Inventory System: Added new product: \'Lagundi\' (Lot: 3).', '2025-10-24 17:44:46');
 
 --
 -- Indexes for dumped tables
@@ -330,19 +336,19 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `customer_history`
 --
 ALTER TABLE `customer_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `otp_verification`
 --
 ALTER TABLE `otp_verification`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=128;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
 
 --
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `product_history`
@@ -354,13 +360,13 @@ ALTER TABLE `product_history`
 -- AUTO_INCREMENT for table `purchase_history`
 --
 ALTER TABLE `purchase_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=67;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -372,7 +378,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `user_activity_log`
 --
 ALTER TABLE `user_activity_log`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
 -- Constraints for dumped tables

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Fetch</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #fee; border: 1px solid #fcc; }
+        .success { background: #efe; border: 1px solid #cfc; }
+        pre { background: #333; color: #0f0; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test POS API Fetch</h1>
+    
+    <button onclick="testProducts()">Test Get Products API</button>
+    <button onclick="testCategories()">Test Get Categories API</button>
+    <button onclick="testBoth()">Test Both APIs</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        async function testProducts() {
+            resultsDiv.innerHTML = '<div class="result">Testing Products API...</div>';
+            try {
+                console.log('Fetching from: ../api/get_products.php?status=available');
+                const response = await fetch('../api/get_products.php?status=available');
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                const text = await response.text();
+                console.log('Raw response:', text);
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    resultsDiv.innerHTML = `<div class="result error">
+                        <h3>❌ JSON Parse Error</h3>
+                        <p>The API returned invalid JSON</p>
+                        <pre>${text}</pre>
+                    </div>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML = `<div class="result success">
+                    <h3>✅ Products API Response</h3>
+                    <p>Found ${data.length} products</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>`;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">
+                    <h3>❌ Fetch Error</h3>
+                    <p>${error.message}</p>
+                    <pre>${error.stack}</pre>
+                </div>`;
+            }
+        }
+
+        async function testCategories() {
+            resultsDiv.innerHTML = '<div class="result">Testing Categories API...</div>';
+            try {
+                console.log('Fetching from: ../api/get_categories.php');
+                const response = await fetch('../api/get_categories.php');
+                console.log('Response status:', response.status);
+                
+                const text = await response.text();
+                console.log('Raw response:', text);
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    resultsDiv.innerHTML = `<div class="result error">
+                        <h3>❌ JSON Parse Error</h3>
+                        <p>The API returned invalid JSON</p>
+                        <pre>${text}</pre>
+                    </div>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML = `<div class="result success">
+                    <h3>✅ Categories API Response</h3>
+                    <p>Found ${data.length} categories</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>`;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">
+                    <h3>❌ Fetch Error</h3>
+                    <p>${error.message}</p>
+                    <pre>${error.stack}</pre>
+                </div>`;
+            }
+        }
+
+        async function testBoth() {
+            resultsDiv.innerHTML = '<div class="result">Testing both APIs...</div>';
+            try {
+                const [productsResponse, categoriesResponse] = await Promise.all([
+                    fetch('../api/get_products.php?status=available'),
+                    fetch('../api/get_categories.php')
+                ]);
+                
+                const productsText = await productsResponse.text();
+                const categoriesText = await categoriesResponse.text();
+                
+                const products = JSON.parse(productsText);
+                const categories = JSON.parse(categoriesText);
+                
+                resultsDiv.innerHTML = `<div class="result success">
+                    <h3>✅ Both APIs Working</h3>
+                    <h4>Products (${products.length}):</h4>
+                    <pre>${JSON.stringify(products, null, 2)}</pre>
+                    <h4>Categories (${categories.length}):</h4>
+                    <pre>${JSON.stringify(categories, null, 2)}</pre>
+                </div>`;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+        }
+
+        // Auto-run test on load
+        window.onload = () => testBoth();
+    </script>
+</body>
+</html>

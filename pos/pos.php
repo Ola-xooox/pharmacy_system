@@ -31,7 +31,6 @@
             }
         }
     </script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root { 
             --primary-green: #01A74F; 
@@ -302,7 +301,7 @@
                 </div>
                 
                 <div class="relative mb-6">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"></i>
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"></i>
                     <input type="text" id="product-search" placeholder="Search by product name..." class="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green transition-shadow">
                 </div>
 
@@ -357,7 +356,7 @@
                             </div>
                             
                             <button id="checkout-btn" class="btn btn-primary w-full mt-6" disabled>
-                                <i data-lucide="credit-card" class="w-5 h-5"></i>
+                                <i class="fas fa-credit-card w-5 h-5"></i>
                                 <span>Proceed to Payment</span>
                             </button>
                         </div>
@@ -399,12 +398,12 @@
                         <div id="discount-payment-method-container" class="space-y-2">
                             <label class="payment-method-option flex items-center p-3 border-2 border-gray-200 rounded-lg bg-gray-50 cursor-pointer">
                                 <input type="radio" name="discount-payment-method" value="cash" class="form-radio text-brand-green" checked>
-                                <i data-lucide="wallet" class="w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
+                                <i class="fas fa-wallet w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
                                 <span class="font-semibold text-sm sm:text-base">Cash</span>
                             </label>
                              <label class="payment-method-option flex items-center p-3 border-2 border-gray-200 rounded-lg bg-gray-50 cursor-pointer">
                                 <input type="radio" name="discount-payment-method" value="gcash" class="form-radio text-brand-green">
-                                <i data-lucide="smartphone" class="w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
+                                <i class="fas fa-mobile-alt w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
                                 <span class="font-semibold text-sm sm:text-base">GCash</span>
                             </label>
                         </div>
@@ -448,12 +447,12 @@
                         <div id="regular-payment-method-container" class="space-y-2">
                             <label class="payment-method-option flex items-center p-3 border-2 border-gray-200 rounded-lg bg-gray-50 cursor-pointer">
                                 <input type="radio" name="regular-payment-method" value="cash" class="form-radio text-brand-green" checked>
-                                <i data-lucide="wallet" class="w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
+                                <i class="fas fa-wallet w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
                                 <span class="font-semibold text-sm sm:text-base">Cash</span>
                             </label>
                              <label class="payment-method-option flex items-center p-3 border-2 border-gray-200 rounded-lg bg-gray-50 cursor-pointer">
                                 <input type="radio" name="regular-payment-method" value="gcash" class="form-radio text-brand-green">
-                                <i data-lucide="smartphone" class="w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
+                                <i class="fas fa-mobile-alt w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
                                 <span class="font-semibold text-sm sm:text-base">GCash</span>
                             </label>
                         </div>
@@ -523,7 +522,7 @@
                  </div>
 
                  <div class="mt-8 flex gap-3 no-print">
-                    <button id="print-receipt-btn" class="btn btn-secondary w-full"><i data-lucide="printer" class="w-4 h-4"></i>Print Receipt</button>
+                    <button id="print-receipt-btn" class="btn btn-secondary w-full"><i class="fas fa-print w-4 h-4"></i> Print Receipt</button>
                     <button id="new-transaction-btn" class="btn btn-primary w-full">New Transaction</button>
                  </div>
              </div>
@@ -532,7 +531,8 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
+            console.log('=== POS JavaScript Starting ===');
+            
             let allProducts = [];
             let allCategories = [];
             let orderItems = [];
@@ -543,6 +543,11 @@
             const categoryFilterContainer = document.getElementById('category-filter-container');
             const stockStatusFilter = document.getElementById('stock-status-filter');
             const orderItemsContainer = document.getElementById('order-items');
+            
+            console.log('DOM Elements loaded:');
+            console.log('- productGrid:', productGrid);
+            console.log('- productSearchInput:', productSearchInput);
+            console.log('- categoryFilterContainer:', categoryFilterContainer);
             const subtotalElement = document.getElementById('subtotal');
             const discountSelector = document.getElementById('discount-selector');
             const discountAmountElement = document.getElementById('discount-amount');
@@ -605,11 +610,15 @@
             const placeholderSVG = `<i class="fas fa-pills text-gray-400" style="font-size: 3rem;"></i>`;
 
             async function fetchProducts(status = 'available') {
+                console.log('fetchProducts called with status:', status);
                 try {
                     const response = await fetch(`../api/get_products.php?status=${status}`);
+                    console.log('Response received:', response.status);
                     allProducts = await response.json();
+                    console.log('Products loaded:', allProducts.length, allProducts);
                     updateProductView();
                 } catch (error) {
+                    console.error('Error fetching products:', error);
                     productGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Could not load products.</p>`;
                 }
             }
@@ -650,6 +659,8 @@
             }
 
             function renderProducts(productsToRender) {
+                console.log('renderProducts called with', productsToRender.length, 'products');
+                console.log('productGrid element:', productGrid);
                 if (productsToRender.length === 0) {
                     productGrid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">No products found for the current filter.</p>`;
                     return;
@@ -672,6 +683,8 @@
                         </div>
                     `;
                 }).join('');
+                console.log('Products rendered to DOM. Grid HTML length:', productGrid.innerHTML.length);
+                console.log('First 200 chars:', productGrid.innerHTML.substring(0, 200));
             }
 
             function renderCategoryFilters(categories) {
@@ -697,7 +710,7 @@
             
             function updateOrderSummary() {
                 if (orderItems.length === 0) {
-                    orderItemsContainer.innerHTML = `<div class="text-center text-gray-400 py-16 px-4"><i data-lucide="shopping-cart" class="mx-auto h-12 w-12"></i><p class="mt-4 text-sm">Your cart is empty</p></div>`;
+                    orderItemsContainer.innerHTML = `<div class="text-center text-gray-400 py-16 px-4"><i class="fas fa-shopping-cart mx-auto h-12 w-12"></i><p class="mt-4 text-sm">Your cart is empty</p></div>`;
                 } else {
                     orderItemsContainer.innerHTML = orderItems.map((item, index) =>
                         `<div class="flex items-center gap-4 p-3"><img src="${item.image_path ? `../${item.image_path}` : ''}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover bg-gray-100"><div class="flex-grow"><p class="font-semibold text-sm">${item.name}</p><p class="text-xs text-gray-500">₱${Number(item.price).toFixed(2)}</p></div><div class="flex items-center gap-2 text-sm"><div class="quantity-selector flex items-center border border-gray-200 rounded-md"><button class="minus p-1.5 transition" data-index="${index}"><i data-lucide="minus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button><input type="text" class="w-8 text-center font-medium bg-transparent" value="${item.quantity}" readonly><button class="plus p-1.5 transition" data-index="${index}"><i data-lucide="plus" class="w-4 h-4 text-gray-500 pointer-events-none"></i></button></div></div><button class="remove-item-btn p-1.5 rounded-md text-gray-400 transition" data-index="${index}"><i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button></div>`
@@ -713,7 +726,6 @@
                 discountAmountElement.textContent = `-₱${discountAmount.toFixed(2)}`;
                 totalElement.textContent = `₱${total.toFixed(2)}`;
                 checkoutBtn.disabled = orderItems.length === 0;
-                lucide.createIcons();
             }
 
             productSearchInput.addEventListener('input', updateProductView);
@@ -795,8 +807,6 @@
                     regularPaymentModal.classList.add('active');
                     updatePaymentMethodStyles(regularPaymentMethodContainer);
                 }
-                
-                lucide.createIcons();
             });
 
             cancelDiscountPaymentBtn.addEventListener('click', () => {
@@ -921,7 +931,6 @@
                 receiptTotal.textContent = `₱${total.toFixed(2)}`;
 
                 receiptModal.classList.add('active');
-                lucide.createIcons();
             }
 
             newTransactionBtn.addEventListener('click', () => {
