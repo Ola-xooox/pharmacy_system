@@ -123,15 +123,15 @@ function handleCompleteSale($conn) {
         }
 
         // Step 3: Update inventory for each item
-        $updateStmt = $conn->prepare("UPDATE products SET stock = ?, item_total = ? WHERE id = ?");
+        $updateStmt = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
         foreach ($items as $item) {
             $product_name = $item['name'];
             $quantity_to_sell = (int)$item['quantity'];
 
             // Fetch lots for this product (FIFO - First In, First Out)
             $fetchLotsStmt = $conn->prepare(
-                "SELECT id, item_total, items_per_stock FROM products 
-                 WHERE name = ? AND item_total > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
+                "SELECT id, stock FROM products 
+                 WHERE name = ? AND stock > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
                  ORDER BY expiration_date ASC"
             );
             $fetchLotsStmt->bind_param("s", $product_name);
@@ -139,8 +139,8 @@ function handleCompleteSale($conn) {
             $lots = $fetchLotsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $fetchLotsStmt->close();
 
-            $total_available_items = array_sum(array_column($lots, 'item_total'));
-            if ($quantity_to_sell > $total_available_items) {
+            $total_available_stock = array_sum(array_column($lots, 'stock'));
+            if ($quantity_to_sell > $total_available_stock) {
                 throw new Exception("Insufficient stock for product: " . htmlspecialchars($product_name) . ". Requested: " . $quantity_to_sell);
             }
 
@@ -148,23 +148,15 @@ function handleCompleteSale($conn) {
             foreach ($lots as $lot) {
                 if ($quantity_remaining_to_sell <= 0) break;
 
-                $items_in_this_lot = (int)$lot['item_total'];
-                $items_to_take_from_lot = min($quantity_remaining_to_sell, $items_in_this_lot);
+                $stock_in_this_lot = (int)$lot['stock'];
+                $stock_to_take_from_lot = min($quantity_remaining_to_sell, $stock_in_this_lot);
                 
-                $new_item_total = $items_in_this_lot - $items_to_take_from_lot;
-                $items_per_stock = (int)$lot['items_per_stock'];
+                $new_stock = $stock_in_this_lot - $stock_to_take_from_lot;
 
-                if ($items_per_stock <= 0) {
-                    throw new Exception("Product configuration error: 'items_per_stock' is not set for product ID: " . $lot['id']);
-                }
-                
-                $new_stock = ceil($new_item_total / $items_per_stock);
-                if ($new_item_total <= 0) $new_stock = 0;
-
-                $updateStmt->bind_param("iii", $new_stock, $new_item_total, $lot['id']);
+                $updateStmt->bind_param("ii", $new_stock, $lot['id']);
                 $updateStmt->execute();
 
-                $quantity_remaining_to_sell -= $items_to_take_from_lot;
+                $quantity_remaining_to_sell -= $stock_to_take_from_lot;
             }
         }
         $updateStmt->close();

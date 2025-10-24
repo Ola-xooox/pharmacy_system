@@ -23,11 +23,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             p.name, 
             p.category_id,
             c.name as category_name,
-            SUM(p.stock) as stock, 
-            SUM(p.item_total) as item_total
+            SUM(p.stock) as stock
         FROM products p 
         JOIN categories c ON p.category_id = c.id 
-        WHERE (p.expiration_date > CURDATE() OR p.expiration_date IS NULL) AND p.item_total > 0
+        WHERE (p.expiration_date > CURDATE() OR p.expiration_date IS NULL) AND p.stock > 0
         GROUP BY p.name, p.category_id, c.name
         HAVING SUM(p.stock) <= 5 AND SUM(p.stock) > 0
     ");
@@ -42,13 +41,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             p.name, 
             p.category_id,
             c.name as category_name,
-            SUM(p.stock) as stock, 
-            SUM(p.item_total) as item_total
+            SUM(p.stock) as stock
         FROM products p 
         JOIN categories c ON p.category_id = c.id 
         WHERE (p.expiration_date > CURDATE() OR p.expiration_date IS NULL)
         GROUP BY p.name, p.category_id, c.name
-        HAVING SUM(p.item_total) <= 0
+        HAVING SUM(p.stock) <= 0
     ");
     $out_of_stock_grouped_json = [];
     while($row = $out_of_stock_grouped_result->fetch_assoc()) {
@@ -74,17 +72,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     // --- Calculate Summary Counts ---
     $not_expired_condition = "(expiration_date > CURDATE() OR expiration_date IS NULL)";
     
-    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND " . $not_expired_condition);
+    $available_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND " . $not_expired_condition);
     $available_count = $available_count_result->fetch_assoc()['count'];
     
     $low_stock_count = count($low_stock_grouped_json);
 
     $out_of_stock_count = count($out_of_stock_grouped_json);
 
-    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
+    $exp_alert_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date > CURDATE() AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 1 MONTH)");
     $exp_alert_count = $exp_alert_count_result->fetch_assoc()['count'];
     
-    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE item_total > 0 AND expiration_date <= CURDATE()");
+    $expired_count_result = $conn->query("SELECT COUNT(*) as count FROM products WHERE stock > 0 AND expiration_date <= CURDATE()");
     $expired_count = $expired_count_result->fetch_assoc()['count'];
     
     $history_count = count($product_history);
@@ -298,9 +296,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
 
             // UPDATED: Table Headers Configuration
             const tableHeaders = {
-                available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Item Total", "Price", "Date Added", "Expiration Date", "Action"],
-                'low-stock': ["#", "Product Name", "Stock Level", "Item Total"],
-                'out-of-stock': ["#", "Product Name", "Stock Level", "Item Total"],
+                available: ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Price", "Date Added", "Expiration Date", "Action"],
+                'low-stock': ["#", "Product Name", "Stock Level"],
+                'out-of-stock': ["#", "Product Name", "Stock Level"],
                 'expiration-alert': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expires In", "Expiration Date"],
                 'expired': ["#", "Product Name", "Lot Number", "Batch Number", "Stock", "Expired On", "Supplier"],
                 'history': ["#", "Product Name", "Lot Num", "Batch Num", "Stock", "Date Deleted"]
@@ -344,7 +342,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
                             const isNotExpired = !expDate || expDate > today;
-                            return p.item_total > 0 && isNotExpired;
+                            return p.stock > 0 && isNotExpired;
                         });
                         break;
                     case 'low-stock':
@@ -356,13 +354,13 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                     case 'expiration-alert':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return p.item_total > 0 && expDate && expDate > today && expDate <= oneMonthFromNow;
+                            return p.stock > 0 && expDate && expDate > today && expDate <= oneMonthFromNow;
                         });
                         break;
                     case 'expired':
                         viewFilteredProducts = allProducts.filter(p => {
                             const expDate = parseDate(p.expiration_date);
-                            return p.item_total > 0 && expDate && expDate <= today;
+                            return p.stock > 0 && expDate && expDate <= today;
                         });
                         break;
                     case 'history':
@@ -414,7 +412,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
                                 <td class="px-6 py-4">${p.batch_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>
                                 <td class="px-6 py-4">₱${Number(p.price).toFixed(2)}</td>
                                 <td class="px-6 py-4">${new Date(p.date_added).toLocaleDateString()}</td>
                                 <td class="px-6 py-4">${p.expiration_date || 'N/A'}</td>
@@ -423,14 +420,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                         case 'low-stock':
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
-                                <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>`;
+                                <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>`;
                             break;
                         case 'out-of-stock':
                              rowContent = `
                                 <td class="px-6 py-4">${p.name}</td>
-                                <td class="px-6 py-4 font-bold text-red-600">${p.stock}</td>
-                                <td class="px-6 py-4 font-semibold">${p.item_total}</td>`;
+                                <td class="px-6 py-4 font-bold text-red-600">${p.stock}</td>`;
                             break;
                         case 'expiration-alert':
                             const expDateAlert = new Date(p.expiration_date);

@@ -39,7 +39,7 @@ function handleSaleProcessing($conn) {
     $conn->begin_transaction();
 
     try {
-        $updateStmt = $conn->prepare("UPDATE products SET stock = ?, item_total = ? WHERE id = ?");
+        $updateStmt = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
         $historyStmt = $conn->prepare("INSERT INTO purchase_history (product_name, quantity, total_price, transaction_date) VALUES (?, ?, ?, ?)");
         
         $totalItemsSold = 0;
@@ -53,8 +53,8 @@ function handleSaleProcessing($conn) {
 
 
             $fetchLotsStmt = $conn->prepare(
-                "SELECT id, item_total, items_per_stock FROM products 
-                 WHERE name = ? AND item_total > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
+                "SELECT id, stock FROM products 
+                 WHERE name = ? AND stock > 0 AND (expiration_date > CURDATE() OR expiration_date IS NULL)
                  ORDER BY expiration_date ASC"
             );
             $fetchLotsStmt->bind_param("s", $product_name);
@@ -62,8 +62,8 @@ function handleSaleProcessing($conn) {
             $lots = $fetchLotsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $fetchLotsStmt->close();
 
-            $total_available_items = array_sum(array_column($lots, 'item_total'));
-            if ($quantity_to_sell > $total_available_items) {
+            $total_available_stock = array_sum(array_column($lots, 'stock'));
+            if ($quantity_to_sell > $total_available_stock) {
                 throw new Exception("Insufficient stock for product: " . htmlspecialchars($product_name) . ". Requested: " . $quantity_to_sell, 400);
             }
 
@@ -71,24 +71,15 @@ function handleSaleProcessing($conn) {
             foreach ($lots as $lot) {
                 if ($quantity_remaining_to_sell <= 0) break;
 
-                $items_in_this_lot = (int) $lot['item_total'];
-                $items_to_take_from_lot = min($quantity_remaining_to_sell, $items_in_this_lot);
+                $stock_in_this_lot = (int) $lot['stock'];
+                $stock_to_take_from_lot = min($quantity_remaining_to_sell, $stock_in_this_lot);
                 
-                $new_item_total = $items_in_this_lot - $items_to_take_from_lot;
-                $items_per_stock = (int) $lot['items_per_stock'];
+                $new_stock = $stock_in_this_lot - $stock_to_take_from_lot;
 
-                if ($items_per_stock <= 0) {
-                    throw new Exception("Product configuration error: 'items_per_stock' is not set for product ID: " . $lot['id']);
-                }
-                
-                $new_stock = ceil($new_item_total / $items_per_stock);
-
-                if ($new_item_total <= 0) $new_stock = 0;
-
-                $updateStmt->bind_param("iii", $new_stock, $new_item_total, $lot['id']);
+                $updateStmt->bind_param("ii", $new_stock, $lot['id']);
                 $updateStmt->execute();
 
-                $quantity_remaining_to_sell -= $items_to_take_from_lot;
+                $quantity_remaining_to_sell -= $stock_to_take_from_lot;
             }
 
             $total_price = (float)$item['price'] * $quantity_to_sell;
@@ -130,11 +121,9 @@ function handleProductAddition($conn) {
         // Update existing product
         $addedStock = (int)$_POST['stock'];
         $newStock = $existingProduct['stock'] + $addedStock;
-        $newItemTotal = $existingProduct['item_total'] + (int)$_POST['item_total'];
-
-        $sql = "UPDATE products SET stock = ?, item_total = ?, price = ?, cost = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
+        $sql = "UPDATE products SET stock = ?, price = ?, cost = ?, batch_number = ?, expiration_date = ?, supplier = ? WHERE id = ?";
         $updateStmt = $conn->prepare($sql);
-        $updateStmt->bind_param( "iddssssi", $newStock, $newItemTotal, $_POST['price'], $_POST['cost'], $_POST['batch_number'], $_POST['expiration_date'], $_POST['supplier'], $existingProduct['id'] );
+        $updateStmt->bind_param( "idsssssi", $newStock, $_POST['price'], $_POST['cost'], $_POST['batch_number'], $_POST['expiration_date'], $_POST['supplier'], $existingProduct['id'] );
 
         if ($updateStmt->execute()) {
             echo json_encode(['success' => true, 'action' => 'updated']);
@@ -147,8 +136,6 @@ function handleProductAddition($conn) {
     } else {
         // Add new product
         $stock_to_add = (int)$_POST['stock'];
-        $items_to_add = (int)$_POST['item_total'];
-        $items_per_stock = ($stock_to_add > 0) ? ($items_to_add / $stock_to_add) : 0;
         
         $categoryId = $_POST['category'];
         $newCategoryName = isset($_POST['new_category']) ? trim($_POST['new_category']) : '';
@@ -188,11 +175,11 @@ function handleProductAddition($conn) {
             }
         }
 
-        $sql = "INSERT INTO products (name, lot_number, category_id, price, cost, date_added, expiration_date, supplier, batch_number, image_path, stock, item_total, items_per_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO products (name, lot_number, category_id, price, cost, date_added, expiration_date, supplier, batch_number, image_path, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $insertStmt = $conn->prepare($sql);
         $dateAdded = date('Y-m-d H:i:s');
 
-        $insertStmt->bind_param( "ssiddsssssidi", $productName, $lotNumber, $categoryId, $_POST['price'], $_POST['cost'], $dateAdded, $_POST['expiration_date'], $_POST['supplier'], $_POST['batch_number'], $imagePath, $stock_to_add, $items_to_add, $items_per_stock );
+        $insertStmt->bind_param( "ssiddsssssi", $productName, $lotNumber, $categoryId, $_POST['price'], $_POST['cost'], $dateAdded, $_POST['expiration_date'], $_POST['supplier'], $_POST['batch_number'], $imagePath, $stock_to_add );
 
         if ($insertStmt->execute()) {
             echo json_encode(['success' => true, 'action' => 'inserted']);
@@ -226,10 +213,10 @@ function handleProductDeletion($conn) {
             throw new Exception("Product not found.");
         }
 
-        $historySql = "INSERT INTO product_history (product_id, name, lot_number, category_id, price, cost, stock, item_total, date_added, expiration_date, supplier, batch_number, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $historySql = "INSERT INTO product_history (product_id, name, lot_number, category_id, price, cost, stock, date_added, expiration_date, supplier, batch_number, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $historyStmt = $conn->prepare($historySql);
         $historyStmt->bind_param(
-            "issiddsdsssss",
+            "issiddssssss",
             $productData['id'],
             $productData['name'],
             $productData['lot_number'],
@@ -237,7 +224,6 @@ function handleProductDeletion($conn) {
             $productData['price'],
             $productData['cost'],
             $productData['stock'],
-            $productData['item_total'],
             $productData['date_added'],
             $productData['expiration_date'],
             $productData['supplier'],

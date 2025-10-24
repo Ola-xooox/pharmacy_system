@@ -82,10 +82,6 @@ $conn->close();
                     </div>
                     <div class="p-4 bg-gray-50 border-t flex justify-end gap-8 font-semibold">
                         <div>
-                            <span>Total Items Sold:</span>
-                            <span id="total-items" class="text-green-600">0</span>
-                        </div>
-                        <div>
                             <span>Total Sales:</span>
                             <span id="total-price" class="text-green-600">₱0.00</span>
                         </div>
@@ -108,7 +104,6 @@ $conn->close();
             const tableBody = document.getElementById('history-table-body');
             const searchInput = document.getElementById('search-input');
             const datePicker = document.getElementById('date-picker');
-            const totalItemsEl = document.getElementById('total-items');
             const totalPriceEl = document.getElementById('total-price');
             const userMenuButton = document.getElementById('user-menu-button');
             const userMenu = document.getElementById('user-menu');
@@ -166,10 +161,7 @@ $conn->close();
             }
             
             function calculateAndRenderTotals(data) {
-                const totalItems = data.reduce((sum, item) => sum + parseInt(item.quantity), 0);
                 const totalPrice = data.reduce((sum, item) => sum + parseFloat(item.total_price), 0);
-
-                totalItemsEl.textContent = totalItems;
                 totalPriceEl.textContent = `₱${totalPrice.toFixed(2)}`;
             }
 

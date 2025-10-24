@@ -15,7 +15,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         SELECT
             p.name,
             SUM(p.stock) AS stock,
-            SUM(p.item_total) AS item_total,
             c.name AS category_name,
             -- Get the price and image from the most recently added lot for this product name
             SUBSTRING_INDEX(GROUP_CONCAT(p.price ORDER BY p.id DESC), ',', 1) AS price,
@@ -144,10 +143,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                             <input type="text" onfocus="(this.type='date')" onblur="(this.type='text')" name="expiration_date" placeholder="Expiration Date" class="form-input">
                             <input type="text" name="supplier" placeholder="Supplier" class="form-input">
                             
-                            <div class="sm:col-span-2 grid grid-cols-3 gap-4">
+                            <div class="sm:col-span-2 grid grid-cols-2 gap-4">
                                 <input type="text" name="batch_number" placeholder="Batch Number" class="form-input">
                                 <input type="number" name="stock" placeholder="Stock to Add" class="form-input" required>
-                                <input type="text" name="item_total" placeholder="Total Item to Add" class="form-input">
                             </div>
                         </div>
                     </div>
@@ -292,7 +290,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                         <div class="product-info text-center">
                             <h4 class="product-name">${product.name}</h4>
                             <p class="text-sm text-gray-500 mb-2">${product.category_name}</p>
-                            <p class="text-xs text-gray-400 mb-2">Total Stock: ${product.stock} | Total Item: ${Number(product.item_total)}</p>
+                            <p class="text-xs text-gray-400 mb-2">Stock: ${product.stock}</p>
                             <p class="product-price">₱${Number(product.price).toFixed(2)}</p>
                         </div>
                     </div>`;

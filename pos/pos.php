@@ -657,7 +657,7 @@
                     const stockStatus = getStockStatus(p.stock);
                     const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}" class="product-image">` : placeholderSVG;
                     return `
-                        <div class="product-card ${p.item_total <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-name="${p.product_identifier}">
+                        <div class="product-card ${p.stock <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-name="${p.product_identifier}">
                              <div class="product-image-container">
                                 ${imageContent}
                                 <div class="stock-badge ${stockStatus.class}">${stockStatus.text}</div>
@@ -665,7 +665,7 @@
                             <div class="product-info text-center">
                                 <h4 class="product-name">${p.name}</h4>
                                 <p class="text-sm text-gray-500 mb-2">${p.category_name}</p>
-                                <p class="text-xs text-gray-400 mb-2">Stock: ${p.stock} | Items: ${p.item_total}</p>
+                                <p class="text-xs text-gray-400 mb-2">Stock: ${p.stock}</p>
                                 <p class="product-price">₱${Number(p.price).toFixed(2)}</p>
                             </div>
                         </div>
@@ -679,12 +679,12 @@
             }
             
             function addToOrder(product) {
-                if(product.item_total <= 0) return;
+                if(product.stock <= 0) return;
                 const existingItem = orderItems.find(item => item.name === product.name);
                 if (existingItem) {
                     const newQuantity = existingItem.quantity + 1;
-                    if (newQuantity > product.item_total) { 
-                        alert(`Sorry, only ${product.item_total} items of ${product.name} available.`); 
+                    if (newQuantity > product.stock) { 
+                        alert(`Sorry, only ${product.stock} items of ${product.name} available.`); 
                         return;
                     }
                     existingItem.quantity = newQuantity;
@@ -742,10 +742,10 @@
                     else orderItems.splice(index, 1);
                 } else if (button.classList.contains('plus')) {
                     const product = allProducts.find(p => p.name == item.name);
-                    if (product && item.quantity < product.item_total) {
+                    if (product && item.quantity < product.stock) {
                         item.quantity++;
                     } else {
-                        alert(`Maximum items for ${item.name} reached.`);
+                        alert(`Maximum stock for ${item.name} reached.`);
                     }
                 }
                 updateOrderSummary();

@@ -141,13 +141,6 @@ foreach ($period as $date) {
                             </div>
                             <i class="ph-fill ph-piggy-bank text-4xl text-gray-400"></i>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Total Items Sold</p>
-                                <p class="text-2xl font-bold text-[#236B3D]" id="total-orders"><?php echo htmlspecialchars($totalOrders ?? 0); ?></p>
-                            </div>
-                            <i class="ph-fill ph-shopping-bag text-4xl text-gray-400"></i>
-                        </div>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-md">
                         <h2 class="text-xl font-bold mb-4 text-gray-800">Sales Performance Daily</h2>
