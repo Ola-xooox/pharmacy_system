@@ -16,88 +16,143 @@ if ($conn->connect_error) {
 // Set the timezone
 date_default_timezone_set('Asia/Manila');
 
-// Get selected date from URL parameter, default to today
-$selectedDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+// Get selected date from URL parameter, default to 'all' for all data
+$selectedDate = isset($_GET['date']) ? $_GET['date'] : 'all';
 
-// Validate the date format
-if (!DateTime::createFromFormat('Y-m-d', $selectedDate)) {
-    $selectedDate = date('Y-m-d');
+// Validate the date format or check for 'all' option
+if ($selectedDate !== 'all' && !DateTime::createFromFormat('Y-m-d', $selectedDate)) {
+    $selectedDate = 'all';
 }
 
-// Fetch Sales Data for selected date
-$today = $selectedDate;
-$salesStmt = $conn->prepare("SELECT SUM(total_price) AS total_sales_today FROM purchase_history WHERE DATE(transaction_date) = ?");
-$salesStmt->bind_param("s", $today);
-$salesStmt->execute();
+$isAllTime = ($selectedDate === 'all');
+
+// Fetch Sales Data for selected date or all time
+if ($isAllTime) {
+    $salesStmt = $conn->prepare("SELECT SUM(total_price) AS total_sales_today FROM purchase_history");
+    $salesStmt->execute();
+} else {
+    $salesStmt = $conn->prepare("SELECT SUM(total_price) AS total_sales_today FROM purchase_history WHERE DATE(transaction_date) = ?");
+    $salesStmt->bind_param("s", $selectedDate);
+    $salesStmt->execute();
+}
 $salesData = $salesStmt->get_result()->fetch_assoc();
 $totalSalesToday = $salesData['total_sales_today'] ?? 0;
 $salesStmt->close();
 
-// Fetch Total Products (up to selected date)
-$productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products WHERE DATE(date_added) <= ?");
-$productsStmt->bind_param("s", $selectedDate);
-$productsStmt->execute();
+// Fetch Total Products
+if ($isAllTime) {
+    $productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products");
+    $productsStmt->execute();
+} else {
+    $productsStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS total_products FROM products WHERE DATE(date_added) <= ?");
+    $productsStmt->bind_param("s", $selectedDate);
+    $productsStmt->execute();
+}
 $productsData = $productsStmt->get_result()->fetch_assoc();
 $totalProducts = $productsData['total_products'] ?? 0;
 $productsStmt->close();
 
-// Fetch Expiration Alert Count (within 1 month from selected date)
-$expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ?");
-$expAlertStmt->bind_param("sss", $selectedDate, $selectedDate, $selectedDate);
+// Fetch Expiration Alert Count (within 1 month from selected date or today)
+$referenceDate = $isAllTime ? date('Y-m-d') : $selectedDate;
+if ($isAllTime) {
+    $expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH)");
+    $expAlertStmt->bind_param("ss", $referenceDate, $referenceDate);
+} else {
+    $expAlertStmt = $conn->prepare("SELECT COUNT(DISTINCT name) AS exp_alert_count FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ?");
+    $expAlertStmt->bind_param("sss", $referenceDate, $referenceDate, $selectedDate);
+}
 $expAlertStmt->execute();
 $expAlertData = $expAlertStmt->get_result()->fetch_assoc();
 $expAlertCount = $expAlertData['exp_alert_count'] ?? 0;
 $expAlertStmt->close();
 
 
-// Fetch Low Stock Count (Sum of stock per product name is <= 5, up to selected date)
-$lowStockStmt = $conn->prepare("
-    SELECT COUNT(*) as low_stock_count FROM (
-        SELECT name
-        FROM products
-        WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ?
-        GROUP BY name
-        HAVING SUM(stock) <= 5 AND SUM(stock) > 0
-    ) AS low_stock_products
-");
-$lowStockStmt->bind_param("ss", $selectedDate, $selectedDate);
+// Fetch Low Stock Count (Sum of stock per product name is <= 5)
+if ($isAllTime) {
+    $lowStockStmt = $conn->prepare("
+        SELECT COUNT(*) as low_stock_count FROM (
+            SELECT name
+            FROM products
+            WHERE (expiration_date > ? OR expiration_date IS NULL)
+            GROUP BY name
+            HAVING SUM(stock) <= 5 AND SUM(stock) > 0
+        ) AS low_stock_products
+    ");
+    $lowStockStmt->bind_param("s", $referenceDate);
+} else {
+    $lowStockStmt = $conn->prepare("
+        SELECT COUNT(*) as low_stock_count FROM (
+            SELECT name
+            FROM products
+            WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ?
+            GROUP BY name
+            HAVING SUM(stock) <= 5 AND SUM(stock) > 0
+        ) AS low_stock_products
+    ");
+    $lowStockStmt->bind_param("ss", $referenceDate, $selectedDate);
+}
 $lowStockStmt->execute();
 $lowStockData = $lowStockStmt->get_result()->fetch_assoc();
 $lowStockCount = $lowStockData['low_stock_count'] ?? 0;
 $lowStockStmt->close();
 
 
-// Fetch Recent Transactions for selected date
-$transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC LIMIT 10");
-$transactionsStmt->bind_param("s", $selectedDate);
-$transactionsStmt->execute();
+// Fetch Recent Transactions
+if ($isAllTime) {
+    $transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history ORDER BY transaction_date DESC LIMIT 10");
+    $transactionsStmt->execute();
+} else {
+    $transactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC LIMIT 10");
+    $transactionsStmt->bind_param("s", $selectedDate);
+    $transactionsStmt->execute();
+}
 $recentTransactions = $transactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $transactionsStmt->close();
 
 // Fetch detailed sales data for modal
-$allTransactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
-$allTransactionsStmt->bind_param("s", $selectedDate);
-$allTransactionsStmt->execute();
+if ($isAllTime) {
+    $allTransactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history ORDER BY transaction_date DESC LIMIT 100");
+    $allTransactionsStmt->execute();
+} else {
+    $allTransactionsStmt = $conn->prepare("SELECT product_name, quantity, total_price, transaction_date FROM purchase_history WHERE DATE(transaction_date) = ? ORDER BY transaction_date DESC");
+    $allTransactionsStmt->bind_param("s", $selectedDate);
+    $allTransactionsStmt->execute();
+}
 $allTransactions = $allTransactionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $allTransactionsStmt->close();
 
 // Fetch detailed products data for modal
-$allProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers, MAX(date_added) as last_added FROM products WHERE DATE(date_added) <= ? GROUP BY name ORDER BY total_stock DESC");
-$allProductsStmt->bind_param("s", $selectedDate);
-$allProductsStmt->execute();
+if ($isAllTime) {
+    $allProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers, MAX(date_added) as last_added FROM products GROUP BY name ORDER BY total_stock DESC");
+    $allProductsStmt->execute();
+} else {
+    $allProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers, MAX(date_added) as last_added FROM products WHERE DATE(date_added) <= ? GROUP BY name ORDER BY total_stock DESC");
+    $allProductsStmt->bind_param("s", $selectedDate);
+    $allProductsStmt->execute();
+}
 $allProducts = $allProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $allProductsStmt->close();
 
 // Fetch expiring products for modal
-$expiringProductsStmt = $conn->prepare("SELECT name, lot_number, batch_number, stock, expiration_date, supplier, DATEDIFF(expiration_date, ?) as days_until_expiry FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ? ORDER BY expiration_date ASC");
-$expiringProductsStmt->bind_param("ssss", $selectedDate, $selectedDate, $selectedDate, $selectedDate);
+if ($isAllTime) {
+    $expiringProductsStmt = $conn->prepare("SELECT name, lot_number, batch_number, stock, expiration_date, supplier, DATEDIFF(expiration_date, ?) as days_until_expiry FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) ORDER BY expiration_date ASC");
+    $expiringProductsStmt->bind_param("sss", $referenceDate, $referenceDate, $referenceDate);
+} else {
+    $expiringProductsStmt = $conn->prepare("SELECT name, lot_number, batch_number, stock, expiration_date, supplier, DATEDIFF(expiration_date, ?) as days_until_expiry FROM products WHERE expiration_date > ? AND expiration_date <= DATE_ADD(?, INTERVAL 1 MONTH) AND DATE(date_added) <= ? ORDER BY expiration_date ASC");
+    $expiringProductsStmt->bind_param("ssss", $referenceDate, $referenceDate, $referenceDate, $selectedDate);
+}
 $expiringProductsStmt->execute();
 $expiringProducts = $expiringProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $expiringProductsStmt->close();
 
 // Fetch low stock products for modal
-$lowStockProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers FROM products WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ? GROUP BY name HAVING SUM(stock) <= 5 AND SUM(stock) > 0 ORDER BY total_stock ASC");
-$lowStockProductsStmt->bind_param("ss", $selectedDate, $selectedDate);
+if ($isAllTime) {
+    $lowStockProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers FROM products WHERE (expiration_date > ? OR expiration_date IS NULL) GROUP BY name HAVING SUM(stock) <= 5 AND SUM(stock) > 0 ORDER BY total_stock ASC");
+    $lowStockProductsStmt->bind_param("s", $referenceDate);
+} else {
+    $lowStockProductsStmt = $conn->prepare("SELECT name, SUM(stock) as total_stock, MIN(expiration_date) as earliest_expiry, GROUP_CONCAT(DISTINCT supplier) as suppliers FROM products WHERE (expiration_date > ? OR expiration_date IS NULL) AND DATE(date_added) <= ? GROUP BY name HAVING SUM(stock) <= 5 AND SUM(stock) > 0 ORDER BY total_stock ASC");
+    $lowStockProductsStmt->bind_param("ss", $referenceDate, $selectedDate);
+}
 $lowStockProductsStmt->execute();
 $lowStockProducts = $lowStockProductsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $lowStockProductsStmt->close();
@@ -114,18 +169,28 @@ $chartDataStmt->execute();
 $rawChartData = $chartDataStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $chartDataStmt->close();
 
-// --- FIXED QUERY ---
-// Fetch top 5 products for inventory chart using SUM(stock) up to selected date
-$inventoryChartStmt = $conn->prepare("
-    SELECT name, SUM(stock) as total_stock 
-    FROM products 
-    WHERE DATE(date_added) <= ?
-    GROUP BY name 
-    ORDER BY total_stock DESC 
-    LIMIT 5
-");
-$inventoryChartStmt->bind_param("s", $selectedDate);
-$inventoryChartStmt->execute();
+// Fetch top 5 products for inventory chart
+if ($isAllTime) {
+    $inventoryChartStmt = $conn->prepare("
+        SELECT name, SUM(stock) as total_stock 
+        FROM products 
+        GROUP BY name 
+        ORDER BY total_stock DESC 
+        LIMIT 5
+    ");
+    $inventoryChartStmt->execute();
+} else {
+    $inventoryChartStmt = $conn->prepare("
+        SELECT name, SUM(stock) as total_stock 
+        FROM products 
+        WHERE DATE(date_added) <= ?
+        GROUP BY name 
+        ORDER BY total_stock DESC 
+        LIMIT 5
+    ");
+    $inventoryChartStmt->bind_param("s", $selectedDate);
+    $inventoryChartStmt->execute();
+}
 $inventoryChartResult = $inventoryChartStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $inventoryChartStmt->close();
 
@@ -194,14 +259,16 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                                 <p class="text-sm text-gray-600 mt-1">Overview of your pharmacy operations and key metrics</p>
                             </div>
                             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Date:</label>
+                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Period:</label>
                                 <div class="flex items-center gap-2">
-                                    <input type="date" id="date-filter" value="<?php echo $selectedDate; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                    <select id="date-filter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                        <option value="all" <?php echo $selectedDate === 'all' ? 'selected' : ''; ?>>All Time</option>
+                                        <option value="<?php echo date('Y-m-d'); ?>" <?php echo $selectedDate === date('Y-m-d') ? 'selected' : ''; ?>>Today</option>
+                                        <option value="custom" <?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? 'selected' : ''; ?>>Custom Date</option>
+                                    </select>
+                                    <input type="date" id="custom-date-input" value="<?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? $selectedDate : ''; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 <?php echo ($selectedDate === 'all' || $selectedDate === date('Y-m-d')) ? 'hidden' : ''; ?>">
                                     <button id="apply-date-filter" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors">
                                         Apply
-                                    </button>
-                                    <button id="today-btn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors">
-                                        Today
                                     </button>
                                 </div>
                             </div>
@@ -209,14 +276,32 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                         <div class="mt-4 pt-4 border-t border-gray-200">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-gray-600">Showing data for:</span>
-                                <span class="font-semibold text-gray-800"><?php echo date('l, F j, Y', strtotime($selectedDate)); ?></span>
+                                <span class="font-semibold text-gray-800">
+                                    <?php 
+                                    if ($isAllTime) {
+                                        echo 'All Time';
+                                    } else {
+                                        echo date('l, F j, Y', strtotime($selectedDate));
+                                    }
+                                    ?>
+                                </span>
                             </div>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" id="sales-card">
                             <div>
-                                <p class="text-sm text-gray-500" ><?php echo $selectedDate === date('Y-m-d') ? 'Total sales today' : 'Total sales'; ?></p>
+                                <p class="text-sm text-gray-500" >
+                                    <?php 
+                                    if ($isAllTime) {
+                                        echo 'Total sales (All Time)';
+                                    } elseif ($selectedDate === date('Y-m-d')) {
+                                        echo 'Total sales today';
+                                    } else {
+                                        echo 'Total sales';
+                                    }
+                                    ?>
+                                </p>
                                 <p class="text-2xl font-bold text-[#236B3D]" id="total-sales-today">₱<?php echo htmlspecialchars(number_format($totalSalesToday, 2)); ?></p>
                                 <p class="text-xs text-gray-400 mt-1">Click to view details</p>
                             </div>
@@ -272,7 +357,17 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                                     </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <p class="text-center text-gray-500 py-8"><?php echo $selectedDate === date('Y-m-d') ? 'No recent transactions today.' : 'No transactions found for ' . date('M j, Y', strtotime($selectedDate)) . '.'; ?></p>
+                                    <p class="text-center text-gray-500 py-8">
+                                        <?php 
+                                        if ($isAllTime) {
+                                            echo 'No recent transactions found.';
+                                        } elseif ($selectedDate === date('Y-m-d')) {
+                                            echo 'No recent transactions today.';
+                                        } else {
+                                            echo 'No transactions found for ' . date('M j, Y', strtotime($selectedDate)) . '.';
+                                        }
+                                        ?>
+                                    </p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -302,7 +397,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     <h3 class="text-xl font-bold text-gray-800">Sales Details</h3>
                     <button id="close-sales-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">All transactions for <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+                <p class="text-sm text-gray-600 mt-2">All transactions <?php echo $isAllTime ? 'for all time' : 'for ' . date('M d, Y', strtotime($selectedDate)); ?></p>
             </div>
             <div class="p-6 overflow-y-auto max-h-[70vh]">
                 <div class="mb-4">
@@ -364,7 +459,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     <h3 class="text-xl font-bold text-gray-800">Products Details</h3>
                     <button id="close-products-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">All products in inventory as of <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+                <p class="text-sm text-gray-600 mt-2">All products in inventory <?php echo $isAllTime ? 'for all time' : 'as of ' . date('M d, Y', strtotime($selectedDate)); ?></p>
             </div>
             <div class="p-6 overflow-y-auto max-h-[70vh]">
                 <div class="mb-4">
@@ -428,7 +523,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     <h3 class="text-xl font-bold text-gray-800">Expiration Alert Details</h3>
                     <button id="close-expiration-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">Products expiring within 1 month from <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+                <p class="text-sm text-gray-600 mt-2">Products expiring within 1 month <?php echo $isAllTime ? 'from today' : 'from ' . date('M d, Y', strtotime($selectedDate)); ?></p>
             </div>
             <div class="p-6 overflow-y-auto max-h-[70vh]">
                 <div class="mb-4">
@@ -498,7 +593,7 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     <h3 class="text-xl font-bold text-gray-800">Low Stock Alert Details</h3>
                     <button id="close-low-stock-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">Products with low stock (5 or fewer items) as of <?php echo date('M d, Y', strtotime($selectedDate)); ?></p>
+                <p class="text-sm text-gray-600 mt-2">Products with low stock (5 or fewer items) <?php echo $isAllTime ? 'for all time' : 'as of ' . date('M d, Y', strtotime($selectedDate)); ?></p>
             </div>
             <div class="p-6 overflow-y-auto max-h-[70vh]">
                 <div class="mb-4">
@@ -614,29 +709,41 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
 
             // Date Filter functionality
             const dateFilter = document.getElementById('date-filter');
+            const customDateInput = document.getElementById('custom-date-input');
             const applyDateFilter = document.getElementById('apply-date-filter');
-            const todayBtn = document.getElementById('today-btn');
 
-            if (applyDateFilter) {
-                applyDateFilter.addEventListener('click', () => {
-                    const selectedDate = dateFilter.value;
-                    if (selectedDate) {
-                        window.location.href = `dashboard.php?date=${selectedDate}`;
+            // Show/hide custom date input based on selection
+            if (dateFilter) {
+                dateFilter.addEventListener('change', () => {
+                    if (dateFilter.value === 'custom') {
+                        customDateInput.classList.remove('hidden');
+                    } else {
+                        customDateInput.classList.add('hidden');
                     }
                 });
             }
 
-            if (todayBtn) {
-                todayBtn.addEventListener('click', () => {
-                    window.location.href = 'dashboard.php';
+            if (applyDateFilter) {
+                applyDateFilter.addEventListener('click', () => {
+                    let selectedValue = dateFilter.value;
+                    
+                    if (selectedValue === 'custom') {
+                        selectedValue = customDateInput.value;
+                        if (!selectedValue) {
+                            alert('Please select a custom date');
+                            return;
+                        }
+                    }
+                    
+                    window.location.href = `dashboard.php?date=${selectedValue}`;
                 });
             }
 
             // Allow Enter key to apply filter
-            if (dateFilter) {
-                dateFilter.addEventListener('keypress', (e) => {
+            if (customDateInput) {
+                customDateInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        const selectedDate = dateFilter.value;
+                        const selectedDate = customDateInput.value;
                         if (selectedDate) {
                             window.location.href = `dashboard.php?date=${selectedDate}`;
                         }

@@ -18,31 +18,50 @@ if ($conn->connect_error) {
 // Set the timezone
 date_default_timezone_set('Asia/Manila');
 
-// Get selected date from URL parameter, default to today
-$selectedDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+// Get selected date from URL parameter, default to 'all' for all data
+$selectedDate = isset($_GET['date']) ? $_GET['date'] : 'all';
 
-// Validate the date format
-if (!DateTime::createFromFormat('Y-m-d', $selectedDate)) {
-    $selectedDate = date('Y-m-d');
+// Validate the date format or check for 'all' option
+if ($selectedDate !== 'all' && !DateTime::createFromFormat('Y-m-d', $selectedDate)) {
+    $selectedDate = 'all';
 }
 
-// Fetch user activity logs from the actual user_activity_log table for selected date
-$activityLogsStmt = $conn->prepare("
-    SELECT 
-        ual.action_description,
-        ual.timestamp,
-        u.username,
-        u.first_name,
-        u.last_name,
-        u.role
-    FROM user_activity_log ual
-    JOIN users u ON ual.user_id = u.id
-    WHERE DATE(ual.timestamp) = ?
-    ORDER BY ual.timestamp DESC
-    LIMIT 200
-");
-$activityLogsStmt->bind_param("s", $selectedDate);
-$activityLogsStmt->execute();
+$isAllTime = ($selectedDate === 'all');
+
+// Fetch user activity logs from the actual user_activity_log table
+if ($isAllTime) {
+    $activityLogsStmt = $conn->prepare("
+        SELECT 
+            ual.action_description,
+            ual.timestamp,
+            u.username,
+            u.first_name,
+            u.last_name,
+            u.role
+        FROM user_activity_log ual
+        JOIN users u ON ual.user_id = u.id
+        ORDER BY ual.timestamp DESC
+        LIMIT 500
+    ");
+    $activityLogsStmt->execute();
+} else {
+    $activityLogsStmt = $conn->prepare("
+        SELECT 
+            ual.action_description,
+            ual.timestamp,
+            u.username,
+            u.first_name,
+            u.last_name,
+            u.role
+        FROM user_activity_log ual
+        JOIN users u ON ual.user_id = u.id
+        WHERE DATE(ual.timestamp) = ?
+        ORDER BY ual.timestamp DESC
+        LIMIT 200
+    ");
+    $activityLogsStmt->bind_param("s", $selectedDate);
+    $activityLogsStmt->execute();
+}
 $activityLogs = $activityLogsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $activityLogsStmt->close();
 
@@ -85,14 +104,16 @@ $conn->close();
                                 <p class="text-sm text-gray-600 mt-1">Monitor and track user activities within the system</p>
                             </div>
                             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Date:</label>
+                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Period:</label>
                                 <div class="flex items-center gap-2">
-                                    <input type="date" id="date-filter" value="<?php echo $selectedDate; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                    <select id="date-filter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                                        <option value="all" <?php echo $selectedDate === 'all' ? 'selected' : ''; ?>>All Time</option>
+                                        <option value="<?php echo date('Y-m-d'); ?>" <?php echo $selectedDate === date('Y-m-d') ? 'selected' : ''; ?>>Today</option>
+                                        <option value="custom" <?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? 'selected' : ''; ?>>Custom Date</option>
+                                    </select>
+                                    <input type="date" id="custom-date-input" value="<?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? $selectedDate : ''; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 <?php echo ($selectedDate === 'all' || $selectedDate === date('Y-m-d')) ? 'hidden' : ''; ?>">
                                     <button id="apply-date-filter" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors">
                                         Apply
-                                    </button>
-                                    <button id="today-btn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors">
-                                        Today
                                     </button>
                                 </div>
                             </div>
@@ -100,7 +121,15 @@ $conn->close();
                         <div class="mt-4 pt-4 border-t border-gray-200">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-gray-600">Showing activities for:</span>
-                                <span class="font-semibold text-gray-800"><?php echo date('l, F j, Y', strtotime($selectedDate)); ?></span>
+                                <span class="font-semibold text-gray-800">
+                                    <?php 
+                                    if ($isAllTime) {
+                                        echo 'All Time';
+                                    } else {
+                                        echo date('l, F j, Y', strtotime($selectedDate));
+                                    }
+                                    ?>
+                                </span>
                             </div>
                             <div class="flex items-center justify-between text-sm mt-1">
                                 <span class="text-gray-600">Total activities found:</span>
@@ -112,7 +141,17 @@ $conn->close();
                     <!-- Activity Log Table -->
                     <div class="bg-white p-6 rounded-2xl shadow-md">
                         <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800"><?php echo $selectedDate === date('Y-m-d') ? "Today's Activities" : "Activities for " . date('M j, Y', strtotime($selectedDate)); ?></h2>
+                            <h2 class="text-xl font-bold text-gray-800">
+                                <?php 
+                                if ($isAllTime) {
+                                    echo "All Time Activities";
+                                } elseif ($selectedDate === date('Y-m-d')) {
+                                    echo "Today's Activities";
+                                } else {
+                                    echo "Activities for " . date('M j, Y', strtotime($selectedDate));
+                                }
+                                ?>
+                            </h2>
                             <div class="flex gap-4">
                                 <input type="text" id="activity-search" placeholder="Search activities..." class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                                 <select id="role-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -242,29 +281,41 @@ $conn->close();
 
             // Date Filter functionality
             const dateFilter = document.getElementById('date-filter');
+            const customDateInput = document.getElementById('custom-date-input');
             const applyDateFilter = document.getElementById('apply-date-filter');
-            const todayBtn = document.getElementById('today-btn');
 
-            if (applyDateFilter) {
-                applyDateFilter.addEventListener('click', () => {
-                    const selectedDate = dateFilter.value;
-                    if (selectedDate) {
-                        window.location.href = `user_activity_log.php?date=${selectedDate}`;
+            // Show/hide custom date input based on selection
+            if (dateFilter) {
+                dateFilter.addEventListener('change', () => {
+                    if (dateFilter.value === 'custom') {
+                        customDateInput.classList.remove('hidden');
+                    } else {
+                        customDateInput.classList.add('hidden');
                     }
                 });
             }
 
-            if (todayBtn) {
-                todayBtn.addEventListener('click', () => {
-                    window.location.href = 'user_activity_log.php';
+            if (applyDateFilter) {
+                applyDateFilter.addEventListener('click', () => {
+                    let selectedValue = dateFilter.value;
+                    
+                    if (selectedValue === 'custom') {
+                        selectedValue = customDateInput.value;
+                        if (!selectedValue) {
+                            alert('Please select a custom date');
+                            return;
+                        }
+                    }
+                    
+                    window.location.href = `user_activity_log.php?date=${selectedValue}`;
                 });
             }
 
             // Allow Enter key to apply filter
-            if (dateFilter) {
-                dateFilter.addEventListener('keypress', (e) => {
+            if (customDateInput) {
+                customDateInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        const selectedDate = dateFilter.value;
+                        const selectedDate = customDateInput.value;
                         if (selectedDate) {
                             window.location.href = `user_activity_log.php?date=${selectedDate}`;
                         }

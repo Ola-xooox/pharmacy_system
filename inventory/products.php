@@ -145,10 +145,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                             <input type="text" onfocus="(this.type='date')" onblur="(this.type='text')" name="expiration_date" placeholder="Expiration Date" class="form-input">
                             <input type="text" name="supplier" placeholder="Supplier" class="form-input">
                             
-                            <div class="sm:col-span-2 grid grid-cols-2 gap-4">
-                                <input type="text" name="batch_number" placeholder="Batch Number" class="form-input">
-                                <input type="number" name="stock" placeholder="Stock to Add" class="form-input" required>
-                            </div>
+                            <input type="number" name="stock" placeholder="Stock to Add" class="form-input sm:col-span-2" required>
                         </div>
                     </div>
                 </div>

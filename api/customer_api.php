@@ -1,4 +1,5 @@
 <?php
+session_start(); // Start session to access user data
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -9,6 +10,25 @@ if ($conn->connect_error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => "Database Connection failed: " . $conn->connect_error]);
     exit();
+}
+
+// Activity logging function
+function logUserActivity($conn, $action_description) {
+    $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
+    $userRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest';
+
+    // Prevent logging if user is not properly logged in
+    if ($userId === 0) {
+        return;
+    }
+
+    // Embed the user's role/system name into the action description
+    $fullAction = ucfirst($userRole) . " System: " . $action_description;
+    
+    $stmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
+    $stmt->bind_param("is", $userId, $fullAction);
+    $stmt->execute();
+    $stmt->close();
 }
 
 $action = $_GET['action'] ?? '';
@@ -183,6 +203,16 @@ function handleCompleteSale($conn) {
         $purchaseStmt->close();
 
         $conn->commit();
+        
+        // Log the activity after successful transaction
+        $totalItemsSold = array_sum(array_column($items, 'quantity'));
+        $productNames = [];
+        foreach ($items as $item) {
+            $productNames[] = $item['name'] . " (x" . $item['quantity'] . ")";
+        }
+        $logMessage = "Processed a sale of " . $totalItemsSold . " item(s) for customer '" . $customerName . "': " . implode(', ', $productNames) . ". Total: ₱" . number_format($totalAmount, 2);
+        logUserActivity($conn, $logMessage);
+        
         echo json_encode(['success' => true, 'message' => 'Sale logged successfully.']);
 
     } catch (Exception $e) {

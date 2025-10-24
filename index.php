@@ -123,6 +123,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     
                     $_SESSION['profile_image'] = $user['profile_image'];
                     
+                    // Log the login activity
+                    $logStmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
+                    $loginAction = ucfirst($user['role']) . " System: User logged in successfully";
+                    $logStmt->bind_param("is", $user['id'], $loginAction);
+                    $logStmt->execute();
+                    $logStmt->close();
+                    
                     // Clean up temporary session data
                     unset($_SESSION['otp_email']);
                     unset($_SESSION['pending_user']);

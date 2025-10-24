@@ -9,12 +9,75 @@ require '../db_connect.php';
 require_once 'darkmode.php';
 $currentPage = 'history';
 
-// Fetch all purchase history records, ordered by the most recent transaction
-$history_result = $conn->query("SELECT * FROM purchase_history ORDER BY transaction_date DESC");
+// Fetch all purchase history records for movement calculation
+$all_history_result = $conn->query("SELECT * FROM purchase_history ORDER BY transaction_date DESC");
+$all_purchase_history = [];
+while($row = $all_history_result->fetch_assoc()) {
+    $all_purchase_history[] = $row;
+}
+
+// Calculate product movement speed
+function calculateProductMovement($product_name, $purchase_history) {
+    $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
+        return $item['product_name'] === $product_name;
+    });
+    
+    if (empty($product_sales)) {
+        return 'slow';
+    }
+    
+    $total_quantity = array_sum(array_column($product_sales, 'quantity'));
+    $sales_count = count($product_sales);
+    
+    // Get date range for sales
+    $dates = array_column($product_sales, 'transaction_date');
+    $earliest_date = min($dates);
+    $latest_date = max($dates);
+    
+    $earliest_timestamp = strtotime($earliest_date);
+    $current_timestamp = time();
+    
+    // Calculate days since first sale
+    $days_active = max(1, ceil(($current_timestamp - $earliest_timestamp) / (60 * 60 * 24)));
+    
+    // Calculate average sales per day
+    $avg_sales_per_day = $total_quantity / $days_active;
+    
+    // Determine movement speed based on total quantity sold
+    // Fast: High volume sales (10+ units sold)
+    if ($total_quantity >= 10) {
+        return 'fast';
+    } 
+    // Medium: Moderate volume sales (5-9 units sold)
+    elseif ($total_quantity >= 5) {
+        return 'medium';
+    } 
+    // Slow: Low volume sales (1-4 units sold)
+    else {
+        return 'slow';
+    }
+}
+
+// Group purchase history by product name and aggregate data
+$grouped_history_result = $conn->query("
+    SELECT 
+        product_name,
+        SUM(quantity) as total_quantity,
+        SUM(total_price) as total_sales,
+        COUNT(*) as transaction_count,
+        MIN(transaction_date) as first_sale_date,
+        MAX(transaction_date) as last_sale_date
+    FROM purchase_history 
+    GROUP BY product_name 
+    ORDER BY MAX(transaction_date) DESC
+");
+
 $purchase_history = [];
-while($row = $history_result->fetch_assoc()) {
+while($row = $grouped_history_result->fetch_assoc()) {
+    $row['movement_status'] = calculateProductMovement($row['product_name'], $all_purchase_history);
     $purchase_history[] = $row;
 }
+
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -177,6 +240,49 @@ $conn->close();
             background: #01A74F;
             color: white;
         }
+        
+        /* Movement Status Badges */
+        .movement-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .movement-fast {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .movement-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .movement-slow {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .dark .movement-fast {
+            background-color: #14532d;
+            color: #bbf7d0;
+            border-color: #166534;
+        }
+        .dark .movement-medium {
+            background-color: #451a03;
+            color: #fde68a;
+            border-color: #92400e;
+        }
+        .dark .movement-slow {
+            background-color: #7f1d1d;
+            color: #fecaca;
+            border-color: #991b1b;
+        }
     </style>
     <?php echo $inventoryDarkMode['styles']; ?>
 </head>
@@ -195,11 +301,27 @@ $conn->close();
                     Purchase History
                 </h2>
                 
-                <div class="mb-4 relative">
-                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <div class="mb-4 flex flex-col md:flex-row gap-4">
+                    <div class="relative flex-1">
+                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                        <input type="text" id="search-input" placeholder="Search by product name..." class="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
                     </div>
-                    <input type="text" id="search-input" placeholder="Search by product name..." class="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="ph ph-trend-up text-gray-400"></i>
+                        </div>
+                        <select id="movement-filter" class="pl-10 pr-8 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none cursor-pointer">
+                            <option value="">All Movement Types</option>
+                            <option value="fast">Fast Moving</option>
+                            <option value="medium">Medium Moving</option>
+                            <option value="slow">Slow Moving</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <i class="ph ph-caret-down text-gray-400"></i>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mb-6">
@@ -284,19 +406,31 @@ $conn->close();
                                     <th scope="col" class="px-6 py-3">
                                         <div class="flex items-center gap-2">
                                             <i class="ph ph-stack"></i>
-                                            Item
+                                            Total Sold
                                         </div>
                                     </th>
                                     <th scope="col" class="px-6 py-3">
                                         <div class="flex items-center gap-2">
                                             <i class="ph ph-currency-circle-dollar"></i>
-                                            Total Price
+                                            Total Sales
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="px-6 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <i class="ph ph-shopping-cart"></i>
+                                            Transactions
                                         </div>
                                     </th>
                                     <th scope="col" class="px-6 py-3">
                                         <div class="flex items-center gap-2">
                                             <i class="ph ph-calendar"></i>
-                                            Date
+                                            Last Sale
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="px-6 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <i class="ph ph-trend-up"></i>
+                                            Movement
                                         </div>
                                     </th>
                                 </tr>
@@ -330,6 +464,7 @@ $conn->close();
             const dateTimeEl = document.getElementById('date-time');
             const tableBody = document.getElementById('history-table-body');
             const searchInput = document.getElementById('search-input');
+            const movementFilter = document.getElementById('movement-filter');
             const datePicker = document.getElementById('date-picker');
             const dateInputDisplay = document.getElementById('date-input-display');
             const calendarDropdown = document.getElementById('calendar-dropdown');
@@ -511,47 +646,68 @@ $conn->close();
 
             function renderTable(dataToRender) {
                 if(dataToRender.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-500">No purchase history found for the selected criteria.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-500">No purchase history found for the selected criteria.</td></tr>`;
                     return;
                 }
                 tableBody.innerHTML = dataToRender.map((item, index) => {
-                    const transactionDate = new Date(item.transaction_date);
-                    const formattedDate = transactionDate.toLocaleDateString('en-US');
+                    const lastSaleDate = new Date(item.last_sale_date);
+                    const formattedDate = lastSaleDate.toLocaleDateString('en-US');
+                    
+                    // Create movement badge
+                    const movementStatus = item.movement_status || 'slow';
+                    const movementIcon = movementStatus === 'fast' ? 'ph-trend-up' : 
+                                       movementStatus === 'medium' ? 'ph-minus' : 'ph-trend-down';
+                    const movementBadge = `
+                        <span class="movement-badge movement-${movementStatus}">
+                            <i class="ph ${movementIcon}"></i>
+                            ${movementStatus}
+                        </span>
+                    `;
+                    
                     return `
                         <tr class="bg-white border-b hover:bg-gray-50">
                             <td class="px-6 py-4 font-medium text-gray-900">${index + 1}</td>
                             <td class="px-6 py-4 font-semibold text-gray-700">${item.product_name}</td>
-                            <td class="px-6 py-4">${item.quantity}</td>
-                            <td class="px-6 py-4 font-semibold text-gray-700">
-                               ₱${Number(item.total_price).toFixed(2)}
+                            <td class="px-6 py-4 font-semibold text-blue-600">${item.total_quantity}</td>
+                            <td class="px-6 py-4 font-semibold text-green-600">
+                               ₱${Number(item.total_sales).toFixed(2)}
                             </td>
+                            <td class="px-6 py-4 font-medium text-gray-600">${item.transaction_count}</td>
                             <td class="px-6 py-4">${formattedDate}</td>
+                            <td class="px-6 py-4">${movementBadge}</td>
                         </tr>
                     `
                 }).join('');
             }
             
             function calculateAndRenderTotals(data) {
-                const totalPrice = data.reduce((sum, item) => sum + parseFloat(item.total_price), 0);
+                const totalPrice = data.reduce((sum, item) => sum + parseFloat(item.total_sales), 0);
                 totalPriceEl.textContent = `₱${totalPrice.toFixed(2)}`;
             }
 
             function updateHistoryView() {
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedDate = datePicker.value;
+                const selectedMovement = movementFilter.value;
                 
                 let filteredHistory = purchaseHistory;
 
                 if (selectedDate) {
                     filteredHistory = filteredHistory.filter(item => {
-                        const transactionDate = item.transaction_date.split(' ')[0]; // Get only the YYYY-MM-DD part
-                        return transactionDate === selectedDate;
+                        const lastSaleDate = item.last_sale_date.split(' ')[0]; // Get only the YYYY-MM-DD part
+                        return lastSaleDate === selectedDate;
                     });
                 }
                 
                 if (searchTerm) {
                     filteredHistory = filteredHistory.filter(item => 
                         item.product_name.toLowerCase().includes(searchTerm)
+                    );
+                }
+                
+                if (selectedMovement) {
+                    filteredHistory = filteredHistory.filter(item => 
+                        item.movement_status === selectedMovement
                     );
                 }
 
@@ -561,6 +717,7 @@ $conn->close();
 
             // --- Event Listeners ---
             searchInput.addEventListener('input', updateHistoryView);
+            movementFilter.addEventListener('change', updateHistoryView);
             
             // Clear date button functionality (external clear button)
             clearDateBtn.addEventListener('click', () => {
