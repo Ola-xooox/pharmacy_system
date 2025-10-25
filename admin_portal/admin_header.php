@@ -2,10 +2,6 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-// Fetch notifications
-$notifications_json = file_get_contents('http://' . $_SERVER['HTTP_HOST'] . '/pharmacy_system/api/get_notifications.php');
-$notifications_data = json_decode($notifications_json, true);
-$total_notifications = $notifications_data['total_notifications'] ?? 0;
 ?>
 <header class="bg-white shadow-sm border-b border-gray-200 relative z-30">
     <div class="flex items-center p-4">
@@ -14,7 +10,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
         </button>
         <div class="flex items-center gap-4 ml-auto">
             <div class="hidden md:flex items-center gap-2 text-sm bg-gray-100 px-3 py-1.5 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 <span id="date-time"></span>
             </div>
             <!-- Dark Mode Toggle -->
@@ -27,79 +23,6 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                     </svg>
                 </button>
-            </div>
-            <!-- Notification Bell -->
-            <div class="relative">
-                <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100">
-                    <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-                    <?php if ($total_notifications > 0): ?>
-                        <span class="absolute top-1 right-1 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
-                    <?php endif; ?>
-                </button>
-                <!-- Notification Dropdown -->
-                <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 hidden z-40">
-                    <div class="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Notifications</h3>
-                        
-                        <!--<a href="" class="text-sm font-medium text-green-600 hover:text-green-800"></a> -->
-                    </div>
-                    <div class="py-1 max-h-80 overflow-y-auto">
-                        <?php if ($total_notifications > 0): ?>
-                            <?php if (!empty($notifications_data['expiring_soon'])): ?>
-                                <?php foreach ($notifications_data['expiring_soon'] as $item): ?>
-                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                                         data-type="expiring"
-                                         data-name="<?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?>"
-                                         data-lot="<?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?>"
-                                         data-batch="<?php echo htmlspecialchars($item['batch_number'] ?? 'N/A'); ?>"
-                                         data-expiry="<?php echo date('M d, Y', strtotime($item['expiration_date'])); ?>"
-                                         data-stock="<?php echo htmlspecialchars($item['stock'] ?? '0'); ?>"
-                                         data-supplier="<?php echo htmlspecialchars($item['supplier'] ?? 'N/A'); ?>">
-                                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                        </div>
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> is expiring on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
-                                        </div>
-                                        <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                        </svg>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                            <?php if (!empty($notifications_data['expired'])): ?>
-                                <?php foreach ($notifications_data['expired'] as $item): ?>
-                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-t border-gray-200 dark:border-gray-700 cursor-pointer transition-colors"
-                                         data-type="expired"
-                                         data-name="<?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?>"
-                                         data-lot="<?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?>"
-                                         data-batch="<?php echo htmlspecialchars($item['batch_number'] ?? 'N/A'); ?>"
-                                         data-expiry="<?php echo date('M d, Y', strtotime($item['expiration_date'])); ?>"
-                                         data-stock="<?php echo htmlspecialchars($item['stock'] ?? '0'); ?>"
-                                         data-supplier="<?php echo htmlspecialchars($item['supplier'] ?? 'N/A'); ?>">
-                                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
-                                        </div>
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
-                                            <p class="text-xs text-red-600 dark:text-red-400 font-medium">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> expired on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
-                                        </div>
-                                        <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                        </svg>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <div class="text-center text-gray-500 dark:text-gray-400 py-10 px-4">
-                                <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <p class="mt-4 font-semibold">All caught up!</p>
-                                <p class="text-sm">No new notifications.</p>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
             </div>
             <!-- User Menu -->
             <div class="relative">
@@ -175,7 +98,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
             <div class="flex items-center">
                 <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                     <svg class="w-6 h-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0113.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                     </svg>
                 </div>
                 <div class="ml-4">
@@ -197,81 +120,6 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
             <button type="button" id="cancel-signout-btn" class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm">
                 Cancel
             </button>
-        </div>
-    </div>
-  </div>
-</div>
-
-<!-- Notification Detail Modal -->
-<div id="notification-detail-modal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="notification-detail-title" role="dialog" aria-modal="true">
-  <div class="flex items-center justify-center min-h-screen p-4">
-    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" aria-hidden="true"></div>
-    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform transition-all my-8 max-w-2xl w-full overflow-hidden">
-        <!-- Header Card -->
-        <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-5 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div id="notification-icon" class="flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg">
-                    <!-- Icon will be inserted dynamically -->
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold text-white" id="notification-detail-title">Product Alert</h3>
-                    <p class="text-sm text-green-100">Product Information Details</p>
-                </div>
-            </div>
-            <button type="button" id="close-notification-detail-btn-x" class="text-white hover:text-gray-200 transition-colors">
-                <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <!-- Content Cards -->
-        <div class="p-6 bg-gray-50 dark:bg-gray-900">
-            <div class="grid grid-cols-1 gap-4">
-                <!-- Product Name Card -->
-                <div class="bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 border-green-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer">
-                    <div class="flex flex-col items-center justify-center text-center gap-3">
-                        <svg class="w-6 h-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                        </svg>
-                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Product Name</p>
-                        <p class="text-lg font-bold text-gray-900 dark:text-white" id="notif-product-name">-</p>
-                    </div>
-                </div>
-
-                <!-- Lot Number Card -->
-                <div class="bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 border-blue-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer">
-                    <div class="flex flex-col items-center justify-center text-center gap-3">
-                        <svg class="w-6 h-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                        </svg>
-                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Lot Number</p>
-                        <p class="text-lg font-bold text-gray-900 dark:text-white font-mono" id="notif-lot-number">-</p>
-                    </div>
-                </div>
-
-                <!-- Expiration Date Card -->
-                <div class="bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer" id="expiry-card">
-                    <div class="flex flex-col items-center justify-center text-center gap-3">
-                        <svg class="w-6 h-6" id="expiry-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                        </svg>
-                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Expiration Date</p>
-                        <p class="text-lg font-bold" id="notif-expiry-date">-</p>
-                    </div>
-                </div>
-
-                <!-- Stock Card -->
-                <div class="bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 border-indigo-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer">
-                    <div class="flex flex-col items-center justify-center text-center gap-3">
-                        <svg class="w-6 h-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
-                        </svg>
-                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Current Stock</p>
-                        <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400" id="notif-stock">-</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
   </div>
@@ -303,13 +151,10 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
         setInterval(updateDateTime, 60000);
         // --- END: ADD THIS NEW CODE FOR THE DATE AND TIME ---
 
-
         // --- Your existing code for modals and dropdowns ---
         const profileModalBtn = document.getElementById('profile-modal-btn');
         const profileModal = document.getElementById('profile-modal');
         const closeProfileModalBtn = document.getElementById('close-profile-modal-btn');
-        const notificationBellBtn = document.getElementById('notification-bell-btn');
-        const notificationDropdown = document.getElementById('notification-dropdown');
         const signoutBtn = document.getElementById('signout-btn');
         const signoutModal = document.getElementById('signout-modal');
         const confirmSignoutBtn = document.getElementById('confirm-signout-btn');
@@ -351,80 +196,6 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
         signoutModal?.addEventListener('click', (e) => {
             if (e.target === signoutModal) {
                 signoutModal.classList.add('hidden');
-            }
-        });
-        
-        if (notificationBellBtn) {
-            notificationBellBtn.addEventListener('click', () => {
-                notificationDropdown.classList.toggle('hidden');
-            });
-            window.addEventListener('click', (e) => {
-                if (!notificationBellBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
-                    notificationDropdown.classList.add('hidden');
-                }
-            });
-        }
-
-        // Notification detail modal functionality
-        const notificationDetailModal = document.getElementById('notification-detail-modal');
-        const closeNotificationDetailBtnX = document.getElementById('close-notification-detail-btn-x');
-        const notificationItems = document.querySelectorAll('.notification-item');
-
-        // Handle clicking on notification items
-        notificationItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const type = item.dataset.type;
-                const name = item.dataset.name;
-                const lot = item.dataset.lot;
-                const expiry = item.dataset.expiry;
-                const stock = item.dataset.stock;
-
-                // Populate modal with data
-                document.getElementById('notif-product-name').textContent = name;
-                document.getElementById('notif-lot-number').textContent = lot;
-                document.getElementById('notif-expiry-date').textContent = expiry;
-                document.getElementById('notif-stock').textContent = stock + ' units';
-
-                // Update icon and title based on type
-                const notificationIcon = document.getElementById('notification-icon');
-                const notificationTitle = document.getElementById('notification-detail-title');
-                const expiryDateEl = document.getElementById('notif-expiry-date');
-                const expiryCard = document.getElementById('expiry-card');
-                const expiryIcon = document.getElementById('expiry-icon');
-
-                if (type === 'expiring') {
-                    notificationIcon.className = 'flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg';
-                    notificationIcon.innerHTML = '<svg class="w-6 h-6 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                    notificationTitle.textContent = 'Product Expiring Soon';
-                    expiryDateEl.className = 'text-lg font-bold text-amber-600';
-                    expiryCard.className = 'bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 border-amber-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer';
-                    expiryIcon.className = 'w-6 h-6 text-amber-600';
-                } else if (type === 'expired') {
-                    notificationIcon.className = 'flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg';
-                    notificationIcon.innerHTML = '<svg class="w-6 h-6 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>';
-                    notificationTitle.textContent = 'Product Expired';
-                    expiryDateEl.className = 'text-lg font-bold text-red-600';
-                    expiryCard.className = 'bg-white dark:bg-gray-700 dark:border dark:border-gray-600 rounded-xl shadow-md p-4 border-l-4 border-red-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer';
-                    expiryIcon.className = 'w-6 h-6 text-red-600';
-                }
-
-                // Hide notification dropdown and show detail modal
-                notificationDropdown.classList.add('hidden');
-                notificationDetailModal.classList.remove('hidden');
-            });
-        });
-
-        // Close notification detail modal
-        if (closeNotificationDetailBtnX) {
-            closeNotificationDetailBtnX.addEventListener('click', () => {
-                notificationDetailModal.classList.add('hidden');
-            });
-        }
-
-        // Close modal when clicking outside
-        notificationDetailModal?.addEventListener('click', (e) => {
-            if (e.target === notificationDetailModal) {
-                notificationDetailModal.classList.add('hidden');
             }
         });
     });

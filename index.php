@@ -103,58 +103,155 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 if ($otpMailer->verifyOTP($email, $otp)) {
                     $user = $_SESSION['pending_user'];
                     
-                    // Set session variables
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['role'] = $user['role'];
-                    
-                    // Handle name field
-                    if (isset($user['name'])) {
-                        $_SESSION['name'] = $user['name'];
-                    } else if (isset($user['first_name']) && isset($user['last_name'])) {
-                        $name = $user['first_name'] . ' ' . $user['last_name'];
-                        if (isset($user['middle_name']) && !empty($user['middle_name'])) {
-                            $name = $user['first_name'] . ' ' . $user['middle_name'] . ' ' . $user['last_name'];
+                    // Check if user needs admin approval (non-admin users only)
+                    if ($user['role'] !== 'admin') {
+                        // First, check if user has EVER been approved before
+                        $everApprovedStmt = $conn->prepare("SELECT * FROM user_approvals WHERE user_id = ? AND approval_status = 'approved' ORDER BY approval_time DESC LIMIT 1");
+                        $everApprovedStmt->bind_param("i", $user['id']);
+                        $everApprovedStmt->execute();
+                        $everApprovedResult = $everApprovedStmt->get_result()->fetch_assoc();
+                        $everApprovedStmt->close();
+                        
+                        // If user was approved before, allow direct login (skip approval process)
+                        if ($everApprovedResult) {
+                            // User was previously approved, proceed with login directly
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['role'] = $user['role'];
+                            
+                            // Handle name field
+                            if (isset($user['first_name']) && isset($user['last_name'])) {
+                                $name = $user['first_name'];
+                                if (isset($user['middle_name']) && !empty($user['middle_name'])) {
+                                    $name .= ' ' . $user['middle_name'];
+                                }
+                                $name .= ' ' . $user['last_name'];
+                                $_SESSION['name'] = $name;
+                            } else {
+                                $_SESSION['name'] = $user['username'];
+                            }
+                            
+                            $_SESSION['profile_image'] = $user['profile_image'];
+                            
+                            // Log this as a returning approved user
+                            $logStmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
+                            $loginAction = ucfirst($user['role']) . " System: Returning approved user logged in";
+                            $logStmt->bind_param("is", $user['id'], $loginAction);
+                            $logStmt->execute();
+                            $logStmt->close();
+                            
+                            // Clean up temporary session data
+                            unset($_SESSION['otp_email']);
+                            unset($_SESSION['pending_user']);
+                            unset($_SESSION['last_otp_time']);
+                            unset($_SESSION['last_otp_email']);
+                            
+                            // Redirect based on role
+                            switch ($user['role']) {
+                                case 'pos':
+                                    header("Location: pos/pos.php");
+                                    break;
+                                case 'inventory':
+                                    header("Location: inventory/products.php");
+                                    break;
+                                case 'cms':
+                                    header("Location: cms/customer_history.php");
+                                    break;
+                                default:
+                                    header("Location: admin_portal/dashboard.php");
+                                    break;
+                            }
+                            exit();
+                        } else {
+                            // User has never been approved, check current status
+                            
+                            // Check if there's an existing pending approval request for this user
+                            $approvalStmt = $conn->prepare("SELECT * FROM user_approvals WHERE user_id = ? AND approval_status = 'pending' ORDER BY login_time DESC LIMIT 1");
+                            $approvalStmt->bind_param("i", $user['id']);
+                            $approvalStmt->execute();
+                            $existingApproval = $approvalStmt->get_result()->fetch_assoc();
+                            $approvalStmt->close();
+                            
+                            if (!$existingApproval) {
+                                // Create new approval request
+                                $insertApprovalStmt = $conn->prepare("INSERT INTO user_approvals (user_id, email, username, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)");
+                                $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+                                $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+                                $insertApprovalStmt->bind_param("isssss", $user['id'], $user['email'], $user['username'], $user['role'], $ip_address, $user_agent);
+                                $insertApprovalStmt->execute();
+                                $insertApprovalStmt->close();
+                            }
+                            
+                            // Check if user has been disapproved recently
+                            $disapprovedStmt = $conn->prepare("SELECT * FROM user_approvals WHERE user_id = ? AND approval_status = 'disapproved' ORDER BY approval_time DESC LIMIT 1");
+                            $disapprovedStmt->bind_param("i", $user['id']);
+                            $disapprovedStmt->execute();
+                            $disapprovedResult = $disapprovedStmt->get_result()->fetch_assoc();
+                            $disapprovedStmt->close();
+                            
+                            if ($disapprovedResult) {
+                                $error = "Access denied. Your login request has been disapproved by the administrator." . 
+                                        ($disapprovedResult['approval_notes'] ? " Reason: " . $disapprovedResult['approval_notes'] : "");
+                                $step = 'login';
+                                // Clean up session data
+                                unset($_SESSION['otp_email']);
+                                unset($_SESSION['pending_user']);
+                                unset($_SESSION['last_otp_time']);
+                                unset($_SESSION['last_otp_email']);
+                            } else {
+                                // Redirect to waiting page
+                                $_SESSION['pending_approval_user_id'] = $user['id'];
+                                $_SESSION['pending_approval_email'] = $user['email'];
+                                $_SESSION['pending_approval_name'] = $user['first_name'] && $user['last_name'] ? 
+                                    $user['first_name'] . ' ' . $user['last_name'] : $user['username'];
+                                
+                                // Clean up OTP session data
+                                unset($_SESSION['otp_email']);
+                                unset($_SESSION['pending_user']);
+                                unset($_SESSION['last_otp_time']);
+                                unset($_SESSION['last_otp_email']);
+                                
+                                header("Location: waiting_approval.php");
+                                exit();
+                            }
                         }
-                        $_SESSION['name'] = $name;
                     } else {
-                        $_SESSION['name'] = $user['username'];
+                        // Admin users bypass approval system
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['role'] = $user['role'];
+                        
+                        // Handle name field
+                        if (isset($user['name'])) {
+                            $_SESSION['name'] = $user['name'];
+                        } else if (isset($user['first_name']) && isset($user['last_name'])) {
+                            $name = $user['first_name'] . ' ' . $user['last_name'];
+                            if (isset($user['middle_name']) && !empty($user['middle_name'])) {
+                                $name = $user['first_name'] . ' ' . $user['middle_name'] . ' ' . $user['last_name'];
+                            }
+                            $_SESSION['name'] = $name;
+                        } else {
+                            $_SESSION['name'] = $user['username'];
+                        }
+                        
+                        $_SESSION['profile_image'] = $user['profile_image'];
+                        
+                        // Log the login activity
+                        $logStmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
+                        $loginAction = "Admin System: User logged in successfully";
+                        $logStmt->bind_param("is", $user['id'], $loginAction);
+                        $logStmt->execute();
+                        $logStmt->close();
+                        
+                        // Clean up temporary session data
+                        unset($_SESSION['otp_email']);
+                        unset($_SESSION['pending_user']);
+                        unset($_SESSION['last_otp_time']);
+                        unset($_SESSION['last_otp_email']);
+                        
+                        header("Location: admin_portal/dashboard.php");
+                        exit();
                     }
-                    
-                    $_SESSION['profile_image'] = $user['profile_image'];
-                    
-                    // Log the login activity
-                    $logStmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
-                    $loginAction = ucfirst($user['role']) . " System: User logged in successfully";
-                    $logStmt->bind_param("is", $user['id'], $loginAction);
-                    $logStmt->execute();
-                    $logStmt->close();
-                    
-                    // Clean up temporary session data
-                    unset($_SESSION['otp_email']);
-                    unset($_SESSION['pending_user']);
-                    unset($_SESSION['last_otp_time']);
-                    unset($_SESSION['last_otp_email']);
-                    
-                    // Redirect based on role
-                    switch ($user['role']) {
-                        case 'pos':
-                            header("Location: pos/pos.php");
-                            break;
-                        case 'inventory':
-                            header("Location: inventory/products.php");
-                            break;
-                        case 'cms':
-                            header("Location: cms/customer_history.php");
-                            break;
-                        case 'admin':
-                            header("Location: admin_portal/dashboard.php");
-                            break;
-                        default:
-                            header("Location: admin_portal/dashboard.php");
-                            break;
-                    }
-                    exit();
                 } else {
                     $error = "Invalid or expired OTP code.";
                     $step = 'otp';
@@ -173,6 +270,16 @@ if (isset($_GET['back']) && $_GET['back'] == 'login') {
     $step = 'login';
     header("Location: index.php");
     exit();
+}
+
+// Check for approval denial message
+if (isset($_SESSION['approval_denied'])) {
+    $error = "Access denied. Your login request has been disapproved by the administrator.";
+    if (isset($_SESSION['denial_reason']) && !empty($_SESSION['denial_reason'])) {
+        $error .= " Reason: " . $_SESSION['denial_reason'];
+    }
+    unset($_SESSION['approval_denied']);
+    unset($_SESSION['denial_reason']);
 }
 
 // Check if we should show OTP step (only if explicitly set via login)
