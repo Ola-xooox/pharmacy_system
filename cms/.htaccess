@@ -1,0 +1,18 @@
+# Restrict access to CMS folder - Only allow authorized IPs
+Order Deny,Allow
+Deny from all
+
+
+
+# Add IP address for third device (from ipconfig)
+Allow from 10.237.64.228
+Allow from fe80::af63:94ed:37fb:d1cd
+
+
+# Allow localhost access for testing
+Allow from 127.0.0.1
+Allow from ::1
+
+
+# Optional: Custom error page for unauthorized access
+ErrorDocument 403 "Access Denied: This CMS system is restricted to authorized personnel only."

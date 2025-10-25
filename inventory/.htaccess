@@ -1,0 +1,15 @@
+# Restrict access to Inventory folder - Only allow authorized IPs
+Order Deny,Allow
+Deny from all
+
+
+# Add additional IP address here - Second laptop
+Allow from 10.34.10.50
+Allow from 2405:8d40:4407:e7a1:b8d9:4047:b1f:76c5
+
+# Allow localhost access for testing
+Allow from 127.0.0.1
+Allow from ::1
+
+# Optional: Custom error page for unauthorized access
+ErrorDocument 403 "Access Denied: This Inventory system is restricted to authorized personnel only."
