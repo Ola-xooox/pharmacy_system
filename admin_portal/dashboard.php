@@ -16,6 +16,166 @@ if ($conn->connect_error) {
 // Set the timezone
 date_default_timezone_set('Asia/Manila');
 
+// AJAX endpoint for chart data filtering
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'get_chart_data') {
+    $chartType = $_GET['chart_type'] ?? 'sales';
+    $filterType = $_GET['filter'] ?? 'weekly';
+    
+    $result = [];
+    
+    if ($chartType === 'sales') {
+        // Sales Chart Data
+        switch ($filterType) {
+            case 'daily':
+                // Hourly data for today
+                $stmt = $conn->prepare("
+                    SELECT HOUR(transaction_date) as hour, SUM(total_price) as total_sales
+                    FROM purchase_history
+                    WHERE DATE(transaction_date) = CURDATE()
+                    GROUP BY HOUR(transaction_date)
+                    ORDER BY hour ASC
+                ");
+                $stmt->execute();
+                $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                
+                // Fill in all 24 hours
+                $labels = [];
+                $values = [];
+                for ($i = 0; $i < 24; $i++) {
+                    $labels[] = sprintf('%02d:00', $i);
+                    $found = false;
+                    foreach ($data as $row) {
+                        if ((int)$row['hour'] === $i) {
+                            $values[] = (float)$row['total_sales'];
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) $values[] = 0;
+                }
+                $result = ['labels' => $labels, 'data' => $values];
+                break;
+                
+            case 'weekly':
+                // Last 7 days
+                $stmt = $conn->prepare("
+                    SELECT DATE(transaction_date) as date, SUM(total_price) as total_sales
+                    FROM purchase_history
+                    WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                    GROUP BY DATE(transaction_date)
+                    ORDER BY date ASC
+                ");
+                $stmt->execute();
+                $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                
+                $labels = [];
+                $values = [];
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = date('Y-m-d', strtotime("-$i days"));
+                    $labels[] = date('D', strtotime($date));
+                    $found = false;
+                    foreach ($data as $row) {
+                        if ($row['date'] === $date) {
+                            $values[] = (float)$row['total_sales'];
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) $values[] = 0;
+                }
+                $result = ['labels' => $labels, 'data' => $values];
+                break;
+                
+            case 'monthly':
+                // Last 4 weeks
+                $stmt = $conn->prepare("
+                    SELECT WEEK(transaction_date, 1) as week, YEAR(transaction_date) as year, SUM(total_price) as total_sales
+                    FROM purchase_history
+                    WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 4 WEEK)
+                    GROUP BY YEAR(transaction_date), WEEK(transaction_date, 1)
+                    ORDER BY year ASC, week ASC
+                ");
+                $stmt->execute();
+                $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                
+                $labels = [];
+                $values = [];
+                for ($i = 3; $i >= 0; $i--) {
+                    $weekStart = date('Y-m-d', strtotime("-$i weeks"));
+                    $weekNum = date('W', strtotime($weekStart));
+                    $year = date('Y', strtotime($weekStart));
+                    $labels[] = 'Week ' . $weekNum;
+                    
+                    $found = false;
+                    foreach ($data as $row) {
+                        if ($row['week'] == $weekNum && $row['year'] == $year) {
+                            $values[] = (float)$row['total_sales'];
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) $values[] = 0;
+                }
+                $result = ['labels' => $labels, 'data' => $values];
+                break;
+                
+            case 'yearly':
+                // Last 12 months
+                $stmt = $conn->prepare("
+                    SELECT MONTH(transaction_date) as month, YEAR(transaction_date) as year, SUM(total_price) as total_sales
+                    FROM purchase_history
+                    WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                    GROUP BY YEAR(transaction_date), MONTH(transaction_date)
+                    ORDER BY year ASC, month ASC
+                ");
+                $stmt->execute();
+                $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                
+                $labels = [];
+                $values = [];
+                for ($i = 11; $i >= 0; $i--) {
+                    $monthDate = date('Y-m', strtotime("-$i months"));
+                    $month = (int)date('m', strtotime($monthDate));
+                    $year = (int)date('Y', strtotime($monthDate));
+                    $labels[] = date('M Y', strtotime($monthDate));
+                    
+                    $found = false;
+                    foreach ($data as $row) {
+                        if ((int)$row['month'] === $month && (int)$row['year'] === $year) {
+                            $values[] = (float)$row['total_sales'];
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) $values[] = 0;
+                }
+                $result = ['labels' => $labels, 'data' => $values];
+                break;
+        }
+    } else if ($chartType === 'inventory') {
+        // Inventory Chart Data (Top 5 products by stock)
+        $stmt = $conn->prepare("
+            SELECT name, SUM(stock) as total_stock 
+            FROM products 
+            GROUP BY name 
+            ORDER BY total_stock DESC 
+            LIMIT 5
+        ");
+        $stmt->execute();
+        $data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        $result = [
+            'labels' => array_column($data, 'name'),
+            'data' => array_column($data, 'total_stock')
+        ];
+    }
+    
+    $conn->close();
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit();
+}
+
 // Get selected date from URL parameter, default to 'all' for all data
 $selectedDate = isset($_GET['date']) ? $_GET['date'] : 'all';
 
@@ -66,7 +226,6 @@ $expAlertData = $expAlertStmt->get_result()->fetch_assoc();
 $expAlertCount = $expAlertData['exp_alert_count'] ?? 0;
 $expAlertStmt->close();
 
-
 // Fetch Low Stock Count (Sum of stock per product name is <= 5)
 if ($isAllTime) {
     $lowStockStmt = $conn->prepare("
@@ -95,7 +254,6 @@ $lowStockStmt->execute();
 $lowStockData = $lowStockStmt->get_result()->fetch_assoc();
 $lowStockCount = $lowStockData['low_stock_count'] ?? 0;
 $lowStockStmt->close();
-
 
 // Fetch Recent Transactions
 if ($isAllTime) {
@@ -194,7 +352,6 @@ if ($isAllTime) {
 $inventoryChartResult = $inventoryChartStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $inventoryChartStmt->close();
 
-
 $conn->close();
 
 // Prepare sales chart data
@@ -240,6 +397,139 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
         @media (max-width: 767px) { .sidebar { width: 16rem; transform: translateX(-100%); position: fixed; height: 100%; z-index: 50; } .sidebar.open-mobile { transform: translateX(0); } .overlay { transition: opacity 0.3s ease-in-out; } }
         @media (min-width: 768px) { .sidebar { width: 5rem; } .sidebar.open-desktop { width: 16rem; } .sidebar .nav-text { opacity: 0; visibility: hidden; width: 0; transition: opacity 0.1s ease, visibility 0.1s ease, width 0.1s ease; white-space: nowrap; overflow: hidden; } .sidebar.open-desktop .nav-text { opacity: 1; visibility: visible; width: auto; transition: opacity 0.2s ease 0.1s; } .sidebar .nav-link { justify-content: center; gap: 0; } .sidebar.open-desktop .nav-link { justify-content: flex-start; gap: 1rem; } }
         .nav-link { color: rgba(255, 255, 255, 0.8); } .nav-link svg { color: white; } .nav-link:hover { color: white; background-color: rgba(255, 255, 255, 0.2); } .nav-link.active { background-color: white; color: var(--primary-green); font-weight: 600; } .nav-link.active svg { color: var(--primary-green); }
+        
+        /* Custom Date Picker Styling */
+        #date-input-display {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        #date-input-display:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            border-color: #01A74F;
+        }
+        .dark #date-input-display {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: white;
+        }
+        
+        /* Custom Calendar Dropdown */
+        .calendar-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: white;
+            border: 2px solid #01A74F;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            width: 320px;
+            padding: 1rem;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .calendar-dropdown.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+        .dark .calendar-dropdown {
+            background: #1f2937;
+            border-color: #01A74F;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .dark .calendar-header {
+            border-bottom-color: #374151;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+        .calendar-day-name {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            padding: 0.5rem 0;
+        }
+        .dark .calendar-day-name {
+            color: #9ca3af;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            color: #374151;
+        }
+        .dark .calendar-day {
+            color: #d1d5db;
+        }
+        .calendar-day:hover {
+            background-color: #e0f2e9;
+            color: #01A74F;
+            transform: scale(1.05);
+        }
+        .dark .calendar-day:hover {
+            background-color: #065f46;
+            color: white;
+        }
+        .calendar-day.today {
+            border: 2px solid #01A74F;
+            font-weight: 600;
+        }
+        .calendar-day.selected {
+            background-color: #01A74F;
+            color: white;
+            font-weight: 600;
+        }
+        .calendar-day.other-month {
+            color: #d1d5db;
+        }
+        .dark .calendar-day.other-month {
+            color: #4b5563;
+        }
+        .nav-btn {
+            background: #f3f4f6;
+            border: none;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: #01A74F;
+            color: white;
+            transform: scale(1.1);
+        }
+        .dark .nav-btn {
+            background: #374151;
+            color: #d1d5db;
+        }
+        .dark .nav-btn:hover {
+            background: #01A74F;
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex">
@@ -259,17 +549,61 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                                 <p class="text-sm text-gray-600 mt-1">Overview of your pharmacy operations and key metrics</p>
                             </div>
                             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                                <label for="date-filter" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Period:</label>
                                 <div class="flex items-center gap-2">
-                                    <select id="date-filter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                                        <option value="all" <?php echo $selectedDate === 'all' ? 'selected' : ''; ?>>All Time</option>
-                                        <option value="<?php echo date('Y-m-d'); ?>" <?php echo $selectedDate === date('Y-m-d') ? 'selected' : ''; ?>>Today</option>
-                                        <option value="custom" <?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? 'selected' : ''; ?>>Custom Date</option>
-                                    </select>
-                                    <input type="date" id="custom-date-input" value="<?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? $selectedDate : ''; ?>" max="<?php echo date('Y-m-d'); ?>" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 <?php echo ($selectedDate === 'all' || $selectedDate === date('Y-m-d')) ? 'hidden' : ''; ?>">
-                                    <button id="apply-date-filter" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors">
-                                        Apply
-                                    </button>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="ph ph-calendar-blank text-gray-400 dark:text-gray-500"></i>
+                                        </div>
+                                        <input type="text" readonly id="date-input-display" placeholder="Select a date" class="w-64 pl-10 pr-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 cursor-pointer" value="<?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? date('F j, Y', strtotime($selectedDate)) : ''; ?>">
+                                        <input type="hidden" id="custom-date-input" value="<?php echo ($selectedDate !== 'all' && $selectedDate !== date('Y-m-d')) ? $selectedDate : ''; ?>">
+                                        
+                                        <!-- Custom Calendar Dropdown -->
+                                        <div id="calendar-dropdown" class="calendar-dropdown">
+                                            <div class="calendar-header">
+                                                <button type="button" class="nav-btn" id="prev-month">
+                                                    <i class="ph ph-caret-left"></i>
+                                                </button>
+                                                <div class="flex items-center gap-2">
+                                                    <select id="month-select" class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                                                        <option value="0">January</option>
+                                                        <option value="1">February</option>
+                                                        <option value="2">March</option>
+                                                        <option value="3">April</option>
+                                                        <option value="4">May</option>
+                                                        <option value="5">June</option>
+                                                        <option value="6">July</option>
+                                                        <option value="7">August</option>
+                                                        <option value="8">September</option>
+                                                        <option value="9">October</option>
+                                                        <option value="10">November</option>
+                                                        <option value="11">December</option>
+                                                    </select>
+                                                    <select id="year-select" class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-green-500"></select>
+                                                </div>
+                                                <button type="button" class="nav-btn" id="next-month">
+                                                    <i class="ph ph-caret-right"></i>
+                                                </button>
+                                            </div>
+                                            <div class="calendar-grid" id="calendar-days-header">
+                                                <div class="calendar-day-name">Su</div>
+                                                <div class="calendar-day-name">Mo</div>
+                                                <div class="calendar-day-name">Tu</div>
+                                                <div class="calendar-day-name">We</div>
+                                                <div class="calendar-day-name">Th</div>
+                                                <div class="calendar-day-name">Fr</div>
+                                                <div class="calendar-day-name">Sa</div>
+                                            </div>
+                                            <div class="calendar-grid" id="calendar-days"></div>
+                                            <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                                <button type="button" id="today-btn" class="flex-1 px-3 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-200 rounded-lg text-sm font-medium transition-colors">
+                                                    Today
+                                                </button>
+                                                <button type="button" id="clear-calendar-btn" class="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -333,14 +667,22 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-md">
-                            <h2 class="text-xl font-bold mb-4 text-gray-800">Sales Overview</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold text-gray-800">Sales Overview</h2>
+                                <select id="sales-chart-filter" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <option value="daily">Daily (Hours)</option>
+                                    <option value="weekly" selected>Weekly (7 Days)</option>
+                                    <option value="monthly">Monthly (Weeks)</option>
+                                    <option value="yearly">Yearly (Months)</option>
+                                </select>
+                            </div>
                             <div style="position: relative; height:300px;">
                                 <canvas id="salesOverviewChart"></canvas>
                             </div>
                         </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-1">
                             <h2 class="text-xl font-bold mb-4 flex justify-between items-center text-gray-800">
                                 <span>Recent Transaction</span>
                                 <a href="sales_report.php" class="text-[#236B3D] font-medium text-sm hover:underline">View all</a>
@@ -374,10 +716,10 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
                     </div>
                     
                     <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h2 class="text-xl font-bold mb-4 flex justify-between items-center text-gray-800">
-                            <span>Top 5 Inventory Overview</span>
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">Top 5 Inventory Overview</h2>
                             <a href="inventory_report.php" class="text-[#236B3D] font-medium text-sm hover:underline">View Full Report</a>
-                        </h2>
+                        </div>
                         <div style="position: relative; height:300px;">
                             <canvas id="inventoryStockChart"></canvas>
                         </div>
@@ -707,95 +1049,246 @@ $inventoryChartData = array_column($inventoryChartResult, 'total_stock');
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
-            // Date Filter functionality
-            const dateFilter = document.getElementById('date-filter');
+            // Date Filter functionality with Custom Calendar
             const customDateInput = document.getElementById('custom-date-input');
-            const applyDateFilter = document.getElementById('apply-date-filter');
+            const dateInputDisplay = document.getElementById('date-input-display');
+            const calendarDropdown = document.getElementById('calendar-dropdown');
+            const prevMonthBtn = document.getElementById('prev-month');
+            const nextMonthBtn = document.getElementById('next-month');
+            const monthSelect = document.getElementById('month-select');
+            const yearSelect = document.getElementById('year-select');
+            const calendarDays = document.getElementById('calendar-days');
+            const todayBtn = document.getElementById('today-btn');
+            const clearCalendarBtn = document.getElementById('clear-calendar-btn');
+            
+            let currentDate = new Date();
+            let selectedDate = customDateInput.value || null;
 
-            // Show/hide custom date input based on selection
-            if (dateFilter) {
-                dateFilter.addEventListener('change', () => {
-                    if (dateFilter.value === 'custom') {
-                        customDateInput.classList.remove('hidden');
-                    } else {
-                        customDateInput.classList.add('hidden');
-                    }
-                });
+            // Initialize year select
+            function initYearSelect() {
+                const currentYear = new Date().getFullYear();
+                yearSelect.innerHTML = '';
+                for (let year = currentYear - 10; year <= currentYear + 10; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }
             }
-
-            if (applyDateFilter) {
-                applyDateFilter.addEventListener('click', () => {
-                    let selectedValue = dateFilter.value;
+            initYearSelect();
+            
+            // Render calendar
+            function renderCalendar() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                monthSelect.value = month;
+                yearSelect.value = year;
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const prevMonthDays = new Date(year, month, 0).getDate();
+                
+                let days = '';
+                
+                // Previous month days
+                for (let i = firstDay - 1; i >= 0; i--) {
+                    days += `<div class="calendar-day other-month">${prevMonthDays - i}</div>`;
+                }
+                
+                // Current month days
+                const today = new Date();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    // Create date string manually to avoid timezone issues
+                    const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isSelected = selectedDate === dateString;
                     
-                    if (selectedValue === 'custom') {
-                        selectedValue = customDateInput.value;
-                        if (!selectedValue) {
-                            alert('Please select a custom date');
-                            return;
-                        }
-                    }
+                    let classes = 'calendar-day';
+                    if (isToday) classes += ' today';
+                    if (isSelected) classes += ' selected';
                     
-                    window.location.href = `dashboard.php?date=${selectedValue}`;
+                    days += `<div class="${classes}" data-date="${dateString}">${day}</div>`;
+                }
+                
+                // Next month days
+                const totalCells = firstDay + daysInMonth;
+                const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+                for (let i = 1; i <= remainingCells; i++) {
+                    days += `<div class="calendar-day other-month">${i}</div>`;
+                }
+                
+                calendarDays.innerHTML = days;
+                
+                // Add click event to date cells
+                document.querySelectorAll('.calendar-day:not(.other-month)').forEach(day => {
+                    day.addEventListener('click', () => selectDateFromCalendar(day.dataset.date));
                 });
             }
-
-            // Allow Enter key to apply filter
-            if (customDateInput) {
-                customDateInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        const selectedDate = customDateInput.value;
-                        if (selectedDate) {
-                            window.location.href = `dashboard.php?date=${selectedDate}`;
-                        }
+            
+            // Select date
+            function selectDateFromCalendar(dateString) {
+                selectedDate = dateString;
+                // Parse date string manually to avoid timezone issues
+                const [year, month, day] = dateString.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                dateInputDisplay.value = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                customDateInput.value = dateString;
+                calendarDropdown.classList.remove('show');
+                
+                // Auto-apply the selected date
+                window.location.href = `dashboard.php?date=${dateString}`;
+            }
+            
+            // Toggle calendar
+            if (dateInputDisplay) {
+                dateInputDisplay.addEventListener('click', () => {
+                    calendarDropdown.classList.toggle('show');
+                    if (calendarDropdown.classList.contains('show')) {
+                        renderCalendar();
                     }
                 });
             }
+            
+            // Close calendar when clicking outside
+            document.addEventListener('click', (e) => {
+                if (dateInputDisplay && calendarDropdown && 
+                    !dateInputDisplay.contains(e.target) && !calendarDropdown.contains(e.target)) {
+                    calendarDropdown.classList.remove('show');
+                }
+            });
+            
+            // Navigation buttons
+            if (prevMonthBtn) {
+                prevMonthBtn.addEventListener('click', () => {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                    renderCalendar();
+                });
+            }
+            
+            if (nextMonthBtn) {
+                nextMonthBtn.addEventListener('click', () => {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                    renderCalendar();
+                });
+            }
+            
+            if (monthSelect) {
+                monthSelect.addEventListener('change', (e) => {
+                    currentDate.setMonth(parseInt(e.target.value));
+                    renderCalendar();
+                });
+            }
+            
+            if (yearSelect) {
+                yearSelect.addEventListener('change', (e) => {
+                    currentDate.setFullYear(parseInt(e.target.value));
+                    renderCalendar();
+                });
+            }
+            
+            // Today button
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const dateString = `${year}-${month}-${day}`;
+                    selectDateFromCalendar(dateString);
+                });
+            }
+            
+            // Clear calendar button
+            if (clearCalendarBtn) {
+                clearCalendarBtn.addEventListener('click', () => {
+                    selectedDate = null;
+                    dateInputDisplay.value = '';
+                    customDateInput.value = '';
+                    calendarDropdown.classList.remove('show');
+                    renderCalendar();
+                    
+                    // Go back to "All Time"
+                    window.location.href = 'dashboard.php?date=all';
+                });
+            }
 
-            // Sales Overview Chart (Bar Chart)
+            // Sales Overview Chart (Bar Chart) with dynamic filtering
             const salesOverviewChartCanvas = document.getElementById('salesOverviewChart');
-            if (salesOverviewChartCanvas) {
-                const ctx = salesOverviewChartCanvas.getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: <?php echo json_encode($chartLabels); ?>,
-                        datasets: [{
-                            label: 'Total Sales (₱)',
-                            data: <?php echo json_encode($chartSalesData); ?>,
-                            backgroundColor: '#01A74F',
-                            borderColor: '#018d43',
-                            borderWidth: 1,
-                            borderRadius: 8,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return 'Sales: ₱' + context.parsed.y.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: { 
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return '₱' + value.toLocaleString('en-PH');
-                                    }
-                                }
-                            }
+            let salesChart = null;
+            
+            function updateSalesChart(filterType) {
+                fetch(`dashboard.php?ajax=get_chart_data&chart_type=sales&filter=${filterType}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (salesChart) {
+                            salesChart.destroy();
                         }
-                    }
-                });
+                        
+                        const ctx = salesOverviewChartCanvas.getContext('2d');
+                        salesChart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    label: 'Total Sales (₱)',
+                                    data: data.data,
+                                    backgroundColor: '#01A74F',
+                                    borderColor: '#018d43',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: true,
+                                        position: 'top'
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return 'Sales: ₱' + context.parsed.y.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: { 
+                                        beginAtZero: true,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return '₱' + value.toLocaleString('en-PH');
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error updating sales chart:', error);
+                    });
+            }
+            
+            if (salesOverviewChartCanvas) {
+                // Initialize with default (weekly)
+                updateSalesChart('weekly');
+                
+                // Add filter change listener
+                const salesChartFilter = document.getElementById('sales-chart-filter');
+                if (salesChartFilter) {
+                    salesChartFilter.addEventListener('change', (e) => {
+                        updateSalesChart(e.target.value);
+                    });
+                }
             }
             
             // Inventory Stock Chart (Line Chart)

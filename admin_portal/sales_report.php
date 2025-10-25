@@ -383,13 +383,13 @@ foreach ($period as $date) {
                                                     $badgeClass = '';
                                                     $icon = '';
                                                     if ($movementStatus === 'fast') {
-                                                        $badgeClass = 'bg-green-100 text-green-700';
+                                                        $badgeClass = 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100';
                                                         $icon = '↗';
                                                     } elseif ($movementStatus === 'medium') {
-                                                        $badgeClass = 'bg-yellow-100 text-yellow-700';
+                                                        $badgeClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-700 dark:text-yellow-100';
                                                         $icon = '→';
                                                     } else {
-                                                        $badgeClass = 'bg-red-100 text-red-700';
+                                                        $badgeClass = 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100';
                                                         $icon = '↘';
                                                     }
                                                     ?>

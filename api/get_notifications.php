@@ -7,7 +7,7 @@ $oneMonthFromNow = date('Y-m-d', strtotime('+1 month'));
 
 // --- Fetch products expiring within one month ---
 $expiring_soon_stmt = $conn->prepare(
-    "SELECT name, lot_number, expiration_date 
+    "SELECT name, lot_number, batch_number, expiration_date, stock, supplier 
      FROM products 
      WHERE expiration_date > ? AND expiration_date <= ? AND stock > 0
      ORDER BY expiration_date ASC"
@@ -20,7 +20,7 @@ $expiring_soon_stmt->close();
 
 // --- Fetch products that have already expired ---
 $expired_stmt = $conn->prepare(
-    "SELECT name, lot_number, expiration_date 
+    "SELECT name, lot_number, batch_number, expiration_date, stock, supplier 
      FROM products 
      WHERE expiration_date <= ? AND stock > 0
      ORDER BY expiration_date DESC"

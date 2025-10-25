@@ -18,6 +18,58 @@ if ($conn->connect_error) {
 // Set the timezone
 date_default_timezone_set('Asia/Manila');
 
+// AJAX endpoint for auto-refresh
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'fetch_activities') {
+    $selectedDate = isset($_GET['date']) ? $_GET['date'] : 'all';
+    $isAllTime = ($selectedDate === 'all');
+    
+    if ($isAllTime) {
+        $activityLogsStmt = $conn->prepare("
+            SELECT 
+                ual.action_description,
+                ual.timestamp,
+                u.username,
+                u.first_name,
+                u.last_name,
+                u.role
+            FROM user_activity_log ual
+            JOIN users u ON ual.user_id = u.id
+            ORDER BY ual.timestamp DESC
+            LIMIT 500
+        ");
+        $activityLogsStmt->execute();
+    } else {
+        $activityLogsStmt = $conn->prepare("
+            SELECT 
+                ual.action_description,
+                ual.timestamp,
+                u.username,
+                u.first_name,
+                u.last_name,
+                u.role
+            FROM user_activity_log ual
+            JOIN users u ON ual.user_id = u.id
+            WHERE DATE(ual.timestamp) = ?
+            ORDER BY ual.timestamp DESC
+            LIMIT 200
+        ");
+        $activityLogsStmt->bind_param("s", $selectedDate);
+        $activityLogsStmt->execute();
+    }
+    
+    $activities = $activityLogsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $activityLogsStmt->close();
+    $conn->close();
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'activities' => $activities,
+        'count' => count($activities)
+    ]);
+    exit();
+}
+
 // Get selected date from URL parameter, default to 'all' for all data
 $selectedDate = isset($_GET['date']) ? $_GET['date'] : 'all';
 
@@ -322,6 +374,108 @@ $conn->close();
                     }
                 });
             }
+
+            // Auto-refresh functionality
+            const currentDate = '<?php echo $selectedDate; ?>';
+            let lastActivityCount = <?php echo count($activityLogs); ?>;
+            const totalActivitiesSpan = document.querySelector('.font-semibold.text-blue-600');
+
+            function formatDateTime(timestamp) {
+                const date = new Date(timestamp);
+                const options = { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    hour12: true 
+                };
+                return date.toLocaleDateString('en-US', options);
+            }
+
+            function updateActivityTable(activities) {
+                // Clear existing rows
+                table.innerHTML = '';
+
+                if (activities.length === 0) {
+                    table.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500">No activity logs found.</td></tr>';
+                    return;
+                }
+
+                // Add new rows
+                activities.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                    
+                    const userName = `${log.first_name} ${log.last_name}`;
+                    const username = log.username;
+                    const role = log.role;
+                    const description = log.action_description;
+                    const timestamp = formatDateTime(log.timestamp);
+                    
+                    row.innerHTML = `
+                        <td class="py-3 px-4 font-medium dark:text-white">
+                            ${userName}
+                            <div class="text-xs text-gray-500">@${username}</div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 capitalize">
+                                ${role}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-gray-600 dark:text-gray-300">${description}</td>
+                        <td class="py-3 px-4 text-gray-500 dark:text-gray-400">${timestamp}</td>
+                    `;
+                    
+                    table.appendChild(row);
+                });
+
+                // Reapply filters after update
+                filterTable();
+            }
+
+            function fetchActivities() {
+                fetch(`user_activity_log.php?ajax=fetch_activities&date=${currentDate}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update activity count
+                            if (totalActivitiesSpan) {
+                                totalActivitiesSpan.textContent = `${data.count} activities`;
+                            }
+
+                            // Check if there are new activities
+                            if (data.count > lastActivityCount) {
+                                // Show notification badge or update indicator
+                                const newActivityCount = data.count - lastActivityCount;
+                                console.log(`${newActivityCount} new activity(ies) detected`);
+                                
+                                // Flash the table briefly to indicate update
+                                const activityTable = document.querySelector('#activity-table');
+                                if (activityTable) {
+                                    activityTable.style.transition = 'background-color 0.3s';
+                                    activityTable.style.backgroundColor = '#dcfce7';
+                                    setTimeout(() => {
+                                        activityTable.style.backgroundColor = '';
+                                    }, 1000);
+                                }
+                            }
+
+                            // Update the table with new data
+                            updateActivityTable(data.activities);
+                            lastActivityCount = data.count;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching activities:', error);
+                    });
+            }
+
+            // Auto-refresh every 5 seconds
+            setInterval(fetchActivities, 5000);
+
+            // Initial load message
+            console.log('Auto-refresh enabled: Activity log will update every 5 seconds');
         });
     </script>
 </body>

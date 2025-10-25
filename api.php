@@ -248,6 +248,24 @@ function handleProductDeletion($conn) {
     }
 }
 
+function getLotNumbers($conn) {
+    try {
+        $stmt = $conn->prepare("SELECT DISTINCT lot_number FROM products WHERE lot_number IS NOT NULL AND lot_number != '' ORDER BY lot_number ASC");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $lotNumbers = [];
+        while ($row = $result->fetch_assoc()) {
+            $lotNumbers[] = $row['lot_number'];
+        }
+        
+        $stmt->close();
+        echo json_encode(['success' => true, 'lot_numbers' => $lotNumbers]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Failed to fetch lot numbers: ' . $e->getMessage()]);
+    }
+}
+
 // Master Switch for all actions
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
@@ -257,6 +275,9 @@ switch ($action) {
         break;
     case 'delete_product':
         handleProductDeletion($conn);
+        break;
+    case 'get_lot_numbers':
+        getLotNumbers($conn);
         break;
     case 'process_sale':
         // DEPRECATED: This action has been moved to customer_api.php to prevent duplicate entries

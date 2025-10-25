@@ -134,7 +134,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                         </div>
                         <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <input type="text" name="name" placeholder="Product Brand Name" class="form-input sm:col-span-2" required>
-                            <input type="text" name="lot_number" placeholder="Lot Number" class="form-input">
+                            <div class="relative">
+                                <input type="text" id="lot-number-input" placeholder="Click to enter Lot Number" class="form-input cursor-pointer bg-gray-50" readonly>
+                                <input type="hidden" id="lot-number-value" name="lot_number">
+                                <p class="text-xs text-gray-500 mt-1">Click to enter a unique lot number</p>
+                            </div>
                             <input type="text" id="date-added-display" placeholder="Date Added" class="form-input bg-gray-200 cursor-not-allowed" readonly>
                             <select name="category" id="category-select" class="form-input sm:col-span-2" required></select>
                             <div id="new-category-wrapper" class="hidden sm:col-span-2">
@@ -154,6 +158,56 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                     <button type="submit" id="confirm-add-product-btn" class="btn btn-primary">Confirm</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Lot Number Modal -->
+    <div id="lot-number-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Enter Lot Number</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">View existing lot numbers and enter a unique one</p>
+                    </div>
+                    <button id="close-lot-modal-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">&times;</button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
+                <!-- Input Section -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-barcode text-green-600"></i> Enter New Lot Number
+                    </label>
+                    <input type="text" id="lot-number-new-input" placeholder="e.g., LOT2025-001" class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-semibold">
+                    <div id="lot-number-error" class="text-red-500 text-sm mt-2 hidden">
+                        <i class="fas fa-exclamation-circle"></i> This lot number already exists! Please enter a unique one.
+                    </div>
+                    <div id="lot-number-success" class="text-green-600 text-sm mt-2 hidden">
+                        <i class="fas fa-check-circle"></i> This lot number is unique and available!
+                    </div>
+                </div>
+
+                <!-- Existing Lot Numbers Section -->
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                        <i class="fas fa-list"></i> Existing Lot Numbers (Reference)
+                    </h4>
+                    <div id="existing-lot-numbers" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <p class="text-gray-500 col-span-full text-center">Loading...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <div class="flex justify-end gap-3">
+                    <button id="cancel-lot-modal-btn" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600">
+                        Cancel
+                    </button>
+                    <button id="confirm-lot-number-btn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Confirm Lot Number
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -210,6 +264,110 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             const dateTimeEl = document.getElementById('date-time');
             const successModal = document.getElementById('success-modal');
             const closeSuccessModalBtn = document.getElementById('close-success-modal-btn');
+            
+            // Lot Number Modal Elements
+            const lotNumberInput = document.getElementById('lot-number-input');
+            const lotNumberValue = document.getElementById('lot-number-value');
+            const lotNumberModal = document.getElementById('lot-number-modal');
+            const closeLotModalBtn = document.getElementById('close-lot-modal-btn');
+            const cancelLotModalBtn = document.getElementById('cancel-lot-modal-btn');
+            const lotNumberNewInput = document.getElementById('lot-number-new-input');
+            const confirmLotNumberBtn = document.getElementById('confirm-lot-number-btn');
+            const lotNumberError = document.getElementById('lot-number-error');
+            const lotNumberSuccess = document.getElementById('lot-number-success');
+            const existingLotNumbersContainer = document.getElementById('existing-lot-numbers');
+            
+            let existingLotNumbers = [];
+
+            // Fetch existing lot numbers from database
+            async function fetchExistingLotNumbers() {
+                try {
+                    const response = await fetch('../api.php?action=get_lot_numbers');
+                    const result = await response.json();
+                    if (result.success) {
+                        existingLotNumbers = result.lot_numbers || [];
+                        displayExistingLotNumbers();
+                    }
+                } catch (error) {
+                    console.error('Error fetching lot numbers:', error);
+                    existingLotNumbersContainer.innerHTML = '<p class="text-red-500 col-span-full text-center">Error loading lot numbers</p>';
+                }
+            }
+
+            // Display existing lot numbers
+            function displayExistingLotNumbers() {
+                if (existingLotNumbers.length === 0) {
+                    existingLotNumbersContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center text-sm">No existing lot numbers yet</p>';
+                    return;
+                }
+                
+                existingLotNumbersContainer.innerHTML = existingLotNumbers.map(lotNum => `
+                    <div class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <i class="fas fa-barcode text-green-600 text-xs"></i>
+                        ${lotNum}
+                    </div>
+                `).join('');
+            }
+
+            // Validate lot number uniqueness
+            function validateLotNumber(value) {
+                const trimmedValue = value.trim().toUpperCase();
+                
+                if (!trimmedValue) {
+                    lotNumberError.classList.add('hidden');
+                    lotNumberSuccess.classList.add('hidden');
+                    confirmLotNumberBtn.disabled = true;
+                    return false;
+                }
+                
+                const exists = existingLotNumbers.some(lotNum => lotNum.toUpperCase() === trimmedValue);
+                
+                if (exists) {
+                    lotNumberError.classList.remove('hidden');
+                    lotNumberSuccess.classList.add('hidden');
+                    confirmLotNumberBtn.disabled = true;
+                    return false;
+                } else {
+                    lotNumberError.classList.add('hidden');
+                    lotNumberSuccess.classList.remove('hidden');
+                    confirmLotNumberBtn.disabled = false;
+                    return true;
+                }
+            }
+
+            // Open lot number modal
+            lotNumberInput.addEventListener('click', () => {
+                lotNumberModal.classList.remove('hidden');
+                lotNumberNewInput.value = '';
+                lotNumberError.classList.add('hidden');
+                lotNumberSuccess.classList.add('hidden');
+                confirmLotNumberBtn.disabled = true;
+                fetchExistingLotNumbers();
+            });
+
+            // Close lot number modal
+            closeLotModalBtn.addEventListener('click', () => {
+                lotNumberModal.classList.add('hidden');
+            });
+
+            cancelLotModalBtn.addEventListener('click', () => {
+                lotNumberModal.classList.add('hidden');
+            });
+
+            // Validate on input
+            lotNumberNewInput.addEventListener('input', (e) => {
+                validateLotNumber(e.target.value);
+            });
+
+            // Confirm lot number
+            confirmLotNumberBtn.addEventListener('click', () => {
+                const lotNumber = lotNumberNewInput.value.trim();
+                if (validateLotNumber(lotNumber)) {
+                    lotNumberInput.value = lotNumber;
+                    lotNumberValue.value = lotNumber;
+                    lotNumberModal.classList.add('hidden');
+                }
+            });
 
             addProductForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
