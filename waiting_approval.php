@@ -35,8 +35,8 @@ if ($approval) {
     }
 }
 
-// Auto-refresh every 10 seconds to check for approval updates
-$refresh_interval = 10;
+// Auto-refresh every 5 minutes to check for approval updates
+$refresh_interval = 300;
 ?>
 
 <!DOCTYPE html>
