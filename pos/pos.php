@@ -1,6 +1,29 @@
 <?php
     session_start();
-        // Redirect if not logged in or not a POS user
+    
+    // IP Access Control Function
+    function getUserIP() {
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            return $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            return $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } else {
+            return $_SERVER['REMOTE_ADDR'];
+        }
+    }
+    
+    // Check IP authorization for POS access
+    $userIP = getUserIP();
+    
+    // Check if IP is authorized (WiFi or ISP range)
+    $isAuthorized = ($userIP === '192.168.100.142') || preg_match('/^112\.203\.\d+\.\d+$/', $userIP);
+    
+    if (!$isAuthorized) {
+        header("Location: ../access_denied.php?module=pos");
+        exit();
+    }
+    
+    // Redirect if not logged in or not a POS user
     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'pos') {
         header("Location: ../index.php");
         exit();
@@ -218,8 +241,9 @@
                 top: 0;
                 width: 100%;
             }
-             .no-print {
-                display: none;
+             .no-print, .no-print * {
+                display: none !important;
+                visibility: hidden !important;
             }
         }
         
@@ -611,6 +635,32 @@
                                 <span class="font-semibold text-sm sm:text-base">GCash</span>
                             </label>
                         </div>
+                        
+                        <!-- Cash Payment Details -->
+                        <div id="discount-cash-details" class="mt-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                            <h5 class="font-semibold mb-3 text-gray-700">Cash Payment</h5>
+                            <div class="space-y-3">
+                                <div>
+                                    <label for="discount-cash-amount" class="text-sm font-medium text-gray-600">Amount Received</label>
+                                    <div class="relative mt-1">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
+                                        <input type="number" id="discount-cash-amount" placeholder="0.00" step="0.01" min="0" class="w-full pl-8 pr-4 py-2 border rounded-md bg-white text-sm focus:ring-brand-green focus:border-brand-green">
+                                    </div>
+                                </div>
+                                <div class="bg-white p-3 rounded-md border">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-medium text-gray-600">Change:</span>
+                                        <span id="discount-change-amount" class="text-lg font-bold text-brand-green">₱0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- GCash Payment Details -->
+                        <div id="discount-gcash-details" class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200 hidden">
+                            <h5 class="font-semibold mb-2 text-gray-700">GCash Payment</h5>
+                            <p class="text-sm text-gray-600">Please confirm payment has been received via GCash.</p>
+                        </div>
                     </div>
 
                     <div class="bg-gray-50 p-4 rounded-lg mb-4 text-sm">
@@ -659,6 +709,32 @@
                                 <i class="fas fa-mobile-alt w-5 h-5 sm:w-6 sm:h-6 mx-3 text-gray-600"></i>
                                 <span class="font-semibold text-sm sm:text-base">GCash</span>
                             </label>
+                        </div>
+                        
+                        <!-- Cash Payment Details -->
+                        <div id="regular-cash-details" class="mt-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                            <h5 class="font-semibold mb-3 text-gray-700">Cash Payment</h5>
+                            <div class="space-y-3">
+                                <div>
+                                    <label for="regular-cash-amount" class="text-sm font-medium text-gray-600">Amount Received</label>
+                                    <div class="relative mt-1">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
+                                        <input type="number" id="regular-cash-amount" placeholder="0.00" step="0.01" min="0" class="w-full pl-8 pr-4 py-2 border rounded-md bg-white text-sm focus:ring-brand-green focus:border-brand-green">
+                                    </div>
+                                </div>
+                                <div class="bg-white p-3 rounded-md border">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-medium text-gray-600">Change:</span>
+                                        <span id="regular-change-amount" class="text-lg font-bold text-brand-green">₱0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- GCash Payment Details -->
+                        <div id="regular-gcash-details" class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200 hidden">
+                            <h5 class="font-semibold mb-2 text-gray-700">GCash Payment</h5>
+                            <p class="text-sm text-gray-600">Please confirm payment has been received via GCash.</p>
                         </div>
                     </div>
 
@@ -718,6 +794,10 @@
                     <div class="flex justify-between"><span class="text-gray-600">Subtotal:</span><span id="receipt-subtotal" class="font-medium">₱0.00</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Discount:</span><span id="receipt-discount" class="font-medium text-red-500">-₱0.00</span></div>
                     <div class="flex justify-between font-bold text-lg"><span class="text-gray-800">Total:</span><span id="receipt-total" class="text-brand-green">₱0.00</span></div>
+                    <div id="receipt-cash-details" class="mt-3 pt-2 border-t border-dashed" style="display: none;">
+                        <div class="flex justify-between"><span class="text-gray-600">Cash Received:</span><span id="receipt-cash-amount" class="font-medium">₱0.00</span></div>
+                        <div class="flex justify-between"><span class="text-gray-600">Change:</span><span id="receipt-change-amount" class="font-medium text-brand-green">₱0.00</span></div>
+                    </div>
                  </div>
                  
                  <div class="text-center mt-8 text-xs text-gray-500">
@@ -795,6 +875,16 @@
             const receiptSubtotal = document.getElementById('receipt-subtotal');
             const receiptDiscount = document.getElementById('receipt-discount');
             const receiptTotal = document.getElementById('receipt-total');
+            
+            // Cash payment elements
+            const discountCashAmount = document.getElementById('discount-cash-amount');
+            const discountChangeAmount = document.getElementById('discount-change-amount');
+            const discountCashDetails = document.getElementById('discount-cash-details');
+            const discountGcashDetails = document.getElementById('discount-gcash-details');
+            const regularCashAmount = document.getElementById('regular-cash-amount');
+            const regularChangeAmount = document.getElementById('regular-change-amount');
+            const regularCashDetails = document.getElementById('regular-cash-details');
+            const regularGcashDetails = document.getElementById('regular-gcash-details');
 
             if(userMenuButton) {
                 userMenuButton.addEventListener('click', () => userMenu.classList.toggle('hidden'));
@@ -1031,10 +1121,28 @@
             
             // UNIFIED FUNCTION TO PROCESS SALE AND LOG CUSTOMER DATA
             async function completePurchase(customerData) {
+                const discountRate = parseFloat(discountSelector.value);
+                const subtotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+                const discountAmount = subtotal * discountRate;
+                const totalAmount = subtotal - discountAmount;
+                
+                // Get payment method and cash details
+                const paymentMethodRadio = (discountRate > 0) ? 'discount-payment-method' : 'regular-payment-method';
+                const paymentMethod = document.querySelector(`input[name="${paymentMethodRadio}"]:checked`).value;
+                const cashAmount = (discountRate > 0) ? 
+                    parseFloat(discountCashAmount.value) || 0 : 
+                    parseFloat(regularCashAmount.value) || 0;
+                const changeAmount = paymentMethod === 'cash' ? calculateChange(cashAmount, totalAmount) : 0;
+                
                 const saleData = {
                     ...customerData,
                     items: orderItems,
-                    total_amount: parseFloat(totalElement.textContent.replace('₱', ''))
+                    total_amount: totalAmount,
+                    payment_method: paymentMethod,
+                    cash_amount: paymentMethod === 'cash' ? cashAmount : null,
+                    change_amount: paymentMethod === 'cash' ? changeAmount : null,
+                    subtotal: subtotal,
+                    discount_amount: discountAmount
                 };
 
                 // Process the complete sale (inventory + customer history) in one API call
@@ -1139,6 +1247,24 @@
                 receiptSubtotal.textContent = `₱${subtotal.toFixed(2)}`;
                 receiptDiscount.textContent = `-₱${discountAmount.toFixed(2)}`;
                 receiptTotal.textContent = `₱${total.toFixed(2)}`;
+                
+                // Show cash details if payment method is cash
+                const receiptCashDetails = document.getElementById('receipt-cash-details');
+                const receiptCashAmount = document.getElementById('receipt-cash-amount');
+                const receiptChangeAmount = document.getElementById('receipt-change-amount');
+                
+                if (paymentMethod === 'cash') {
+                    const cashAmount = (discountRate > 0) ? 
+                        parseFloat(discountCashAmount.value) || 0 : 
+                        parseFloat(regularCashAmount.value) || 0;
+                    const change = calculateChange(cashAmount, total);
+                    
+                    receiptCashAmount.textContent = `₱${cashAmount.toFixed(2)}`;
+                    receiptChangeAmount.textContent = `₱${change.toFixed(2)}`;
+                    receiptCashDetails.style.display = 'block';
+                } else {
+                    receiptCashDetails.style.display = 'none';
+                }
 
                 receiptModal.classList.add('active');
             }
@@ -1147,6 +1273,17 @@
                 receiptModal.classList.remove('active');
                 discountPaymentForm.reset();
                 regularPaymentForm.reset();
+                
+                // Reset cash amount inputs and change displays
+                if (discountCashAmount) {
+                    discountCashAmount.value = '';
+                    discountChangeAmount.textContent = '₱0.00';
+                }
+                if (regularCashAmount) {
+                    regularCashAmount.value = '';
+                    regularChangeAmount.textContent = '₱0.00';
+                }
+                
                 orderItems = [];
                 discountSelector.value = "0";
                 updateOrderSummary();
@@ -1157,8 +1294,81 @@
                 window.print();
             });
             
+            // Change calculation functions
+            function calculateChange(cashAmount, totalAmount) {
+                const cash = parseFloat(cashAmount) || 0;
+                const total = parseFloat(totalAmount) || 0;
+                const change = cash - total;
+                return change >= 0 ? change : 0;
+            }
+            
+            function updateDiscountChange() {
+                const totalAmount = parseFloat(discountModalTotalAmount.textContent.replace('₱', ''));
+                const cashAmount = parseFloat(discountCashAmount.value) || 0;
+                const change = calculateChange(cashAmount, totalAmount);
+                discountChangeAmount.textContent = `₱${change.toFixed(2)}`;
+                
+                // Update change color based on whether sufficient cash is provided
+                if (cashAmount >= totalAmount && cashAmount > 0) {
+                    discountChangeAmount.classList.remove('text-red-500');
+                    discountChangeAmount.classList.add('text-brand-green');
+                } else if (cashAmount > 0 && cashAmount < totalAmount) {
+                    discountChangeAmount.classList.remove('text-brand-green');
+                    discountChangeAmount.classList.add('text-red-500');
+                } else {
+                    discountChangeAmount.classList.remove('text-red-500');
+                    discountChangeAmount.classList.add('text-brand-green');
+                }
+            }
+            
+            function updateRegularChange() {
+                const totalAmount = parseFloat(regularModalTotalAmount.textContent.replace('₱', ''));
+                const cashAmount = parseFloat(regularCashAmount.value) || 0;
+                const change = calculateChange(cashAmount, totalAmount);
+                regularChangeAmount.textContent = `₱${change.toFixed(2)}`;
+                
+                // Update change color based on whether sufficient cash is provided
+                if (cashAmount >= totalAmount && cashAmount > 0) {
+                    regularChangeAmount.classList.remove('text-red-500');
+                    regularChangeAmount.classList.add('text-brand-green');
+                } else if (cashAmount > 0 && cashAmount < totalAmount) {
+                    regularChangeAmount.classList.remove('text-brand-green');
+                    regularChangeAmount.classList.add('text-red-500');
+                } else {
+                    regularChangeAmount.classList.remove('text-red-500');
+                    regularChangeAmount.classList.add('text-brand-green');
+                }
+            }
+            
+            function togglePaymentDetails(container, isDiscount = false) {
+                const cashRadio = container.querySelector('input[value="cash"]');
+                const gcashRadio = container.querySelector('input[value="gcash"]');
+                
+                if (isDiscount) {
+                    if (cashRadio && cashRadio.checked) {
+                        discountCashDetails.classList.remove('hidden');
+                        discountGcashDetails.classList.add('hidden');
+                        updateDiscountChange();
+                    } else if (gcashRadio && gcashRadio.checked) {
+                        discountCashDetails.classList.add('hidden');
+                        discountGcashDetails.classList.remove('hidden');
+                    }
+                } else {
+                    if (cashRadio && cashRadio.checked) {
+                        regularCashDetails.classList.remove('hidden');
+                        regularGcashDetails.classList.add('hidden');
+                        updateRegularChange();
+                    } else if (gcashRadio && gcashRadio.checked) {
+                        regularCashDetails.classList.add('hidden');
+                        regularGcashDetails.classList.remove('hidden');
+                    }
+                }
+            }
+
             function updatePaymentMethodStyles(container) {
                 const allLabels = container.querySelectorAll('.payment-method-option');
+                const isDiscount = container.id === 'discount-payment-method-container';
+                
                 allLabels.forEach(label => {
                     const radio = label.querySelector('input[type="radio"]');
                     const icon = label.querySelector('i');
@@ -1183,6 +1393,9 @@
                         }
                     }
                 });
+                
+                // Toggle payment details based on selected method
+                togglePaymentDetails(container, isDiscount);
             }
 
             if (discountPaymentMethodContainer) {
@@ -1190,6 +1403,16 @@
             }
             if (regularPaymentMethodContainer) {
                 regularPaymentMethodContainer.addEventListener('change', () => updatePaymentMethodStyles(regularPaymentMethodContainer));
+            }
+            
+            // Add event listeners for cash amount inputs
+            if (discountCashAmount) {
+                discountCashAmount.addEventListener('input', updateDiscountChange);
+                discountCashAmount.addEventListener('keyup', updateDiscountChange);
+            }
+            if (regularCashAmount) {
+                regularCashAmount.addEventListener('input', updateRegularChange);
+                regularCashAmount.addEventListener('keyup', updateRegularChange);
             }
 
             // Initial load

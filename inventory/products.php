@@ -1,5 +1,28 @@
 <?php
 session_start();
+
+// IP Access Control Function
+function getUserIP() {
+    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+        return $_SERVER['HTTP_CLIENT_IP'];
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        return $_SERVER['HTTP_X_FORWARDED_FOR'];
+    } else {
+        return $_SERVER['REMOTE_ADDR'];
+    }
+}
+
+// Check IP authorization for Inventory access
+$userIP = getUserIP();
+
+// Check if IP is authorized (WiFi or ISP range)
+$isAuthorized = ($userIP === '192.168.100.142') || preg_match('/^112\.203\.\d+\.\d+$/', $userIP);
+
+if (!$isAuthorized) {
+    header("Location: ../access_denied.php?module=inventory");
+    exit();
+}
+
 // Redirect if not logged in or not an inventory user
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     header("Location: ../index.php");

@@ -13,7 +13,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
 ?>
 
 <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-    <div class="flex items-center justify-between p-4 max-w-screen-2xl mx-auto">
+    <div class="flex items-center justify-between p-4 w-full px-6">
         <div class="flex items-center gap-3">
             <img src="../mjpharmacy.logo.jpg" alt="MJ Pharmacy Logo" class="h-10 w-10 rounded-full object-cover">
             <h1 class="text-xl font-semibold text-gray-800 dark:text-white hidden sm:block tracking-tight">MJ Pharmacy</h1>

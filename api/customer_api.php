@@ -54,22 +54,67 @@ switch ($action) {
 
 function handleGetHistory($conn) {
     $search = $_GET['search'] ?? '';
+    $dateFilter = $_GET['date'] ?? '';
+    $customerTypeFilter = $_GET['customer_type'] ?? '';
     $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
     $limit = 6;
     $offset = ($page - 1) * $limit;
     $searchTerm = "%$search%";
 
-    $countQuery = "SELECT COUNT(*) as total FROM customer_history WHERE customer_name LIKE ? OR customer_id_no LIKE ?";
+    // Build WHERE clause based on filters
+    $whereConditions = [];
+    $params = [];
+    $types = '';
+
+    // Search filter
+    if (!empty($search)) {
+        $whereConditions[] = "(customer_name LIKE ? OR customer_id_no LIKE ?)";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $types .= 'ss';
+    }
+
+    // Date filter - filter by last_visit date
+    if (!empty($dateFilter)) {
+        $whereConditions[] = "DATE(last_visit) = ?";
+        $params[] = $dateFilter;
+        $types .= 's';
+    }
+
+    // Customer type filter
+    if (!empty($customerTypeFilter)) {
+        if ($customerTypeFilter === 'walk-in') {
+            $whereConditions[] = "(customer_name = 'Walk-in' OR customer_name = '')";
+        } else if ($customerTypeFilter === 'discounted') {
+            $whereConditions[] = "(customer_name != 'Walk-in' AND customer_name != '' AND customer_name IS NOT NULL)";
+        }
+    }
+
+    // Construct final WHERE clause
+    $whereClause = '';
+    if (!empty($whereConditions)) {
+        $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
+    }
+
+    // Count query
+    $countQuery = "SELECT COUNT(*) as total FROM customer_history $whereClause";
     $stmt = $conn->prepare($countQuery);
-    $stmt->bind_param("ss", $searchTerm, $searchTerm);
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
     $stmt->execute();
     $totalResults = $stmt->get_result()->fetch_assoc()['total'];
     $totalPages = ceil($totalResults / $limit);
     $stmt->close();
 
-    $query = "SELECT * FROM customer_history WHERE customer_name LIKE ? OR customer_id_no LIKE ? ORDER BY last_visit DESC LIMIT ? OFFSET ?";
+    // Main query
+    $query = "SELECT * FROM customer_history $whereClause ORDER BY last_visit DESC LIMIT ? OFFSET ?";
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
+    
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssii", $searchTerm, $searchTerm, $limit, $offset);
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
     $customers = $result->fetch_all(MYSQLI_ASSOC);
@@ -106,34 +151,51 @@ function handleCompleteSale($conn) {
     $conn->begin_transaction();
     try {
         // Step 1: Find or create customer_history record
-        $stmt = $conn->prepare("SELECT id FROM customer_history WHERE customer_name = ? AND customer_id_no = ?");
-        $stmt->bind_param("ss", $customerName, $customerIdNo);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $historyId = null;
-
-        if ($row = $result->fetch_assoc()) {
-            $historyId = $row['id'];
-            $updateStmt = $conn->prepare("UPDATE customer_history SET total_visits = total_visits + 1, total_spent = total_spent + ?, last_visit = CURRENT_TIMESTAMP WHERE id = ?");
-            $updateStmt->bind_param("di", $totalAmount, $historyId);
-            $updateStmt->execute();
-            $updateStmt->close();
-        } else {
+        // For Walk-in customers (no discount), always create new entries
+        if ($customerName === 'Walk-in' && empty($customerIdNo)) {
+            // Always create a new Walk-in entry for each transaction
             $insertStmt = $conn->prepare("INSERT INTO customer_history (customer_name, customer_id_no, total_visits, total_spent) VALUES (?, ?, 1, ?)");
             $insertStmt->bind_param("ssd", $customerName, $customerIdNo, $totalAmount);
             $insertStmt->execute();
             $historyId = $insertStmt->insert_id;
             $insertStmt->close();
+        } else {
+            // For customers with names/IDs, find existing or create new
+            $stmt = $conn->prepare("SELECT id FROM customer_history WHERE customer_name = ? AND customer_id_no = ?");
+            $stmt->bind_param("ss", $customerName, $customerIdNo);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $historyId = null;
+
+            if ($row = $result->fetch_assoc()) {
+                $historyId = $row['id'];
+                $updateStmt = $conn->prepare("UPDATE customer_history SET total_visits = total_visits + 1, total_spent = total_spent + ?, last_visit = CURRENT_TIMESTAMP WHERE id = ?");
+                $updateStmt->bind_param("di", $totalAmount, $historyId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            } else {
+                $insertStmt = $conn->prepare("INSERT INTO customer_history (customer_name, customer_id_no, total_visits, total_spent) VALUES (?, ?, 1, ?)");
+                $insertStmt->bind_param("ssd", $customerName, $customerIdNo, $totalAmount);
+                $insertStmt->execute();
+                $historyId = $insertStmt->insert_id;
+                $insertStmt->close();
+            }
+            $stmt->close();
         }
-        $stmt->close();
 
         if (!$historyId) {
             throw new Exception("Failed to create or find customer history record.");
         }
 
-        // Step 2: Create a single transaction record and get its ID
-        $transStmt = $conn->prepare("INSERT INTO transactions (customer_history_id, total_amount) VALUES (?, ?)");
-        $transStmt->bind_param("id", $historyId, $totalAmount);
+        // Step 2: Create a single transaction record with payment information and get its ID
+        $paymentMethod = $data['payment_method'] ?? 'cash';
+        $cashAmount = $data['cash_amount'] ?? null;
+        $changeAmount = $data['change_amount'] ?? null;
+        $subtotal = $data['subtotal'] ?? $totalAmount;
+        $discountAmount = $data['discount_amount'] ?? 0;
+        
+        $transStmt = $conn->prepare("INSERT INTO transactions (customer_history_id, total_amount, payment_method, cash_amount, change_amount, subtotal, discount_amount) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $transStmt->bind_param("idsdddd", $historyId, $totalAmount, $paymentMethod, $cashAmount, $changeAmount, $subtotal, $discountAmount);
         $transStmt->execute();
         $transactionId = $transStmt->insert_id; // CRITICAL: Get the new transaction ID
         $transStmt->close();
@@ -269,6 +331,15 @@ function handleGetReceiptDetails($conn) {
         return;
     }
 
+    // Get transaction details including payment information
+    $transStmt = $conn->prepare("SELECT payment_method, cash_amount, change_amount, subtotal, discount_amount FROM transactions WHERE id = ?");
+    $transStmt->bind_param("i", $transactionId);
+    $transStmt->execute();
+    $transResult = $transStmt->get_result();
+    $transactionData = $transResult->fetch_assoc();
+    $transStmt->close();
+    
+    // Get purchased items
     $stmt = $conn->prepare("SELECT product_name, quantity, total_price FROM purchase_history WHERE transaction_id = ?");
     $stmt->bind_param("i", $transactionId);
     $stmt->execute();
@@ -281,7 +352,18 @@ function handleGetReceiptDetails($conn) {
          return;
     }
 
-    echo json_encode(['success' => true, 'items' => $items]);
+    // Combine items with transaction data
+    $response = [
+        'success' => true, 
+        'items' => $items,
+        'payment_method' => $transactionData['payment_method'] ?? 'cash',
+        'cash_amount' => $transactionData['cash_amount'] ?? 0,
+        'change_amount' => $transactionData['change_amount'] ?? 0,
+        'subtotal' => $transactionData['subtotal'] ?? 0,
+        'discount' => $transactionData['discount_amount'] ?? 0
+    ];
+    
+    echo json_encode($response);
 }
 
 $conn->close();
