@@ -374,13 +374,15 @@ $conn->close();
             }
         });
 
-        // Auto-refresh page every 5 seconds to catch:
-        // - New login requests (after OTP)
-        // - Timeout events (after 1 minute)
-        // - Admin approvals/declines
+        // Auto-refresh ONLY when someone is waiting for approval
+        // This allows admin to see:
+        // 1. The pending request when someone is waiting
+        // 2. When the request times out (moves to Recent Activity)
+        <?php if ($hasPendingRequests): ?>
         setTimeout(function() {
             location.reload();
-        }, 5000); // 5 seconds - consistent refresh for all events
+        }, 3000); // Refresh every 3 seconds while someone is waiting
+        <?php endif; ?>
     </script>
 </body>
 </html>
