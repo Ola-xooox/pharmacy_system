@@ -67,6 +67,9 @@ $recentQuery = "SELECT la.*, u.username, u.profile_image, admin.username as admi
                 LIMIT 20";
 $recentResult = $conn->query($recentQuery);
 
+// Store pending count for auto-refresh logic
+$hasPendingRequests = $pendingResult->num_rows > 0;
+
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -371,12 +374,13 @@ $conn->close();
             }
         });
 
-        // Auto-refresh page every 3 seconds to catch:
-        // 1. New login requests immediately after OTP verification
-        // 2. Timeout events when 1-minute timer runs out
+        // Auto-refresh page every 5 seconds to catch:
+        // - New login requests (after OTP)
+        // - Timeout events (after 1 minute)
+        // - Admin approvals/declines
         setTimeout(function() {
             location.reload();
-        }, 3000);
+        }, 5000); // 5 seconds - consistent refresh for all events
     </script>
 </body>
 </html>
