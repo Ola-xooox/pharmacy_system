@@ -504,7 +504,7 @@ $darkMode = getDarkModeAssets();
                             <div>
                                 <div class="flex items-center gap-3">
                                     <i class="fas fa-users text-2xl"></i>
-                                    <h1 class="text-2xl font-bold">Customers Relations</h1>
+                                    <h1 class="text-2xl font-bold">Customer Relations</h1>
                                 </div>
                                 <div class="flex items-center gap-3 mt-2 ml-1">
                                     <p class="text-white/80">View and manage customer information with advanced filtering.</p>
