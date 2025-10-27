@@ -375,13 +375,11 @@ $conn->close();
         });
 
         // Auto-refresh ONLY when someone is waiting for approval
-        // This allows admin to see:
-        // 1. The pending request when someone is waiting
-        // 2. When the request times out (moves to Recent Activity)
+        // Refresh after 1:05 (65 seconds) to catch timeout events
         <?php if ($hasPendingRequests): ?>
         setTimeout(function() {
             location.reload();
-        }, 3000); // Refresh every 3 seconds while someone is waiting
+        }, 65000); // Refresh after 1 minute 5 seconds (after timeout occurs)
         <?php endif; ?>
     </script>
 </body>
