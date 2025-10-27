@@ -374,11 +374,17 @@ $conn->close();
             }
         });
 
-        // Auto-refresh page only when there are pending requests (every 5 seconds)
+        // Auto-refresh page to see new requests and timeouts
+        // Fast refresh (3 seconds) when there are pending requests
+        // Slower refresh (10 seconds) when no pending requests (to catch new requests and timeouts)
         <?php if ($hasPendingRequests): ?>
         setTimeout(function() {
             location.reload();
-        }, 5000);
+        }, 3000); // 3 seconds - fast refresh for pending requests
+        <?php else: ?>
+        setTimeout(function() {
+            location.reload();
+        }, 10000); // 10 seconds - slower refresh to catch new requests and timeouts
         <?php endif; ?>
     </script>
 </body>
