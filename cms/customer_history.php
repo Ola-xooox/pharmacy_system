@@ -633,7 +633,7 @@ $darkMode = getDarkModeAssets();
         <div class="modal-content max-w-6xl bg-white dark:bg-gray-800">
             <div class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700 header-gradient text-white">
                 <div>
-                    <h3 class="text-xl font-bold">Transaction History</h3>
+                    <h3 class="text-xl font-bold">Transactions History</h3>
                     <p id="history-customer-name" class="text-sm text-white/80 mt-1"></p>
                 </div>
                 <button id="close-history-modal" class="p-2 rounded-full hover:bg-white/20 text-2xl leading-none font-bold text-white transition-colors">&times;</button>
