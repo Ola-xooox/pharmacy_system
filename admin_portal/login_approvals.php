@@ -374,12 +374,16 @@ $conn->close();
             }
         });
 
-        // Auto-refresh ONLY when someone is waiting for approval
-        // Refresh after 1:05 (65 seconds) to catch timeout events
+        // Two auto-refresh scenarios when someone is waiting:
+        // 1. Quick refresh (5 seconds) to show new pending requests
+        // 2. Timeout refresh (1:05) to catch when requests time out
         <?php if ($hasPendingRequests): ?>
         setTimeout(function() {
             location.reload();
-        }, 65000); // Refresh after 1 minute 5 seconds (after timeout occurs)
+        }, 5000); // First refresh at 5 seconds to show pending request
+        setTimeout(function() {
+            location.reload();
+        }, 65000); // Second refresh at 1:05 to catch timeout
         <?php endif; ?>
     </script>
 </body>
