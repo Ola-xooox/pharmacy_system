@@ -540,23 +540,9 @@ $conn->close();
 
     <script>
         let checkCount = 0;
-        const maxChecks = 60;
         
         function checkApprovalStatus() {
             checkCount++;
-            
-            if (checkCount >= maxChecks) {
-                document.getElementById('status-message').innerHTML = `
-                    <p class="text-sm text-red-800">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                        Request timed out. Please try logging in again.
-                    </p>
-                `;
-                setTimeout(() => {
-                    window.location.href = 'index.php';
-                }, 3000);
-                return;
-            }
             
             // Check every second
             fetch('check_approval_status.php')
@@ -583,6 +569,17 @@ $conn->close();
                         document.getElementById('status-message').className = 'bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-center';
                         setTimeout(() => {
                             window.location.href = 'index.php?declined=1';
+                        }, 2000);
+                    } else if (data.status === 'no_response') {
+                        document.getElementById('status-message').innerHTML = `
+                            <p class="text-sm text-orange-800">
+                                <i class="fas fa-clock mr-2"></i>
+                                Request timed out (no response). Redirecting...
+                            </p>
+                        `;
+                        document.getElementById('status-message').className = 'bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 text-center';
+                        setTimeout(() => {
+                            window.location.href = 'index.php?timeout=1';
                         }, 2000);
                     } else {
                         // Still pending, update status message

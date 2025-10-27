@@ -56,16 +56,19 @@ $pendingQuery = "SELECT la.*, u.username, u.profile_image
                  ORDER BY la.requested_at DESC";
 $pendingResult = $conn->query($pendingQuery);
 
-// Get recent approvals (approved or declined in last 24 hours)
+// Get recent approvals (approved, declined, or no_response in last 24 hours)
 $recentQuery = "SELECT la.*, u.username, u.profile_image, admin.username as admin_username
                 FROM login_approvals la 
                 JOIN users u ON la.user_id = u.id 
                 LEFT JOIN users admin ON la.reviewed_by = admin.id
-                WHERE la.status IN ('approved', 'declined') 
+                WHERE la.status IN ('approved', 'declined', 'no_response') 
                 AND la.reviewed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                 ORDER BY la.reviewed_at DESC 
                 LIMIT 20";
 $recentResult = $conn->query($recentQuery);
+
+// Store pending count for auto-refresh logic
+$hasPendingRequests = $pendingResult->num_rows > 0;
 
 $conn->close();
 ?>
@@ -100,6 +103,11 @@ $conn->close();
         .badge-declined {
             background-color: #fee2e2;
             color: #b91c1c;
+        }
+        
+        .badge-no_response {
+            background-color: #fff7ed;
+            color: #c2410c;
         }
         
         .approval-card {
@@ -366,10 +374,12 @@ $conn->close();
             }
         });
 
-        // Auto-refresh page every 10 seconds to check for new requests
+        // Auto-refresh page only when there are pending requests (every 5 seconds)
+        <?php if ($hasPendingRequests): ?>
         setTimeout(function() {
             location.reload();
-        }, 10000);
+        }, 5000);
+        <?php endif; ?>
     </script>
 </body>
 </html>

@@ -20,6 +20,11 @@ if (isset($_GET['declined']) && $_GET['declined'] == '1') {
     $error = 'Your login request was declined by an administrator. Please contact support if you believe this was an error.';
 }
 
+// Check if login request timed out
+if (isset($_GET['timeout']) && $_GET['timeout'] == '1') {
+    $error = 'Your login request timed out due to no response from administrator. Please try again.';
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['action'])) {
         if ($_POST['action'] == 'login_with_otp') {

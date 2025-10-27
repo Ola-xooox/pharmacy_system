@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS login_approvals (
     email VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     role ENUM('pos', 'cms', 'inventory') NOT NULL,
-    status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'declined', 'no_response') DEFAULT 'pending',
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     reviewed_at DATETIME NULL,
     reviewed_by INT NULL,
