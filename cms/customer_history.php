@@ -707,13 +707,13 @@ $darkMode = getDarkModeAssets();
             </div>
             
             <div class="p-4 overflow-y-auto max-h-96 table-container">
-                <table class="w-full text-base">
-                    <thead class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-600 text-sm font-semibold uppercase sticky top-0">
+                <table class="w-full text-xl">
+                    <thead class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-600 text-lg font-semibold uppercase sticky top-0">
                         <tr>
-                            <th class="px-4 py-3 text-gray-700 dark:text-gray-200 text-left w-2/5">Product(s)</th>
-                            <th class="px-4 py-3 text-gray-700 dark:text-gray-200 text-left">Receipt #</th>
-                            <th class="px-4 py-3 text-gray-700 dark:text-gray-200 text-left">Date</th>
-                            <th class="px-4 py-3 text-gray-700 dark:text-gray-200 text-right">Total Amount</th>
+                            <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-left w-2/5">Product(s)</th>
+                            <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-left">Receipt #</th>
+                            <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-left">Date</th>
+                            <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-right">Total Amount</th>
                         </tr>
                     </thead>
                     <tbody id="transaction-list-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
