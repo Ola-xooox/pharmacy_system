@@ -323,6 +323,32 @@ $conn->close();
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+
+            // Sidebar toggle functionality
+            if(sidebarToggleBtn && sidebar) {
+                sidebarToggleBtn.addEventListener('click', () => {
+                    if (window.innerWidth < 768) {
+                        sidebar.classList.toggle('open-mobile');
+                        overlay.classList.toggle('hidden');
+                    } else {
+                        sidebar.classList.toggle('open-desktop');
+                    }
+                });
+            }
+
+            // Overlay click to close sidebar on mobile
+            if(overlay) {
+                overlay.addEventListener('click', () => {
+                    if (sidebar) sidebar.classList.remove('open-mobile');
+                    overlay.classList.add('hidden');
+                });
+            }
+        });
+
         // Auto-refresh page every 10 seconds to check for new requests
         setTimeout(function() {
             location.reload();
