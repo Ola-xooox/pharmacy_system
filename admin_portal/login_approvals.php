@@ -67,9 +67,6 @@ $recentQuery = "SELECT la.*, u.username, u.profile_image, admin.username as admi
                 LIMIT 20";
 $recentResult = $conn->query($recentQuery);
 
-// Store pending count for auto-refresh logic
-$hasPendingRequests = $pendingResult->num_rows > 0;
-
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -374,11 +371,12 @@ $conn->close();
             }
         });
 
-        // Auto-refresh page every 1 minute and 2 seconds (62 seconds)
-        // This aligns with the 60-second timeout + 2 seconds buffer
+        // Auto-refresh page every 3 seconds to catch:
+        // 1. New login requests immediately after OTP verification
+        // 2. Timeout events when 1-minute timer runs out
         setTimeout(function() {
             location.reload();
-        }, 62000);
+        }, 3000);
     </script>
 </body>
 </html>
