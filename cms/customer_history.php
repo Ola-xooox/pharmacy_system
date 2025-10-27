@@ -105,7 +105,7 @@ $darkMode = getDarkModeAssets();
             width: 100%; 
             transform: scale(0.95); 
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            max-height: 90vh; 
+            max-height: 95vh; 
             overflow-y: auto;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -699,16 +699,10 @@ $darkMode = getDarkModeAssets();
                             </div>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button id="transaction-filter-today" class="px-3 py-2 text-xs font-medium bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">Today</button>
-                        <button id="transaction-filter-week" class="px-3 py-2 text-xs font-medium bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">This Week</button>
-                        <button id="transaction-filter-month" class="px-3 py-2 text-xs font-medium bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">This Month</button>
-                        <button id="transaction-filter-all" class="px-3 py-2 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">All</button>
-                    </div>
                 </div>
             </div>
             
-            <div class="p-4 overflow-y-auto max-h-96 table-container">
+            <div class="p-4 overflow-y-auto max-h-[60vh] table-container">
                 <table class="w-full text-2xl">
                     <thead class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-600 text-xl font-semibold uppercase sticky top-0">
                         <tr>
@@ -828,11 +822,6 @@ $darkMode = getDarkModeAssets();
             // Customer type filter dropdown
             const customerTypeSelect = document.getElementById('customer-type-select');
             
-            // Transaction quick filter buttons
-            const transactionFilterTodayBtn = document.getElementById('transaction-filter-today');
-            const transactionFilterWeekBtn = document.getElementById('transaction-filter-week');
-            const transactionFilterMonthBtn = document.getElementById('transaction-filter-month');
-            const transactionFilterAllBtn = document.getElementById('transaction-filter-all');
 
             // State variables
             let currentPage = 1;
@@ -1404,11 +1393,6 @@ $darkMode = getDarkModeAssets();
                 });
             }
             
-            // Transaction quick filter buttons
-            if (transactionFilterTodayBtn) transactionFilterTodayBtn.addEventListener('click', () => setQuickFilter('today', true));
-            if (transactionFilterWeekBtn) transactionFilterWeekBtn.addEventListener('click', () => setQuickFilter('week', true));
-            if (transactionFilterMonthBtn) transactionFilterMonthBtn.addEventListener('click', () => setQuickFilter('month', true));
-            if (transactionFilterAllBtn) transactionFilterAllBtn.addEventListener('click', () => setQuickFilter('all', true));
             
             // Close calendars when clicking outside
             document.addEventListener('click', (e) => {
