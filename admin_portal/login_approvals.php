@@ -7,6 +7,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+$currentPage = 'login_approvals';
 require '../db_connect.php';
 
 // Handle approval/decline actions
