@@ -11,41 +11,6 @@ require_once 'gmail_config.php';
 require_once 'phpmailer_otp.php';
 $otpMailer = new PHPMailerOTP($conn);
 
-// IP Access Control Functions
-function getUserIP() {
-    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-        return $_SERVER['HTTP_CLIENT_IP'];
-    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        return $_SERVER['HTTP_X_FORWARDED_FOR'];
-    } else {
-        return $_SERVER['REMOTE_ADDR'];
-    }
-}
-
-function isAuthorizedIP($userRole) {
-    $userIP = getUserIP();
-    
-    // Admin users can access from any IP
-    if ($userRole === 'admin') {
-        return true;
-    }
-    
-    // POS, CMS, and Inventory users must be from authorized IPs
-    if (in_array($userRole, ['pos', 'cms', 'inventory'])) {
-        // Allow WiFi network IP
-        if ($userIP === '192.168.100.142') {
-            return true;
-        }
-        
-        // Allow your ISP's IP range (112.203.x.x)
-        if (preg_match('/^112\.203\.\d+\.\d+$/', $userIP)) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
 $error = '';
 $success_message = '';
 $step = 'login'; // 'login' or 'otp'
@@ -84,60 +49,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
                 
                 if ($user && $passwordValid) {
-                    // Check IP authorization for non-admin users
-                    if (!isAuthorizedIP($user['role'])) {
-                        $userIP = getUserIP();
+                    // Check if OTP was recently sent (within last 30 seconds) to prevent spam
+                    $recentOtp = false;
+                    if (isset($_SESSION['last_otp_time']) && isset($_SESSION['last_otp_email'])) {
+                        if ($_SESSION['last_otp_email'] === $email && (time() - $_SESSION['last_otp_time']) < 30) {
+                            $recentOtp = true;
+                        }
+                    }
+                    
+                    if ($recentOtp) {
+                        // OTP was sent recently, just show the existing one
+                        $_SESSION['otp_email'] = $email;
+                        $_SESSION['pending_user'] = $user;
+                        $_SESSION['otp_success'] = "An OTP was recently sent to your email. Please check your inbox or use the backup codes below.";
+                        header("Location: index.php");
+                        exit();
+                    }
+                    
+                    // Send OTP (the method will generate and store the OTP automatically)
+                    $otpResult = $otpMailer->sendOTP($email);
+                    
+                    if ($otpResult !== false) {
+                        // Always proceed to OTP step if OTP is stored
+                        $_SESSION['otp_email'] = $email;
+                        $_SESSION['pending_user'] = $user;
+                        $_SESSION['last_otp_time'] = time();
+                        $_SESSION['last_otp_email'] = $email;
                         
-                        // Log unauthorized access attempt
-                        $logStmt = $conn->prepare("INSERT INTO user_activity_log (user_id, action_description, timestamp) VALUES (?, ?, NOW())");
-                        $logAction = ucfirst($user['role']) . " System: Unauthorized access attempt from IP: $userIP";
-                        $logStmt->bind_param("is", $user['id'], $logAction);
-                        $logStmt->execute();
-                        $logStmt->close();
+                        if ($otpResult === true) {
+                            $_SESSION['otp_success'] = "OTP sent to your email successfully! Please check your inbox.";
+                        } else {
+                            $_SESSION['otp_success'] = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
+                        }
                         
-                        // Redirect to access denied page
-                        header("Location: access_denied.php?module=" . $user['role']);
+                        // Redirect to prevent form resubmission on refresh (Post/Redirect/Get pattern)
+                        header("Location: index.php");
                         exit();
                     } else {
-                        // Check if OTP was recently sent (within last 30 seconds) to prevent spam
-                        $recentOtp = false;
-                        if (isset($_SESSION['last_otp_time']) && isset($_SESSION['last_otp_email'])) {
-                            if ($_SESSION['last_otp_email'] === $email && (time() - $_SESSION['last_otp_time']) < 30) {
-                                $recentOtp = true;
-                            }
-                        }
-                        
-                        if ($recentOtp) {
-                            // OTP was sent recently, just show the existing one
-                            $_SESSION['otp_email'] = $email;
-                            $_SESSION['pending_user'] = $user;
-                            $_SESSION['otp_success'] = "An OTP was recently sent to your email. Please check your inbox or use the backup codes below.";
-                            header("Location: index.php");
-                            exit();
-                        }
-                        
-                        // Send OTP (the method will generate and store the OTP automatically)
-                        $otpResult = $otpMailer->sendOTP($email);
-                        
-                        if ($otpResult !== false) {
-                            // Always proceed to OTP step if OTP is stored
-                            $_SESSION['otp_email'] = $email;
-                            $_SESSION['pending_user'] = $user;
-                            $_SESSION['last_otp_time'] = time();
-                            $_SESSION['last_otp_email'] = $email;
-                            
-                            if ($otpResult === true) {
-                                $_SESSION['otp_success'] = "OTP sent to your email successfully! Please check your inbox.";
-                            } else {
-                                $_SESSION['otp_success'] = "OTP generated successfully! Your backup codes are displayed below - use any of them to complete login.";
-                            }
-                            
-                            // Redirect to prevent form resubmission on refresh (Post/Redirect/Get pattern)
-                            header("Location: index.php");
-                            exit();
-                        } else {
-                            $error = "Failed to generate OTP. Please try again.";
-                        }
+                        $error = "Failed to generate OTP. Please try again.";
                     }
                 } else {
                     $error = "Invalid email or password.";
