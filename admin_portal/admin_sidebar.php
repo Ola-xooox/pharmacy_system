@@ -4,50 +4,109 @@
         <h1 class="text-xl font-bold tracking-tight text-white nav-text">ADMIN PORTAL</h1>
     </div>
     <nav class="flex-1 p-4 space-y-2">
-        <a href="dashboard.php" class="nav-link <?php echo ($currentPage === 'dashboard') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="dashboard.php" class="nav-link <?php echo ($currentPage === 'dashboard') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 3.75A.75.75 0 013.75 3h6a.75.75 0 01.75.75v6a.75.75 0 01-.75.75h-6a.75.75 0 01-.75-.75v-6zm0 9.75A.75.75 0 013.75 13.5h6a.75.75 0 01.75.75v6a.75.75 0 01-.75.75h-6a.75.75 0 01-.75-.75v-6zm9.75-9.75A.75.75 0 0113.5 3h6a.75.75 0 01.75.75v6a.75.75 0 01-.75.75h-6a.75.75 0 01-.75-.75v-6zm9.75 9.75A.75.75 0 0113.5 13.5h6a.75.75 0 01.75.75v6a.75.75 0 01-.75.75h-6a.75.75 0 01-.75-.75v-6z" clip-rule="evenodd" />
             </svg>
             <span class="nav-text">Dashboard</span>
+            <span class="nav-tooltip">Dashboard</span>
         </a>
-        <a href="setup_account.php" class="nav-link <?php echo ($currentPage === 'setup_account') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="setup_account.php" class="nav-link <?php echo ($currentPage === 'setup_account') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6.25 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM3.125 19.125a2.25 2.25 0 012.25-2.25h5.375a.75.75 0 010 1.5H5.375a.75.75 0 00-.75.75v.125a.75.75 0 00.75.75h9a.75.75 0 00.75-.75v-.125a.75.75 0 00-.75-.75h-1.5a.75.75 0 010-1.5h1.5a2.25 2.25 0 012.25 2.25v.125c0 .621-.504 1.125-1.125 1.125H4.25A1.125 1.125 0 013.125 19.125z" />
                 <path d="M17.625 1.125a.75.75 0 01.75.75v2.625h2.625a.75.75 0 010 1.5h-2.625v2.625a.75.75 0 01-1.5 0V6h-2.625a.75.75 0 010-1.5h2.625V1.875a.75.75 0 01.75-.75z" />
             </svg>
             <span class="nav-text">Set Up New Account</span>
+            <span class="nav-tooltip">Set Up New Account</span>
         </a>
-        <a href="login_approvals.php" class="nav-link <?php echo ($currentPage === 'login_approvals') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="login_approvals.php" class="nav-link <?php echo ($currentPage === 'login_approvals') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm3.094 8.016a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
             </svg>
             <span class="nav-text">Login Approvals</span>
+            <span class="nav-tooltip">Login Approvals</span>
         </a>
-        <a href="user_activity_log.php" class="nav-link <?php echo ($currentPage === 'user_activity_log') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="user_activity_log.php" class="nav-link <?php echo ($currentPage === 'user_activity_log') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 013.75 3.75v1.875h-9.75V3.375z" />
                 <path fill-rule="evenodd" d="M16.5 3.375h.375a1.875 1.875 0 011.875 1.875v13.5a1.875 1.875 0 01-1.875 1.875h-9.75A1.875 1.875 0 015.25 18.75V5.25a1.875 1.875 0 011.875-1.875h1.5v1.875c0 1.036.84 1.875 1.875 1.875h3.375V3.375zM15 6.75a.75.75 0 00-.75.75v3.375a.75.75 0 001.5 0V7.5a.75.75 0 00-.75-.75zM9.75 8.625a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zm.75 2.625a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clip-rule="evenodd" />
             </svg>
             <span class="nav-text">User Activity Log</span>
+            <span class="nav-tooltip">User Activity Log</span>
         </a>
-        <a href="inventory_report.php" class="nav-link <?php echo ($currentPage === 'inventory_report') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="inventory_report.php" class="nav-link <?php echo ($currentPage === 'inventory_report') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C22.5 3.839 21.66 3 20.625 3H3.375z" />
                 <path fill-rule="evenodd" d="M3.087 9l.54 9.176A3 3 0 006.62 21h10.757a3 3 0 002.995-2.824L20.913 9H3.087zm6.163 3.75A.75.75 0 0110 12h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75z" clip-rule="evenodd" />
             </svg>
             <span class="nav-text">Inventory Report</span>
+            <span class="nav-tooltip">Inventory Report</span>
         </a>
-        <a href="sales_report.php" class="nav-link <?php echo ($currentPage === 'sales_report') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="sales_report.php" class="nav-link <?php echo ($currentPage === 'sales_report') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75zM9.75 8.625c-1.036 0-1.875.84-1.875 1.875v9.375c0 1.036.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V10.5c0-1.036-.84-1.875-1.875-1.875h-.75zM3 13.5c-1.036 0-1.875.84-1.875 1.875v3.375c0 1.036.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V15.375c0-1.036-.84-1.875-1.875-1.875h-.75z" />
             </svg>
             <span class="nav-text">Sales Report</span>
+            <span class="nav-tooltip">Sales Report</span>
         </a>
-        <a href="delete_account.php" class="nav-link <?php echo ($currentPage === 'delete_account') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg">
+        <a href="delete_account.php" class="nav-link <?php echo ($currentPage === 'delete_account') ? 'active' : ''; ?> flex items-center px-4 py-3 rounded-lg relative group">
             <svg class="w-6 h-6 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                 <path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clip-rule="evenodd" />
             </svg>
             <span class="nav-text">Delete Account</span>
+            <span class="nav-tooltip">Delete Account</span>
         </a>
     </nav>
 </aside>
+
+<style>
+    /* Tooltip styling */
+    .nav-tooltip {
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        margin-left: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background-color: rgba(0, 0, 0, 0.9);
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease-in-out;
+        z-index: 100;
+    }
+
+    /* Show tooltip on hover when sidebar is closed (desktop only) */
+    @media (min-width: 768px) {
+        .sidebar:not(.open-desktop) .nav-link:hover .nav-tooltip {
+            opacity: 1;
+        }
+
+        /* Hide tooltip when sidebar is open */
+        .sidebar.open-desktop .nav-tooltip {
+            display: none;
+        }
+    }
+
+    /* Never show tooltip on mobile */
+    @media (max-width: 767px) {
+        .nav-tooltip {
+            display: none;
+        }
+    }
+
+    /* Add arrow to tooltip */
+    .nav-tooltip::before {
+        content: '';
+        position: absolute;
+        right: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 6px solid transparent;
+        border-right-color: rgba(0, 0, 0, 0.9);
+    }
+</style>

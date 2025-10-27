@@ -327,6 +327,8 @@ $conn->close();
             const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userMenu = document.getElementById('user-menu');
 
             // Sidebar toggle functionality
             if(sidebarToggleBtn && sidebar) {
@@ -345,6 +347,21 @@ $conn->close();
                 overlay.addEventListener('click', () => {
                     if (sidebar) sidebar.classList.remove('open-mobile');
                     overlay.classList.add('hidden');
+                });
+            }
+
+            // User menu dropdown toggle
+            if (userMenuButton && userMenu) {
+                userMenuButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    userMenu.classList.toggle('hidden');
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
+                        userMenu.classList.add('hidden');
+                    }
                 });
             }
         });
