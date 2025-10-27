@@ -78,6 +78,7 @@ $conn->close();
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/x-icon" href="../mjpharmacy.logo.jpg">
+    <?php include 'assets/admin_darkmode.php'; ?>
     <style>
         :root {
             --primary-green: #01A74F;
