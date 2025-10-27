@@ -645,18 +645,20 @@ $darkMode = getDarkModeAssets();
                     <div class="flex-1">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter Transactions by Date</label>
                         <div class="relative">
-                            <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
-                            <input type="text" readonly id="transaction-date-display" placeholder="Select date" class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 cursor-pointer hover:border-brand-green transition-colors">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="ph ph-calendar-blank text-gray-400 dark:text-gray-500"></i>
+                            </div>
+                            <input type="text" readonly id="transaction-date-display" placeholder="Select a date" class="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 cursor-pointer transition-all duration-200 hover:border-green-500">
                             <input type="hidden" id="transaction-date-filter">
                             
                             <!-- Transaction Calendar Dropdown -->
                             <div id="transaction-calendar-dropdown" class="calendar-dropdown">
                                 <div class="calendar-header">
                                     <button type="button" class="nav-btn" id="transaction-prev-month">
-                                        <i class="fas fa-chevron-left"></i>
+                                        <i class="ph ph-caret-left"></i>
                                     </button>
                                     <div class="flex items-center gap-2">
-                                        <select id="transaction-month-select" class="px-2 py-1 rounded bg-gray-100 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green">
+                                        <select id="transaction-month-select" class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                                             <option value="0">January</option>
                                             <option value="1">February</option>
                                             <option value="2">March</option>
@@ -670,10 +672,10 @@ $darkMode = getDarkModeAssets();
                                             <option value="10">November</option>
                                             <option value="11">December</option>
                                         </select>
-                                        <select id="transaction-year-select" class="px-2 py-1 rounded bg-gray-100 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"></select>
+                                        <select id="transaction-year-select" class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border-none font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-green-500"></select>
                                     </div>
                                     <button type="button" class="nav-btn" id="transaction-next-month">
-                                        <i class="fas fa-chevron-right"></i>
+                                        <i class="ph ph-caret-right"></i>
                                     </button>
                                 </div>
                                 <div class="calendar-grid">
@@ -686,11 +688,11 @@ $darkMode = getDarkModeAssets();
                                     <div class="calendar-day-name">Sa</div>
                                 </div>
                                 <div class="calendar-grid" id="transaction-calendar-days"></div>
-                                <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200">
-                                    <button type="button" id="transaction-today-btn" class="flex-1 px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-medium transition-colors">
+                                <div class="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                    <button type="button" id="transaction-today-btn" class="flex-1 px-3 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-200 rounded-lg text-sm font-medium transition-colors">
                                         Today
                                     </button>
-                                    <button type="button" id="transaction-clear-btn" class="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                                    <button type="button" id="transaction-clear-btn" class="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors">
                                         Clear
                                     </button>
                                 </div>
@@ -707,8 +709,8 @@ $darkMode = getDarkModeAssets();
             </div>
             
             <div class="p-4 overflow-y-auto max-h-96 table-container">
-                <table class="w-full text-xl">
-                    <thead class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-600 text-lg font-semibold uppercase sticky top-0">
+                <table class="w-full text-2xl">
+                    <thead class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-600 text-xl font-semibold uppercase sticky top-0">
                         <tr>
                             <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-left w-2/5">Product(s)</th>
                             <th class="px-6 py-4 text-gray-700 dark:text-gray-200 text-left">Receipt #</th>
