@@ -14,7 +14,7 @@ if ($status_filter === 'outOfStock') {
     $having_clause = "HAVING SUM(p.stock) > 0";
 }
 
-// The main query is now dynamic based on the having clause
+// The main query is now dynamic based on the having clause, including expiration data
 $products_result = $conn->query("
     SELECT
         p.name,
@@ -22,13 +22,18 @@ $products_result = $conn->query("
         c.name AS category_name,
         SUBSTRING_INDEX(GROUP_CONCAT(p.price ORDER BY p.expiration_date ASC), ',', 1) AS price,
         SUBSTRING_INDEX(GROUP_CONCAT(p.image_path ORDER BY p.expiration_date ASC), ',', 1) AS image_path,
+        -- Get the earliest expiration date for this product group
+        MIN(CASE WHEN p.expiration_date IS NOT NULL THEN p.expiration_date END) AS earliest_expiration,
+        -- Count expired lots (stock > 0 and expired)
+        SUM(CASE WHEN p.expiration_date <= CURDATE() AND p.expiration_date IS NOT NULL AND p.stock > 0 THEN p.stock ELSE 0 END) AS expired_stock,
+        -- Count expiring soon lots (within 60 days, stock > 0)
+        SUM(CASE WHEN p.expiration_date > CURDATE() AND p.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 60 DAY) AND p.stock > 0 THEN p.stock ELSE 0 END) AS expiring_soon_stock,
         p.name as product_identifier
     FROM
         products p
     JOIN
         categories c ON p.category_id = c.id
-    WHERE
-        (p.expiration_date > CURDATE() OR p.expiration_date IS NULL)
+    -- Removed WHERE clause to include expired products for proper expiration tracking
     GROUP BY
         p.name, c.name
     {$having_clause} -- The dynamic part of the query

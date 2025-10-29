@@ -80,10 +80,10 @@
             height: 70px; 
             color: #cbd5e0;
         }
+        .badge-container { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .expiration-badge-container { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .badge { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.05); text-transform: capitalize; }
         .stock-badge { 
-            position: absolute; 
-            top: 10px; 
-            right: 10px; 
             font-size: 0.75rem; 
             font-weight: 600; 
             padding: 0.25rem 0.6rem; 
@@ -94,6 +94,8 @@
         .in-stock { background-color: #dcfce7; color: #166534; } 
         .low-stock { background-color: #fef3c7; color: #b45309; } 
         .out-of-stock { background-color: #fee2e2; color: #b91c1c; }
+        .expired { background-color: #fee2e2; color: #b91c1c; } 
+        .expiring-soon { background-color: #fef3c7; color: #b45309; }
         .product-info { 
             padding: 0.75rem; 
             flex-grow: 1; 
@@ -119,6 +121,47 @@
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         @media (min-width: 1024px) { .order-summary-wrapper { position: sticky; top: 90px; } }
+        
+        /* Enhanced Order Summary Height */
+        .order-summary-wrapper {
+            height: calc(100vh - 120px);
+            max-height: calc(100vh - 120px);
+        }
+        
+        .order-summary {
+            height: 100%;
+            min-height: calc(100vh - 120px);
+            max-height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #order-items {
+            flex: 1;
+            min-height: 200px;
+            max-height: calc(100vh - 400px);
+            overflow-y: auto;
+        }
+        
+        /* Ensure payment section is always visible */
+        .order-summary .p-5.bg-gray-50 {
+            flex-shrink: 0;
+            min-height: 200px;
+        }
+        
+        /* Ensure header stays fixed */
+        header {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 50 !important;
+        }
+        
+        /* Adjust main content to account for fixed header */
+        main {
+            margin-top: 80px;
+        }
         
         .btn {
             padding: 0.65rem 1.5rem;
@@ -480,6 +523,69 @@
         #category-filter-container {
             -webkit-overflow-scrolling: touch;
         }
+        
+        /* Responsive adjustments for order summary at different zoom levels */
+        @media (max-height: 800px) {
+            .order-summary-wrapper {
+                height: calc(100vh - 100px);
+                max-height: calc(100vh - 100px);
+            }
+            
+            .order-summary {
+                min-height: calc(100vh - 100px);
+                max-height: calc(100vh - 100px);
+            }
+            
+            #order-items {
+                max-height: calc(100vh - 350px);
+                min-height: 150px;
+            }
+            
+            .order-summary .p-5.bg-gray-50 {
+                min-height: 180px;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .order-summary-wrapper {
+                height: calc(100vh - 80px);
+                max-height: calc(100vh - 80px);
+            }
+            
+            .order-summary {
+                min-height: calc(100vh - 80px);
+                max-height: calc(100vh - 80px);
+            }
+            
+            #order-items {
+                max-height: calc(100vh - 300px);
+                min-height: 100px;
+            }
+            
+            .order-summary .p-5.bg-gray-50 {
+                min-height: 160px;
+                padding: 1rem;
+            }
+            
+            .order-summary .p-5.bg-gray-50 .space-y-3 {
+                gap: 0.5rem;
+            }
+        }
+        
+        /* Ensure checkout button is always visible */
+        #checkout-btn {
+            position: relative;
+            z-index: 10;
+            margin-top: 1rem !important;
+            flex-shrink: 0;
+        }
+        
+        /* Additional safety for payment section visibility */
+        .order-summary > div:last-child {
+            flex-shrink: 0 !important;
+            position: relative;
+            z-index: 5;
+        }
     </style>
     <script>
         // Add brand color to Tailwind config
@@ -498,7 +604,7 @@
 <body class="bg-gray-100">
     <?php include 'pos_header.php'; ?>
 
-    <main class="p-2 sm:p-4 max-w-full mx-auto h-[calc(100vh-80px)]">
+    <main class="p-2 sm:p-4 max-w-full mx-auto min-h-[calc(100vh-80px)]">
         <div class="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-7 gap-4 h-full">
             <div class="lg:col-span-3 xl:col-span-5">
                 <div class="mb-6">
@@ -524,12 +630,12 @@
             </div>
             
             <div class="lg:col-span-1 xl:col-span-2 mt-4 lg:mt-0">
-                <div class="order-summary-wrapper max-h-[calc(100vh-120px)] lg:max-h-full">
-                    <div class="order-summary max-h-[80vh] lg:max-h-full flex flex-col">
+                <div class="order-summary-wrapper">
+                    <div class="order-summary flex flex-col">
                         <div class="p-4 border-b border-gray-200 flex-shrink-0">
                            <h2 class="text-lg font-semibold">Order Summary</h2>
                         </div>
-                        <div id="order-items" class="p-2 flex-1 overflow-y-auto min-h-[200px] max-h-[50vh]">
+                        <div id="order-items" class="p-2 flex-1 overflow-y-auto">
                             <div class="text-center text-gray-400 py-8 px-4">
                                 <i data-lucide="shopping-cart" class="mx-auto h-12 w-12"></i>
                                 <p class="mt-4 text-sm">Your cart is empty</p>
@@ -795,6 +901,82 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== POS JavaScript Starting ===');
             
+            // Fetch purchase history for intelligent low stock calculation
+            let purchaseHistory = [];
+            
+            // Fetch purchase history data
+            async function fetchPurchaseHistory() {
+                try {
+                    console.log('Fetching purchase history...');
+                    const response = await fetch('../api/customer_api.php?action=get_purchase_history');
+                    const data = await response.json();
+                    console.log('Purchase history response:', data);
+                    if (data.success) {
+                        purchaseHistory = data.data;
+                        console.log('Purchase history loaded:', purchaseHistory.length, 'records');
+                    } else {
+                        console.error('Failed to fetch purchase history:', data.message);
+                    }
+                } catch (error) {
+                    console.error('Error fetching purchase history:', error);
+                }
+            }
+            
+            // Calculate intelligent low stock threshold based on sales velocity
+            function calculateLowStockThreshold(productName) {
+                const productSales = purchaseHistory.filter(sale => 
+                    sale.product_name === productName
+                );
+                
+                if (productSales.length === 0) {
+                    return 5; // Default threshold for products with no sales history
+                }
+                
+                // Sort sales by date
+                productSales.sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
+                
+                const totalQuantity = productSales.reduce((sum, sale) => sum + parseInt(sale.quantity), 0);
+                
+                // Calculate time span
+                const firstSale = new Date(productSales[0].transaction_date);
+                const lastSale = new Date(productSales[productSales.length - 1].transaction_date);
+                const daysActive = Math.max(1, Math.ceil((lastSale - firstSale) / (1000 * 60 * 60 * 24)) + 1);
+                
+                // Calculate daily sales velocity
+                const dailyVelocity = totalQuantity / daysActive;
+                
+                // Calculate recent velocity (last 14 days)
+                const fourteenDaysAgo = new Date();
+                fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+                
+                const recentSales = productSales
+                    .filter(sale => new Date(sale.transaction_date) >= fourteenDaysAgo)
+                    .reduce((sum, sale) => sum + parseInt(sale.quantity), 0);
+                const recentVelocity = recentSales / 14;
+                
+                // Use the higher of overall or recent velocity for safety
+                const velocity = Math.max(dailyVelocity, recentVelocity);
+                
+                // Calculate intelligent threshold based on velocity
+                let threshold;
+                if (velocity >= 2.0) {
+                    // Fast-moving: 10-14 days of stock
+                    threshold = Math.ceil(velocity * 10) + 3;
+                } else if (velocity >= 0.8) {
+                    // Medium-moving: 7-10 days of stock  
+                    threshold = Math.ceil(velocity * 7) + 3;
+                } else if (velocity >= 0.3) {
+                    // Slow-moving: 5-7 days of stock
+                    threshold = Math.ceil(velocity * 5) + 3;
+                } else {
+                    // Very slow: minimum threshold
+                    threshold = 3;
+                }
+                
+                // Ensure reasonable bounds
+                return Math.max(3, Math.min(50, threshold));
+            }
+            
             // Initialize Lucide icons on page load
             lucide.createIcons();
             
@@ -891,6 +1073,9 @@
                     console.log('Response received:', response.status);
                     allProducts = await response.json();
                     console.log('Products loaded:', allProducts.length, allProducts);
+                    
+                    // Products loaded successfully
+                    
                     updateProductView();
                 } catch (error) {
                     console.error('Error fetching products:', error);
@@ -926,11 +1111,52 @@
                 renderProducts(filteredProducts);
             }
             
-            function getStockStatus(stock) {
+            function getStockStatus(stock, productName) {
                 stock = parseInt(stock, 10);
                 if (stock <= 0) return { text: 'Out of Stock', class: 'out-of-stock' };
-                if (stock > 0 && stock <= 5) return { text: 'Low Stock', class: 'low-stock' };
+                
+                // Use intelligent low stock threshold
+                const lowStockThreshold = calculateLowStockThreshold(productName);
+                console.log(`Stock status for ${productName}: stock=${stock}, threshold=${lowStockThreshold}`);
+                
+                if (stock <= lowStockThreshold) {
+                    console.log(`${productName} is LOW STOCK: ${stock} <= ${lowStockThreshold}`);
+                    return { text: 'Low Stock Alert', class: 'low-stock' };
+                }
+                
+                console.log(`${productName} is IN STOCK: ${stock} > ${lowStockThreshold}`);
                 return { text: 'In Stock', class: 'in-stock' };
+            }
+
+            // Function to get expiration status
+            function getExpirationStatus(product) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Check if product has expired stock
+                if (product.expired_stock && parseInt(product.expired_stock) > 0) {
+                    return { text: 'Expired', class: 'expired', priority: 1 };
+                }
+                
+                // Check if product is expiring soon (within 60 days)
+                if (product.expiring_soon_stock && parseInt(product.expiring_soon_stock) > 0) {
+                    const expirationDate = new Date(product.earliest_expiration);
+                    const daysUntilExpiry = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    return { text: `${daysUntilExpiry}d left`, class: 'expiring-soon', priority: 2 };
+                }
+                
+                // Additional check: if earliest_expiration exists and is within 60 days (extended threshold)
+                if (product.earliest_expiration) {
+                    const expirationDate = new Date(product.earliest_expiration);
+                    const daysUntilExpiry = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysUntilExpiry <= 0) {
+                        return { text: 'Expired', class: 'expired', priority: 1 };
+                    } else if (daysUntilExpiry <= 60) {
+                        return { text: `${daysUntilExpiry}d left`, class: 'expiring-soon', priority: 2 };
+                    }
+                }
+                return null;
             }
 
             function renderProducts(productsToRender) {
@@ -941,13 +1167,36 @@
                     return;
                 }
                 productGrid.innerHTML = productsToRender.map(p => {
-                    const stockStatus = getStockStatus(p.stock);
+                    const stockStatus = getStockStatus(p.stock, p.name);
+                    const expirationStatus = getExpirationStatus(p);
                     const imageContent = p.image_path ? `<img src="../${p.image_path}" alt="${p.name}" class="product-image">` : placeholderSVG;
+                    
+                    // Create expiration badge (left side)
+                    let expirationBadge = '';
+                    if (expirationStatus) {
+                        expirationBadge = `
+                            <div class="expiration-badge-container">
+                                <div class="badge ${expirationStatus.class}">${expirationStatus.text}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Create stock badge (right side) - always show unless product is expired
+                    let stockBadge = '';
+                    if (!expirationStatus || expirationStatus.priority !== 1) {
+                        stockBadge = `
+                            <div class="badge-container">
+                                <div class="badge ${stockStatus.class}">${stockStatus.text}</div>
+                            </div>
+                        `;
+                    }
+                    
                     return `
                         <div class="product-card ${p.stock <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : ''}" data-name="${p.product_identifier}">
                              <div class="product-image-container">
                                 ${imageContent}
-                                <div class="stock-badge ${stockStatus.class}">${stockStatus.text}</div>
+                                ${expirationBadge}
+                                ${stockBadge}
                             </div>
                             <div class="product-info text-center">
                                 <h4 class="product-name">${p.name}</h4>
@@ -1394,8 +1643,10 @@
             }
 
             // Initial load
-            fetchProducts();
-            fetchCategories();
+            fetchPurchaseHistory().then(() => {
+                fetchProducts();
+                fetchCategories();
+            });
         });
     </script>
     

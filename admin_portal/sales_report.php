@@ -21,7 +21,7 @@ while($row = $all_history_result->fetch_assoc()) {
     $all_purchase_history[] = $row;
 }
 
-// Calculate product movement speed
+// Calculate product movement speed based on sales velocity and trends (same as purchase-history.php)
 function calculateProductMovement($product_name, $purchase_history) {
     $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
         return $item['product_name'] === $product_name;
@@ -31,20 +31,61 @@ function calculateProductMovement($product_name, $purchase_history) {
         return 'slow';
     }
     
-    $total_quantity = array_sum(array_column($product_sales, 'quantity'));
+    // Sort sales by date to analyze trends
+    usort($product_sales, function($a, $b) {
+        return strtotime($a['transaction_date']) - strtotime($b['transaction_date']);
+    });
     
-    // Determine movement speed based on total quantity sold
-    // Fast: High volume sales (10+ units sold)
-    if ($total_quantity >= 10) {
-        return 'fast';
-    } 
-    // Medium: Moderate volume sales (5-9 units sold)
-    elseif ($total_quantity >= 5) {
-        return 'medium';
-    } 
-    // Slow: Low volume sales (1-4 units sold)
-    else {
-        return 'slow';
+    $total_quantity = array_sum(array_column($product_sales, 'quantity'));
+    $sales_count = count($product_sales);
+    
+    // Get date range for velocity calculation
+    $first_sale = strtotime($product_sales[0]['transaction_date']);
+    $last_sale = strtotime(end($product_sales)['transaction_date']);
+    $days_active = max(1, ceil(($last_sale - $first_sale) / (60 * 60 * 24)) + 1);
+    
+    // Calculate sales velocity (items per day)
+    $velocity = $total_quantity / $days_active;
+    
+    // Calculate sales frequency (transactions per day)
+    $frequency = $sales_count / $days_active;
+    
+    // Calculate recent activity (last 7 days weight)
+    $recent_sales = 0;
+    $seven_days_ago = time() - (7 * 24 * 60 * 60);
+    foreach ($product_sales as $sale) {
+        if (strtotime($sale['transaction_date']) >= $seven_days_ago) {
+            $recent_sales += $sale['quantity'];
+        }
+    }
+    $recent_activity = $recent_sales / 7; // Recent daily average
+    
+    // Movement classification based on multiple factors
+    $movement_score = 0;
+    
+    // Factor 1: Sales velocity (40% weight)
+    if ($velocity >= 2.0) $movement_score += 4;
+    elseif ($velocity >= 0.8) $movement_score += 3;
+    elseif ($velocity >= 0.3) $movement_score += 2;
+    else $movement_score += 1;
+    
+    // Factor 2: Sales frequency (30% weight)
+    if ($frequency >= 0.5) $movement_score += 3;
+    elseif ($frequency >= 0.2) $movement_score += 2;
+    else $movement_score += 1;
+    
+    // Factor 3: Recent activity (30% weight)
+    if ($recent_activity >= 1.5) $movement_score += 3;
+    elseif ($recent_activity >= 0.5) $movement_score += 2;
+    elseif ($recent_activity > 0) $movement_score += 1;
+    
+    // Classify based on weighted score
+    if ($movement_score >= 8) {
+        return 'fast';    // High velocity + frequency + recent activity
+    } elseif ($movement_score >= 5) {
+        return 'medium';  // Moderate activity
+    } else {
+        return 'slow';    // Low activity
     }
 }
 
@@ -341,7 +382,20 @@ foreach ($period as $date) {
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h2 class="text-xl font-bold mb-4 text-gray-800">Sales Performance (Last 7 Days)</h2>
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-800 mb-2 sm:mb-0" id="chart-title">Sales Performance (Last 7 Days)</h2>
+                            <div class="flex gap-2">
+                                <button id="weekly-chart-btn" class="px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors active">
+                                    Weekly
+                                </button>
+                                <button id="monthly-chart-btn" class="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">
+                                    Monthly
+                                </button>
+                                <button id="yearly-chart-btn" class="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">
+                                    Yearly
+                                </button>
+                            </div>
+                        </div>
                         <div style="position: relative; height:300px;">
                             <canvas id="salesPerformanceChart"></canvas>
                         </div>
@@ -735,11 +789,22 @@ foreach ($period as $date) {
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
-            // Chart
+            // Chart functionality
             const salesPerformanceChartCanvas = document.getElementById('salesPerformanceChart');
+            const chartTitle = document.getElementById('chart-title');
+            const weeklyBtn = document.getElementById('weekly-chart-btn');
+            const monthlyBtn = document.getElementById('monthly-chart-btn');
+            const yearlyBtn = document.getElementById('yearly-chart-btn');
+            
+            let salesChart = null;
+            let currentPeriod = 'weekly';
+            
+            // Initialize chart with weekly data
             if (salesPerformanceChartCanvas) {
                 const ctx = salesPerformanceChartCanvas.getContext('2d');
-                new Chart(ctx, {
+                
+                // Create initial chart with PHP data (weekly)
+                salesChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: <?php echo json_encode($chartLabels); ?>,
@@ -752,7 +817,96 @@ foreach ($period as $date) {
                             fill: true
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        scales: { 
+                            y: { 
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₱' + value.toLocaleString();
+                                    }
+                                }
+                            } 
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Sales: ₱' + context.parsed.y.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Function to update chart data
+            async function updateChart(period) {
+                if (!salesChart) return;
+                
+                try {
+                    const response = await fetch(`../api/get_chart_data.php?period=${period}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        console.error('Chart data error:', data.error);
+                        return;
+                    }
+                    
+                    // Update chart data
+                    salesChart.data.labels = data.labels;
+                    salesChart.data.datasets[0].data = data.data;
+                    salesChart.update();
+                    
+                    // Update title
+                    if (chartTitle) {
+                        chartTitle.textContent = data.title;
+                    }
+                    
+                    currentPeriod = period;
+                    
+                } catch (error) {
+                    console.error('Failed to fetch chart data:', error);
+                }
+            }
+            
+            // Function to update button styles
+            function updateButtonStyles(activeBtn) {
+                [weeklyBtn, monthlyBtn, yearlyBtn].forEach(btn => {
+                    if (btn) {
+                        btn.classList.remove('bg-green-500', 'text-white', 'active');
+                        btn.classList.add('bg-gray-200', 'text-gray-700');
+                    }
+                });
+                
+                if (activeBtn) {
+                    activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                    activeBtn.classList.add('bg-green-500', 'text-white', 'active');
+                }
+            }
+            
+            // Event listeners for period buttons
+            if (weeklyBtn) {
+                weeklyBtn.addEventListener('click', () => {
+                    updateChart('weekly');
+                    updateButtonStyles(weeklyBtn);
+                });
+            }
+            
+            if (monthlyBtn) {
+                monthlyBtn.addEventListener('click', () => {
+                    updateChart('monthly');
+                    updateButtonStyles(monthlyBtn);
+                });
+            }
+            
+            if (yearlyBtn) {
+                yearlyBtn.addEventListener('click', () => {
+                    updateChart('yearly');
+                    updateButtonStyles(yearlyBtn);
                 });
             }
 

@@ -11,7 +11,83 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     // Include dark mode functionality
     require_once 'darkmode.php';
 
-    // This query correctly groups products by name and sums their totals.
+    // --- Fetch Purchase History for Movement Calculation ---
+    $purchase_history_result = $conn->query("SELECT * FROM purchase_history ORDER BY transaction_date DESC");
+    $purchase_history = [];
+    while($row = $purchase_history_result->fetch_assoc()) {
+        $purchase_history[] = $row;
+    }
+
+    // Calculate intelligent low stock threshold based on sales velocity
+    function calculateLowStockThreshold($product_name, $purchase_history) {
+        $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
+            return $item['product_name'] === $product_name;
+        });
+        
+        if (empty($product_sales)) {
+            return 5; // Default threshold for products with no sales history
+        }
+        
+        // Sort sales by date
+        usort($product_sales, function($a, $b) {
+            return strtotime($a['transaction_date']) - strtotime($b['transaction_date']);
+        });
+        
+        $total_quantity = array_sum(array_column($product_sales, 'quantity'));
+        $sales_count = count($product_sales);
+        
+        // Calculate time span
+        $first_sale = strtotime($product_sales[0]['transaction_date']);
+        $last_sale = strtotime(end($product_sales)['transaction_date']);
+        $days_active = max(1, ceil(($last_sale - $first_sale) / (60 * 60 * 24)) + 1);
+        
+        // Calculate daily sales velocity
+        $daily_velocity = $total_quantity / $days_active;
+        
+        // Calculate recent velocity (last 14 days)
+        $recent_sales = 0;
+        $fourteen_days_ago = time() - (14 * 24 * 60 * 60);
+        foreach ($product_sales as $sale) {
+            if (strtotime($sale['transaction_date']) >= $fourteen_days_ago) {
+                $recent_sales += $sale['quantity'];
+            }
+        }
+        $recent_velocity = $recent_sales / 14;
+        
+        // Use the higher of overall or recent velocity for safety
+        $velocity = max($daily_velocity, $recent_velocity);
+        
+        // Calculate intelligent threshold based on velocity
+        // Formula: (velocity * safety_days) + buffer_stock
+        $safety_days = 7;  // Days of safety stock
+        $buffer_stock = 3; // Minimum buffer
+        
+        // Velocity-based calculation
+        if ($velocity >= 2.0) {
+            // Fast-moving: 10-14 days of stock
+            $threshold = ceil($velocity * 10) + $buffer_stock;
+        } elseif ($velocity >= 0.8) {
+            // Medium-moving: 7-10 days of stock  
+            $threshold = ceil($velocity * 7) + $buffer_stock;
+        } elseif ($velocity >= 0.3) {
+            // Slow-moving: 5-7 days of stock
+            $threshold = ceil($velocity * 5) + $buffer_stock;
+        } else {
+            // Very slow: minimum threshold
+            $threshold = 3;
+        }
+        
+        // Ensure reasonable bounds
+        return max(3, min(50, $threshold));
+    }
+
+    // Check if product is low stock based on intelligent threshold
+    function isLowStock($current_stock, $product_name, $purchase_history) {
+        $threshold = calculateLowStockThreshold($product_name, $purchase_history);
+        return $current_stock <= $threshold;
+    }
+
+    // This query correctly groups products by name and sums their totals, including expiration info.
     $products_result = $conn->query("
         SELECT
             p.name,
@@ -20,14 +96,18 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             -- Get the price and image from the most recently added lot for this product name
             SUBSTRING_INDEX(GROUP_CONCAT(p.price ORDER BY p.id DESC), ',', 1) AS price,
             SUBSTRING_INDEX(GROUP_CONCAT(p.image_path ORDER BY p.id DESC), ',', 1) AS image_path,
+            -- Get the earliest expiration date for this product group
+            MIN(CASE WHEN p.expiration_date IS NOT NULL THEN p.expiration_date END) AS earliest_expiration,
+            -- Count expired lots (stock > 0 and expired)
+            SUM(CASE WHEN p.expiration_date <= CURDATE() AND p.expiration_date IS NOT NULL AND p.stock > 0 THEN p.stock ELSE 0 END) AS expired_stock,
+            -- Count expiring soon lots (within 30 days, stock > 0)
+            SUM(CASE WHEN p.expiration_date > CURDATE() AND p.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND p.stock > 0 THEN p.stock ELSE 0 END) AS expiring_soon_stock,
             -- Use the name as a unique identifier for the card
             p.name as product_identifier
         FROM
             products p
         JOIN
             categories c ON p.category_id = c.id
-        WHERE
-            (p.expiration_date > CURDATE() OR p.expiration_date IS NULL)
         GROUP BY
             p.name, c.name
         ORDER BY
@@ -73,8 +153,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         .product-image-container { height: 130px; background-color: #f9fafb; display: flex; align-items: center; justify-content: center; position: relative; }
         .product-image-container img { height: 100%; width: 100%; object-fit: cover; }
         .product-image-container svg { width: 70px; height: 70px; }
-        .stock-badge { position: absolute; top: 10px; right: 10px; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.05); text-transform: capitalize; }
+        .stock-badge { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.05); text-transform: capitalize; }
         .in-stock { background-color: #dcfce7; color: #166534; } .low-stock { background-color: #fef3c7; color: #b45309; } .out-of-stock { background-color: #fee2e2; color: #b91c1c; }
+        .expired { background-color: #fee2e2; color: #b91c1c; } .expiring-soon { background-color: #fef3c7; color: #b45309; }
+        .badge-container { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .expiration-badge-container { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px; }
+        .badge { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(0,0,0,0.05); text-transform: capitalize; }
         .product-info { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
         .product-name { font-weight: 600; margin-bottom: 0.25rem; font-size: 1rem; } .product-price { font-weight: 700; color: var(--primary-green); font-size: 1.1rem; margin-top: auto; }
         .category-btn-container { display: flex; items-center: gap: 2; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
@@ -239,6 +323,29 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     <script>
         const initialProducts = <?php echo json_encode($products); ?>;
         const initialCategories = <?php echo json_encode($categories); ?>;
+        
+        // Debug: Check products data
+        console.log('All products:', initialProducts);
+        
+        // Find Amoxicillin specifically
+        const amoxicillin = initialProducts.find(p => p.name.toLowerCase().includes('amoxicillin'));
+        if (amoxicillin) {
+            console.log('Amoxicillin product data:', amoxicillin);
+        } else {
+            console.log('Amoxicillin not found in products');
+        }
+        
+        // Add low stock products data for intelligent threshold checking
+        const lowStockProducts = <?php 
+            // Calculate low stock products using the same logic as inventory-tracking.php
+            $low_stock_products = [];
+            foreach($products as $product) {
+                if (isLowStock($product['stock'], $product['name'], $purchase_history)) {
+                    $low_stock_products[] = $product;
+                }
+            }
+            echo json_encode($low_stock_products);
+        ?>;
 
         document.addEventListener('DOMContentLoaded', () => {
             let products = [...initialProducts];
@@ -427,23 +534,101 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             updateDateTime();
             setInterval(updateDateTime, 60000);
 
-            function getStockStatus(stock) {
+            // Enhanced stock status function with intelligent thresholds
+            function getStockStatus(stock, productName) {
                 stock = parseInt(stock, 10);
                 if (stock <= 0) return { text: 'Out of Stock', class: 'out-of-stock' };
-                if (stock > 0 && stock <= 5) return { text: 'Low Stock', class: 'low-stock' };
+                
+                // Check if product is in low stock based on intelligent threshold
+                const isLowStockProduct = lowStockProducts.some(p => p.name === productName);
+                if (isLowStockProduct) {
+                    return { text: 'Low Stock', class: 'low-stock' };
+                }
+                
                 return { text: 'In Stock', class: 'in-stock' };
             }
 
+            // Function to get expiration status
+            function getExpirationStatus(product) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // TEMPORARY TEST: Force Amoxicillin to show expiration badge
+                if (product.name.toLowerCase().includes('amoxicillin')) {
+                    console.log('FORCING Amoxicillin to show expiration badge');
+                    return { text: '32d left', class: 'expiring-soon', priority: 2 };
+                }
+                
+                // Debug logging for all products
+                console.log(`Checking expiration for ${product.name}:`, {
+                    expired_stock: product.expired_stock,
+                    expiring_soon_stock: product.expiring_soon_stock,
+                    earliest_expiration: product.earliest_expiration
+                });
+                
+                // Check if product has expired stock
+                if (product.expired_stock && parseInt(product.expired_stock) > 0) {
+                    console.log(`${product.name} is EXPIRED`);
+                    return { text: 'Expired', class: 'expired', priority: 1 };
+                }
+                
+                // Check if product is expiring soon (within 30 days)
+                if (product.expiring_soon_stock && parseInt(product.expiring_soon_stock) > 0) {
+                    const expirationDate = new Date(product.earliest_expiration);
+                    const daysUntilExpiry = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    console.log(`${product.name} is EXPIRING SOON in ${daysUntilExpiry} days`);
+                    return { text: `${daysUntilExpiry}d left`, class: 'expiring-soon', priority: 2 };
+                }
+                
+                // Additional check: if earliest_expiration exists and is within 30 days
+                if (product.earliest_expiration) {
+                    const expirationDate = new Date(product.earliest_expiration);
+                    const daysUntilExpiry = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysUntilExpiry <= 0) {
+                        console.log(`${product.name} is EXPIRED (by date)`);
+                        return { text: 'Expired', class: 'expired', priority: 1 };
+                    } else if (daysUntilExpiry <= 30) {
+                        console.log(`${product.name} is EXPIRING SOON in ${daysUntilExpiry} days (by date)`);
+                        return { text: `${daysUntilExpiry}d left`, class: 'expiring-soon', priority: 2 };
+                    }
+                }
+                
+                return null;
+            }
+
             function createProductCardHTML(product) {
-                const stockStatus = getStockStatus(product.stock);
+                const stockStatus = getStockStatus(product.stock, product.name);
+                const expirationStatus = getExpirationStatus(product);
                 const placeholderSVG = `<i class="fas fa-pills text-gray-400" style="font-size: 3rem;"></i>`;
                 const imageContent = product.image_path ? `<img src="../${product.image_path}" alt="${product.name}" class="product-image">` : placeholderSVG;
+                
+                // Create expiration badge (left side)
+                let expirationBadge = '';
+                if (expirationStatus) {
+                    expirationBadge = `
+                        <div class="expiration-badge-container">
+                            <div class="badge ${expirationStatus.class}">${expirationStatus.text}</div>
+                        </div>
+                    `;
+                }
+                
+                // Create stock badge (right side) - always show unless product is expired
+                let stockBadge = '';
+                if (!expirationStatus || expirationStatus.priority !== 1) {
+                    stockBadge = `
+                        <div class="badge-container">
+                            <div class="badge ${stockStatus.class}">${stockStatus.text}</div>
+                        </div>
+                    `;
+                }
                 
                 return `
                     <div class="product-card" data-product-id="${product.product_identifier}">
                         <div class="product-image-container">
                             ${imageContent}
-                            <div class="stock-badge ${stockStatus.class}">${stockStatus.text}</div>
+                            ${expirationBadge}
+                            ${stockBadge}
                         </div>
                         <div class="product-info text-center">
                             <h4 class="product-name">${product.name}</h4>

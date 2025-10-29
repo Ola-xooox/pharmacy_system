@@ -41,20 +41,20 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                     <i class="fas fa-bell w-5 h-5"></i>
                     <?php if ($total_notifications > 0): ?>
-                        <span class="absolute top-1.5 right-1.5 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
+                        <span class="absolute -top-1 -right-1 block h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white shadow-lg" style="font-size: 11px; min-width: 20px;"><?php echo $total_notifications > 99 ? '99+' : $total_notifications; ?></span>
                     <?php endif; ?>
                 </button>
                 <!-- Notification Dropdown -->
-                <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 hidden z-40">
-                    <div class="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Notifications</h3>
+                <div id="notification-dropdown" class="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-40">
+                    <div class="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
                         <a href="" class="text-sm font-medium text-green-600 hover:text-green-800"></a>
                     </div>
                     <div class="py-1 max-h-80 overflow-y-auto">
                         <?php if ($total_notifications > 0): ?>
                             <?php if (!empty($notifications_data['expiring_soon'])): ?>
                                 <?php foreach ($notifications_data['expiring_soon'] as $item): ?>
-                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
                                          data-type="expiring"
                                          data-name="<?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?>"
                                          data-lot="<?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?>"
@@ -66,8 +66,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <svg class="w-5 h-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         </div>
                                         <div class="flex-1">
-                                            <p class="font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> is expiring on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
+                                            <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
+                                            <p class="text-xs text-gray-500">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> is expiring on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
                                         <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -77,7 +77,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                             <?php endif; ?>
                             <?php if (!empty($notifications_data['expired'])): ?>
                                 <?php foreach ($notifications_data['expired'] as $item): ?>
-                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-t border-gray-200 dark:border-gray-700 cursor-pointer transition-colors"
+                                    <div class="notification-item flex items-start gap-3 px-3 sm:px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-t border-gray-200 cursor-pointer transition-colors"
                                          data-type="expired"
                                          data-name="<?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?>"
                                          data-lot="<?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?>"
@@ -89,8 +89,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                             <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
                                         </div>
                                         <div class="flex-1">
-                                            <p class="font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
-                                            <p class="text-xs text-red-600 dark:text-red-400 font-medium">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> expired on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
+                                            <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($item['name'] ?? 'Unknown'); ?></p>
+                                            <p class="text-xs text-red-600 font-medium">Lot: <?php echo htmlspecialchars($item['lot_number'] ?? 'N/A'); ?> expired on <?php echo date("M d, Y", strtotime($item['expiration_date'])); ?>.</p>
                                         </div>
                                         <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -99,8 +99,8 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         <?php else: ?>
-                            <div class="text-center text-gray-500 dark:text-gray-400 py-10 px-4">
-                                <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <div class="text-center text-gray-500 py-10 px-4">
+                                <svg class="w-12 h-12 mx-auto text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 <p class="mt-4 font-semibold">All caught up!</p>
                                 <p class="text-sm">No new notifications.</p>
                             </div>

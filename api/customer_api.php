@@ -46,6 +46,9 @@ switch ($action) {
     case 'get_receipt_details':
         handleGetReceiptDetails($conn);
         break;
+    case 'get_purchase_history':
+        handleGetPurchaseHistory($conn);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid or no action specified.']);
@@ -364,6 +367,29 @@ function handleGetReceiptDetails($conn) {
     ];
     
     echo json_encode($response);
+}
+
+function handleGetPurchaseHistory($conn) {
+    try {
+        // Fetch all purchase history records for intelligent low stock calculation
+        $query = "SELECT * FROM purchase_history ORDER BY transaction_date DESC";
+        $result = $conn->query($query);
+        
+        if (!$result) {
+            echo json_encode(['success' => false, 'message' => 'Database query failed: ' . $conn->error]);
+            return;
+        }
+        
+        $purchaseHistory = [];
+        while ($row = $result->fetch_assoc()) {
+            $purchaseHistory[] = $row;
+        }
+        
+        echo json_encode(['success' => true, 'data' => $purchaseHistory]);
+        
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Error fetching purchase history: ' . $e->getMessage()]);
+    }
 }
 
 $conn->close();

@@ -16,7 +16,7 @@ while($row = $all_history_result->fetch_assoc()) {
     $all_purchase_history[] = $row;
 }
 
-// Calculate product movement speed
+// Calculate product movement speed based on sales velocity and trends
 function calculateProductMovement($product_name, $purchase_history) {
     $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
         return $item['product_name'] === $product_name;
@@ -26,41 +26,61 @@ function calculateProductMovement($product_name, $purchase_history) {
         return 'slow';
     }
     
+    // Sort sales by date to analyze trends
+    usort($product_sales, function($a, $b) {
+        return strtotime($a['transaction_date']) - strtotime($b['transaction_date']);
+    });
+    
     $total_quantity = array_sum(array_column($product_sales, 'quantity'));
     $sales_count = count($product_sales);
     
-    // Get date range for sales
-    $dates = array_column($product_sales, 'transaction_date');
-    $earliest_date = min($dates);
-    $latest_date = max($dates);
+    // Get date range for velocity calculation
+    $first_sale = strtotime($product_sales[0]['transaction_date']);
+    $last_sale = strtotime(end($product_sales)['transaction_date']);
+    $days_active = max(1, ceil(($last_sale - $first_sale) / (60 * 60 * 24)) + 1);
     
-    $earliest_timestamp = strtotime($earliest_date);
-    $current_timestamp = time();
+    // Calculate sales velocity (items per day)
+    $velocity = $total_quantity / $days_active;
     
-    // Calculate days since first sale (minimum 1 day)
-    $days_active = max(1, ceil(($current_timestamp - $earliest_timestamp) / (60 * 60 * 24)));
+    // Calculate sales frequency (transactions per day)
+    $frequency = $sales_count / $days_active;
     
-    // Calculate average sales per day
-    $avg_sales_per_day = $total_quantity / $days_active;
-    
-    // More realistic thresholds for movement classification
-    // For demo purposes, let's create different movement speeds based on product names
-    // In real scenario, this would be based on actual sales patterns over time
-    
-    // Simulate different movement speeds for demo
-    if (stripos($product_name, 'lagundi') !== false) {
-        return 'fast';  // Lagundi is fast-moving
-    } elseif (stripos($product_name, 'solmux') !== false) {
-        return 'medium';  // Solmux is medium-moving  
-    } else {
-        // For other products, use actual calculation
-        if ($avg_sales_per_day >= 0.5 || ($sales_count >= 3 && $days_active <= 3)) {
-            return 'fast';
-        } elseif ($avg_sales_per_day >= 0.1 || ($sales_count >= 1 && $days_active <= 7)) {
-            return 'medium';
-        } else {
-            return 'slow';
+    // Calculate recent activity (last 7 days weight)
+    $recent_sales = 0;
+    $seven_days_ago = time() - (7 * 24 * 60 * 60);
+    foreach ($product_sales as $sale) {
+        if (strtotime($sale['transaction_date']) >= $seven_days_ago) {
+            $recent_sales += $sale['quantity'];
         }
+    }
+    $recent_activity = $recent_sales / 7; // Recent daily average
+    
+    // Movement classification based on multiple factors
+    $movement_score = 0;
+    
+    // Factor 1: Sales velocity (40% weight)
+    if ($velocity >= 2.0) $movement_score += 4;
+    elseif ($velocity >= 0.8) $movement_score += 3;
+    elseif ($velocity >= 0.3) $movement_score += 2;
+    else $movement_score += 1;
+    
+    // Factor 2: Sales frequency (30% weight)
+    if ($frequency >= 0.5) $movement_score += 3;
+    elseif ($frequency >= 0.2) $movement_score += 2;
+    else $movement_score += 1;
+    
+    // Factor 3: Recent activity (30% weight)
+    if ($recent_activity >= 1.5) $movement_score += 3;
+    elseif ($recent_activity >= 0.5) $movement_score += 2;
+    elseif ($recent_activity > 0) $movement_score += 1;
+    
+    // Classify based on weighted score
+    if ($movement_score >= 8) {
+        return 'fast';    // High velocity + frequency + recent activity
+    } elseif ($movement_score >= 5) {
+        return 'medium';  // Moderate activity
+    } else {
+        return 'slow';    // Low activity
     }
 }
 
@@ -94,6 +114,7 @@ $conn->close();
     <title>Purchase History - Inventory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -460,6 +481,71 @@ $conn->close();
     
     <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
+    <!-- Sales Chart Modal -->
+    <div id="sales-chart-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-3">
+                    <i class="ph ph-chart-bar text-green-600 text-2xl"></i>
+                    <div>
+                        <h3 id="modal-product-name" class="text-xl font-bold text-gray-900 dark:text-white">Product Sales Chart</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Double-click any product to view its sales analytics</p>
+                    </div>
+                </div>
+                <button id="close-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                    <i class="ph ph-x text-2xl"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="p-6">
+                <!-- Time Period Selector -->
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button id="weekly-btn" class="px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 rounded-lg font-medium transition-colors active">
+                        <i class="ph ph-calendar-blank mr-2"></i>Weekly
+                    </button>
+                    <button id="monthly-btn" class="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
+                        <i class="ph ph-calendar mr-2"></i>Monthly
+                    </button>
+                    <button id="yearly-btn" class="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
+                        <i class="ph ph-calendar-check mr-2"></i>Yearly
+                    </button>
+                </div>
+                
+                <!-- Chart Container -->
+                <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4" style="height: 400px;">
+                    <canvas id="sales-chart"></canvas>
+                </div>
+                
+                <!-- Chart Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-trend-up text-blue-600"></i>
+                            <span class="text-sm font-medium text-blue-700 dark:text-blue-300">Total Sold</span>
+                        </div>
+                        <p id="total-sold-stat" class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">0</p>
+                    </div>
+                    <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-currency-circle-dollar text-green-600"></i>
+                            <span class="text-sm font-medium text-green-700 dark:text-green-300">Total Revenue</span>
+                        </div>
+                        <p id="total-revenue-stat" class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">₱0.00</p>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-chart-line text-purple-600"></i>
+                            <span class="text-sm font-medium text-purple-700 dark:text-purple-300">Peak Period</span>
+                        </div>
+                        <p id="peak-period-stat" class="text-lg font-bold text-purple-600 dark:text-purple-400 mt-1">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const purchaseHistory = <?php echo json_encode($purchase_history); ?>;
 
@@ -678,9 +764,17 @@ $conn->close();
                     `;
                     
                     return `
-                        <tr class="bg-white border-b hover:bg-gray-50">
+                        <tr class="bg-white border-b hover:bg-gray-50 cursor-pointer transition-colors" 
+                            data-product-name="${item.product_name}" 
+                            ondblclick="openSalesChart('${item.product_name}')"
+                            title="Double-click to view sales chart">
                             <td class="px-6 py-4 font-medium text-gray-900">${index + 1}</td>
-                            <td class="px-6 py-4 font-semibold text-gray-700">${item.product_name}</td>
+                            <td class="px-6 py-4 font-semibold text-gray-700">
+                                <div class="flex items-center gap-2">
+                                    <i class="ph ph-chart-bar text-gray-400"></i>
+                                    ${item.product_name}
+                                </div>
+                            </td>
                             <td class="px-6 py-4 font-semibold text-blue-600">${item.total_quantity}</td>
                             <td class="px-6 py-4 font-semibold text-green-600">
                                ₱${Number(item.total_sales).toFixed(2)}
@@ -698,6 +792,72 @@ $conn->close();
                 totalPriceEl.textContent = `₱${totalPrice.toFixed(2)}`;
             }
 
+            // Calculate movement status based on sales velocity and graph patterns
+            function calculateMovementStatus(item, allFilteredData) {
+                const productName = item.product_name;
+                
+                // Get all sales data for this product
+                const productSales = allPurchaseHistory.filter(sale => 
+                    sale.product_name === productName
+                );
+                
+                if (productSales.length === 0) {
+                    return 'slow';
+                }
+                
+                // Sort by date for trend analysis
+                productSales.sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
+                
+                const totalQuantity = productSales.reduce((sum, sale) => sum + parseInt(sale.quantity), 0);
+                const salesCount = productSales.length;
+                
+                // Calculate time span
+                const firstSale = new Date(productSales[0].transaction_date);
+                const lastSale = new Date(productSales[productSales.length - 1].transaction_date);
+                const daysActive = Math.max(1, Math.ceil((lastSale - firstSale) / (1000 * 60 * 60 * 24)) + 1);
+                
+                // Calculate metrics
+                const velocity = totalQuantity / daysActive; // Items per day
+                const frequency = salesCount / daysActive;   // Transactions per day
+                
+                // Calculate recent activity (last 7 days)
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                
+                const recentSales = productSales
+                    .filter(sale => new Date(sale.transaction_date) >= sevenDaysAgo)
+                    .reduce((sum, sale) => sum + parseInt(sale.quantity), 0);
+                const recentActivity = recentSales / 7;
+                
+                // Calculate movement score
+                let movementScore = 0;
+                
+                // Factor 1: Sales velocity (40% weight)
+                if (velocity >= 2.0) movementScore += 4;
+                else if (velocity >= 0.8) movementScore += 3;
+                else if (velocity >= 0.3) movementScore += 2;
+                else movementScore += 1;
+                
+                // Factor 2: Sales frequency (30% weight)
+                if (frequency >= 0.5) movementScore += 3;
+                else if (frequency >= 0.2) movementScore += 2;
+                else movementScore += 1;
+                
+                // Factor 3: Recent activity (30% weight)
+                if (recentActivity >= 1.5) movementScore += 3;
+                else if (recentActivity >= 0.5) movementScore += 2;
+                else if (recentActivity > 0) movementScore += 1;
+                
+                // Classify based on weighted score
+                if (movementScore >= 8) {
+                    return 'fast';    // High velocity + frequency + recent activity
+                } else if (movementScore >= 5) {
+                    return 'medium';  // Moderate activity
+                } else {
+                    return 'slow';    // Low activity
+                }
+            }
+
             function updateHistoryView() {
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedDate = datePicker.value;
@@ -707,8 +867,36 @@ $conn->close();
 
                 if (selectedDate) {
                     filteredHistory = filteredHistory.filter(item => {
-                        const lastSaleDate = item.last_sale_date.split(' ')[0]; // Get only the YYYY-MM-DD part
-                        return lastSaleDate === selectedDate;
+                        // Check if the product had ANY sales on the selected date
+                        const productSales = allPurchaseHistory.filter(sale => 
+                            sale.product_name === item.product_name
+                        );
+                        
+                        return productSales.some(sale => {
+                            const saleDate = sale.transaction_date.split(' ')[0]; // Get only the YYYY-MM-DD part
+                            return saleDate === selectedDate;
+                        });
+                    }).map(item => {
+                        // Recalculate totals for the selected date only
+                        const dateSales = allPurchaseHistory.filter(sale => {
+                            const saleDate = sale.transaction_date.split(' ')[0];
+                            return sale.product_name === item.product_name && saleDate === selectedDate;
+                        });
+                        
+                        const dateQuantity = dateSales.reduce((sum, sale) => sum + parseInt(sale.quantity), 0);
+                        const dateTotalSales = dateSales.reduce((sum, sale) => sum + parseFloat(sale.total_price), 0);
+                        const dateTransactionCount = dateSales.length;
+                        
+                        return {
+                            ...item,
+                            total_quantity: dateQuantity,
+                            total_sales: dateTotalSales.toFixed(2),
+                            transaction_count: dateTransactionCount,
+                            // Keep original values for movement calculation
+                            original_total_quantity: item.total_quantity,
+                            original_total_sales: item.total_sales,
+                            original_transaction_count: item.transaction_count
+                        };
                     });
                 }
                 
@@ -717,6 +905,12 @@ $conn->close();
                         item.product_name.toLowerCase().includes(searchTerm)
                     );
                 }
+                
+                // Recalculate movement status for filtered data BEFORE applying movement filter
+                filteredHistory = filteredHistory.map(item => ({
+                    ...item,
+                    movement_status: calculateMovementStatus(item, filteredHistory)
+                }));
                 
                 if (selectedMovement) {
                     filteredHistory = filteredHistory.filter(item => 
@@ -744,6 +938,283 @@ $conn->close();
                 setTimeout(() => clearDateBtn.classList.remove('scale-95'), 100);
             });
             
+            // --- Chart Modal Functionality ---
+            const salesChartModal = document.getElementById('sales-chart-modal');
+            const closeModalBtn = document.getElementById('close-modal');
+            const modalProductName = document.getElementById('modal-product-name');
+            const weeklyBtn = document.getElementById('weekly-btn');
+            const monthlyBtn = document.getElementById('monthly-btn');
+            const yearlyBtn = document.getElementById('yearly-btn');
+            const totalSoldStat = document.getElementById('total-sold-stat');
+            const totalRevenueStat = document.getElementById('total-revenue-stat');
+            const peakPeriodStat = document.getElementById('peak-period-stat');
+            
+            let salesChart = null;
+            let currentProductName = '';
+            let currentPeriod = 'weekly';
+            
+            // Get all purchase history data for chart processing
+            const allPurchaseHistory = <?php echo json_encode($all_purchase_history); ?>;
+            
+            // Modal controls
+            closeModalBtn.addEventListener('click', closeSalesChart);
+            salesChartModal.addEventListener('click', (e) => {
+                if (e.target === salesChartModal) closeSalesChart();
+            });
+            
+            // Period selector buttons
+            [weeklyBtn, monthlyBtn, yearlyBtn].forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const period = btn.id.replace('-btn', '');
+                    switchPeriod(period);
+                });
+            });
+            
+            // ESC key to close modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !salesChartModal.classList.contains('hidden')) {
+                    closeSalesChart();
+                }
+            });
+            
+            function openSalesChart(productName) {
+                currentProductName = productName;
+                modalProductName.textContent = `${productName} - Sales Analytics`;
+                salesChartModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                
+                // Initialize with weekly view
+                switchPeriod('weekly');
+            }
+            
+            function closeSalesChart() {
+                salesChartModal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                if (salesChart) {
+                    salesChart.destroy();
+                    salesChart = null;
+                }
+            }
+            
+            function switchPeriod(period) {
+                currentPeriod = period;
+                
+                // Update button states
+                [weeklyBtn, monthlyBtn, yearlyBtn].forEach(btn => {
+                    if (btn.id === `${period}-btn`) {
+                        btn.className = 'px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 rounded-lg font-medium transition-colors active';
+                    } else {
+                        btn.className = 'px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors';
+                    }
+                });
+                
+                generateChart(period);
+            }
+            
+            function generateChart(period) {
+                const productData = allPurchaseHistory.filter(item => 
+                    item.product_name === currentProductName
+                );
+                
+                if (productData.length === 0) {
+                    updateStats(0, 0, 'No Data');
+                    return;
+                }
+                
+                const chartData = processDataByPeriod(productData, period);
+                renderChart(chartData, period);
+                
+                // Update statistics
+                const totalSold = productData.reduce((sum, item) => sum + parseInt(item.quantity), 0);
+                const totalRevenue = productData.reduce((sum, item) => sum + parseFloat(item.total_price), 0);
+                const peakPeriod = findPeakPeriod(chartData);
+                
+                updateStats(totalSold, totalRevenue, peakPeriod);
+            }
+            
+            function processDataByPeriod(data, period) {
+                const grouped = {};
+                
+                data.forEach(item => {
+                    const date = new Date(item.transaction_date);
+                    let key, sortOrder;
+                    
+                    switch(period) {
+                        case 'weekly':
+                            // Show individual days of the week
+                            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            key = dayNames[date.getDay()];
+                            sortOrder = date.getDay(); // 0-6 for sorting
+                            break;
+                        case 'monthly':
+                            // Show weeks within the month based on actual calendar weeks
+                            const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+                            const firstDayWeekday = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                            const dayOfMonth = date.getDate();
+                            
+                            // Calculate which week of the month this date falls into
+                            // Add the first day's weekday offset to get proper week calculation
+                            const weekOfMonth = Math.ceil((dayOfMonth + firstDayWeekday) / 7);
+                            key = `Week ${weekOfMonth}`;
+                            sortOrder = weekOfMonth;
+                            break;
+                        case 'yearly':
+                            // Show all 12 months
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                              'July', 'August', 'September', 'October', 'November', 'December'];
+                            key = monthNames[date.getMonth()];
+                            sortOrder = date.getMonth(); // 0-11 for sorting
+                            break;
+                    }
+                    
+                    if (!grouped[key]) {
+                        grouped[key] = { quantity: 0, revenue: 0, sortOrder: sortOrder };
+                    }
+                    grouped[key].quantity += parseInt(item.quantity);
+                    grouped[key].revenue += parseFloat(item.total_price);
+                });
+                
+                // Create complete period arrays to show all periods even with zero data
+                let allPeriods = [];
+                switch(period) {
+                    case 'weekly':
+                        allPeriods = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        break;
+                    case 'monthly':
+                        allPeriods = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
+                        break;
+                    case 'yearly':
+                        allPeriods = ['January', 'February', 'March', 'April', 'May', 'June',
+                                    'July', 'August', 'September', 'October', 'November', 'December'];
+                        break;
+                }
+                
+                // Create result array with all periods, filling missing ones with zero
+                const result = allPeriods.map((periodName, index) => ({
+                    period: periodName,
+                    quantity: grouped[periodName] ? grouped[periodName].quantity : 0,
+                    revenue: grouped[periodName] ? grouped[periodName].revenue : 0,
+                    sortOrder: index
+                }));
+                
+                return result;
+            }
+            
+            function renderChart(data, period) {
+                const ctx = document.getElementById('sales-chart').getContext('2d');
+                
+                if (salesChart) {
+                    salesChart.destroy();
+                }
+                
+                const labels = data.map(item => item.period);
+                const quantities = data.map(item => item.quantity);
+                const revenues = data.map(item => item.revenue);
+                
+                salesChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Quantity Sold',
+                            data: quantities,
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Revenue (₱)',
+                            data: revenues,
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            type: 'line'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `${currentProductName} - ${getChartTitle(period)}`,
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: getXAxisTitle(period)
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Quantity Sold'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Revenue (₱)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function findPeakPeriod(data) {
+                if (data.length === 0) return 'No Data';
+                
+                const peak = data.reduce((max, item) => 
+                    item.quantity > max.quantity ? item : max
+                );
+                
+                return peak.period;
+            }
+            
+            function getChartTitle(period) {
+                switch(period) {
+                    case 'weekly': return 'Daily Sales (Days of Week)';
+                    case 'monthly': return 'Weekly Sales (Weeks of Month)';
+                    case 'yearly': return 'Monthly Sales (Months of Year)';
+                    default: return 'Sales Analytics';
+                }
+            }
+            
+            function getXAxisTitle(period) {
+                switch(period) {
+                    case 'weekly': return 'Days of the Week';
+                    case 'monthly': return 'Weeks of the Month';
+                    case 'yearly': return 'Months of the Year';
+                    default: return 'Time Period';
+                }
+            }
+            
+            function updateStats(totalSold, totalRevenue, peakPeriod) {
+                totalSoldStat.textContent = totalSold.toLocaleString();
+                totalRevenueStat.textContent = `₱${totalRevenue.toFixed(2)}`;
+                peakPeriodStat.textContent = peakPeriod;
+            }
+            
+            // Make openSalesChart globally available
+            window.openSalesChart = openSalesChart;
+
             // --- Initial Page Load ---
             updateHistoryView();
         });

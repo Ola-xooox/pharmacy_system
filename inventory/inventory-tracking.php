@@ -17,10 +17,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
         $purchase_history[] = $row;
     }
 
-    // Calculate product movement speed
+    // Calculate product movement speed based on sales velocity and trends
     function calculateProductMovement($product_name, $purchase_history) {
-        // Debug: Log the calculation for first few products
-        static $debug_count = 0;
         $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
             return $item['product_name'] === $product_name;
         });
@@ -29,52 +27,131 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
             return 'slow';
         }
         
+        // Sort sales by date to analyze trends
+        usort($product_sales, function($a, $b) {
+            return strtotime($a['transaction_date']) - strtotime($b['transaction_date']);
+        });
+        
         $total_quantity = array_sum(array_column($product_sales, 'quantity'));
         $sales_count = count($product_sales);
         
-        // Get date range for sales
-        $dates = array_column($product_sales, 'transaction_date');
-        $earliest_date = min($dates);
-        $latest_date = max($dates);
+        // Get date range for velocity calculation
+        $first_sale = strtotime($product_sales[0]['transaction_date']);
+        $last_sale = strtotime(end($product_sales)['transaction_date']);
+        $days_active = max(1, ceil(($last_sale - $first_sale) / (60 * 60 * 24)) + 1);
         
-        $earliest_timestamp = strtotime($earliest_date);
-        $current_timestamp = time();
+        // Calculate sales velocity (items per day)
+        $velocity = $total_quantity / $days_active;
         
-        // Calculate days since first sale (minimum 1 day)
-        $days_active = max(1, ceil(($current_timestamp - $earliest_timestamp) / (60 * 60 * 24)));
+        // Calculate sales frequency (transactions per day)
+        $frequency = $sales_count / $days_active;
         
-        // Calculate average sales per day
-        $avg_sales_per_day = $total_quantity / $days_active;
-        
-        // More realistic thresholds for movement classification
-        // For demo purposes, let's create different movement speeds based on product names
-        // In real scenario, this would be based on actual sales patterns over time
-        
-        // Simulate different movement speeds for demo
-        if (stripos($product_name, 'lagundi') !== false) {
-            return 'fast';  // Lagundi is fast-moving
-        } elseif (stripos($product_name, 'solmux') !== false) {
-            return 'medium';  // Solmux is medium-moving  
-        } else {
-            // For other products, use actual calculation
-            if ($avg_sales_per_day >= 0.5 || ($sales_count >= 3 && $days_active <= 3)) {
-                return 'fast';
-            } elseif ($avg_sales_per_day >= 0.1 || ($sales_count >= 1 && $days_active <= 7)) {
-                return 'medium';
-            } else {
-                return 'slow';
+        // Calculate recent activity (last 7 days weight)
+        $recent_sales = 0;
+        $seven_days_ago = time() - (7 * 24 * 60 * 60);
+        foreach ($product_sales as $sale) {
+            if (strtotime($sale['transaction_date']) >= $seven_days_ago) {
+                $recent_sales += $sale['quantity'];
             }
+        }
+        $recent_activity = $recent_sales / 7; // Recent daily average
+        
+        // Movement classification based on multiple factors
+        $movement_score = 0;
+        
+        // Factor 1: Sales velocity (40% weight)
+        if ($velocity >= 2.0) $movement_score += 4;
+        elseif ($velocity >= 0.8) $movement_score += 3;
+        elseif ($velocity >= 0.3) $movement_score += 2;
+        else $movement_score += 1;
+        
+        // Factor 2: Sales frequency (30% weight)
+        if ($frequency >= 0.5) $movement_score += 3;
+        elseif ($frequency >= 0.2) $movement_score += 2;
+        else $movement_score += 1;
+        
+        // Factor 3: Recent activity (30% weight)
+        if ($recent_activity >= 1.5) $movement_score += 3;
+        elseif ($recent_activity >= 0.5) $movement_score += 2;
+        elseif ($recent_activity > 0) $movement_score += 1;
+        
+        // Classify based on weighted score
+        if ($movement_score >= 8) {
+            return 'fast';    // High velocity + frequency + recent activity
+        } elseif ($movement_score >= 5) {
+            return 'medium';  // Moderate activity
+        } else {
+            return 'slow';    // Low activity
         }
     }
 
-    // Get movement thresholds
-    function getMovementThreshold($movement_status) {
-        switch($movement_status) {
-            case 'fast': return 50;
-            case 'medium': return 30;
-            case 'slow': return 15;
-            default: return 15;
+    // Calculate intelligent low stock threshold based on sales velocity
+    function calculateLowStockThreshold($product_name, $purchase_history) {
+        $product_sales = array_filter($purchase_history, function($item) use ($product_name) {
+            return $item['product_name'] === $product_name;
+        });
+        
+        if (empty($product_sales)) {
+            return 5; // Default threshold for products with no sales history
         }
+        
+        // Sort sales by date
+        usort($product_sales, function($a, $b) {
+            return strtotime($a['transaction_date']) - strtotime($b['transaction_date']);
+        });
+        
+        $total_quantity = array_sum(array_column($product_sales, 'quantity'));
+        $sales_count = count($product_sales);
+        
+        // Calculate time span
+        $first_sale = strtotime($product_sales[0]['transaction_date']);
+        $last_sale = strtotime(end($product_sales)['transaction_date']);
+        $days_active = max(1, ceil(($last_sale - $first_sale) / (60 * 60 * 24)) + 1);
+        
+        // Calculate daily sales velocity
+        $daily_velocity = $total_quantity / $days_active;
+        
+        // Calculate recent velocity (last 14 days)
+        $recent_sales = 0;
+        $fourteen_days_ago = time() - (14 * 24 * 60 * 60);
+        foreach ($product_sales as $sale) {
+            if (strtotime($sale['transaction_date']) >= $fourteen_days_ago) {
+                $recent_sales += $sale['quantity'];
+            }
+        }
+        $recent_velocity = $recent_sales / 14;
+        
+        // Use the higher of overall or recent velocity for safety
+        $velocity = max($daily_velocity, $recent_velocity);
+        
+        // Calculate intelligent threshold based on velocity
+        // Formula: (velocity * safety_days) + buffer_stock
+        $safety_days = 7;  // Days of safety stock
+        $buffer_stock = 3; // Minimum buffer
+        
+        // Velocity-based calculation
+        if ($velocity >= 2.0) {
+            // Fast-moving: 10-14 days of stock
+            $threshold = ceil($velocity * 10) + $buffer_stock;
+        } elseif ($velocity >= 0.8) {
+            // Medium-moving: 7-10 days of stock  
+            $threshold = ceil($velocity * 7) + $buffer_stock;
+        } elseif ($velocity >= 0.3) {
+            // Slow-moving: 5-7 days of stock
+            $threshold = ceil($velocity * 5) + $buffer_stock;
+        } else {
+            // Very slow: minimum threshold
+            $threshold = 3;
+        }
+        
+        // Ensure reasonable bounds
+        return max(3, min(50, $threshold));
+    }
+
+    // Check if product is low stock based on intelligent threshold
+    function isLowStock($current_stock, $product_name, $purchase_history) {
+        $threshold = calculateLowStockThreshold($product_name, $purchase_history);
+        return $current_stock <= $threshold;
     }
 
     // --- Fetch Grouped Data for JavaScript ---
@@ -82,13 +159,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     $all_products_json = [];
     while($row = $products_result->fetch_assoc()) {
         $movement_status = calculateProductMovement($row['name'], $purchase_history);
-        $threshold = getMovementThreshold($movement_status);
+        $low_stock_threshold = calculateLowStockThreshold($row['name'], $purchase_history);
+        $is_low_stock = isLowStock($row['stock'], $row['name'], $purchase_history);
+        
         $row['movement_status'] = $movement_status;
-        $row['threshold'] = $threshold;
+        $row['low_stock_threshold'] = $low_stock_threshold;
+        $row['is_low_stock'] = $is_low_stock;
         $all_products_json[] = $row;
     }
 
-    // --- Fetch Grouped LOW STOCK Data with Dynamic Thresholds ---
+    // --- Fetch Grouped LOW STOCK Data with Intelligent Thresholds ---
     $low_stock_grouped_result = $conn->query("
         SELECT 
             p.name, 
@@ -104,12 +184,14 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
     $low_stock_grouped_json = [];
     while($row = $low_stock_grouped_result->fetch_assoc()) {
         $movement_status = calculateProductMovement($row['name'], $purchase_history);
-        $threshold = getMovementThreshold($movement_status);
+        $low_stock_threshold = calculateLowStockThreshold($row['name'], $purchase_history);
+        $is_low_stock = isLowStock($row['stock'], $row['name'], $purchase_history);
         
-        // Only include if stock is below the movement-based threshold
-        if ($row['stock'] <= $threshold) {
+        // Only include if product is identified as low stock by intelligent system
+        if ($is_low_stock) {
             $row['movement_status'] = $movement_status;
-            $row['threshold'] = $threshold;
+            $row['low_stock_threshold'] = $low_stock_threshold;
+            $row['is_low_stock'] = $is_low_stock;
             $low_stock_grouped_json[] = $row;
         }
     }
@@ -404,7 +486,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
 
             // UPDATED: Table Headers Configuration
             const tableHeaders = {
-                available: ["#", "Product Name", "Lot Number", "Stock", "Price", "Date Added", "Expiration Date", "Action"],
+                available: ["#", "Product Name", "Lot Number", "Stock", "Cost", "Price", "Date Added", "Expiration Date", "Action"],
                 'low-stock': ["#", "Product Name", "Stock Level", "Movement", "Alert Threshold"],
                 'out-of-stock': ["#", "Product Name", "Stock Level"],
                 'expiration-alert': ["#", "Product Name", "Lot Number", "Stock", "Expires In", "Expiration Date"],
@@ -519,6 +601,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4">${p.lot_number || 'N/A'}</td>
                                 <td class="px-6 py-4 font-bold">${p.stock}</td>
+                                <td class="px-6 py-4">₱${Number(p.cost || 0).toFixed(2)}</td>
                                 <td class="px-6 py-4">₱${Number(p.price).toFixed(2)}</td>
                                 <td class="px-6 py-4">${new Date(p.date_added).toLocaleDateString()}</td>
                                 <td class="px-6 py-4">${p.expiration_date || 'N/A'}</td>
@@ -542,7 +625,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'inventory') {
                                 <td class="px-6 py-4">${p.name}</td>
                                 <td class="px-6 py-4 font-bold text-orange-600">${p.stock}</td>
                                 <td class="px-6 py-4">${movementBadge}</td>
-                                <td class="px-6 py-4 font-semibold">${p.threshold || 15}</td>`;
+                                <td class="px-6 py-4 font-semibold">${p.low_stock_threshold || 5}</td>`;
                             break;
                         case 'out-of-stock':
                              rowContent = `

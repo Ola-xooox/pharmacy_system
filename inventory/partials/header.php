@@ -25,7 +25,7 @@ $total_notifications = $notifications_data['total_notifications'] ?? 0;
                 <button id="notification-bell-btn" class="relative p-2 rounded-full hover:bg-gray-100">
                     <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
                     <?php if ($total_notifications > 0): ?>
-                        <span class="absolute top-1 right-1 block h-3 w-3 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ring-1 ring-white" style="font-size: 10px;"><?php echo $total_notifications; ?></span>
+                        <span class="absolute -top-1 -right-1 block h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white shadow-lg" style="font-size: 11px; min-width: 20px;"><?php echo $total_notifications > 99 ? '99+' : $total_notifications; ?></span>
                     <?php endif; ?>
                 </button>
                 <!-- Notification Dropdown -->
